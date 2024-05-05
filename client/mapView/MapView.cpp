@@ -100,9 +100,6 @@ void BasicMapView::render(Canvas & target, bool fullUpdate)
 	Canvas targetClipped(target, pos);
 	tilesCache->update(controller->getContext());
 	tilesCache->render(controller->getContext(), targetClipped, fullUpdate);
-
-	VisualLoggerRenderer r(target, model);
-	logVisual->visualize(r);
 }
 
 void BasicMapView::tick(uint32_t msPassed)

@@ -497,8 +497,6 @@ void ClientCommandManager::handleVsLog(std::istringstream & singleWordBuffer)
 {
 	std::string key;
 	singleWordBuffer >> key;
-
-	logVisual->setKey(key);
 }
 
 void ClientCommandManager::printCommandMessage(const std::string &commandMessage, ELogLevel::ELogLevel messageType)

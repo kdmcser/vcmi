@@ -516,26 +516,6 @@ void ObjectGraph::connectHeroes(const Nullkiller * ai)
 
 void ObjectGraph::dumpToLog(std::string visualKey) const
 {
-	logVisual->updateWithLock(visualKey, [&](IVisualLogBuilder & logBuilder)
-		{
-			for(auto & tile : nodes)
-			{
-				for(auto & node : tile.second.connections)
-				{
-					if(NKAI_GRAPH_TRACE_LEVEL >= 2)
-					{
-						logAi->trace(
-							"%s -> %s: %f !%d",
-							node.first.toString(),
-							tile.first.toString(),
-							node.second.cost,
-							node.second.danger);
-					}
-
-					logBuilder.addLine(tile.first, node.first);
-				}
-			}
-		});
 }
 
 bool GraphNodeComparer::operator()(const GraphPathNodePointer & lhs, const GraphPathNodePointer & rhs) const
@@ -660,29 +640,6 @@ void GraphPaths::calculatePaths(const CGHeroInstance * targetHero, const Nullkil
 
 void GraphPaths::dumpToLog() const
 {
-	logVisual->updateWithLock(visualKey, [&](IVisualLogBuilder & logBuilder)
-		{
-			for(auto & tile : pathNodes)
-			{
-				for(auto & node : tile.second)
-				{
-					if(!node.previous.valid())
-						continue;
-
-					if(NKAI_GRAPH_TRACE_LEVEL >= 2)
-					{
-						logAi->trace(
-							"%s -> %s: %f !%d",
-							node.previous.coord.toString(),
-							tile.first.toString(),
-							node.cost,
-							node.danger);
-					}
-
-					logBuilder.addLine(node.previous.coord, tile.first);
-				}
-			}
-		});
 }
 
 bool GraphPathNode::tryUpdate(const GraphPathNodePointer & pos, const GraphPathNode & prev, const ObjectLink & link)
