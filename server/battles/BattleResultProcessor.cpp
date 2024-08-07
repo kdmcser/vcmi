@@ -422,42 +422,41 @@ void BattleResultProcessor::endBattleConfirm(const CBattleInfoCallback & battle)
 		};
 
 		BulkMoveArtifacts packHero(finishingBattle->winnerHero->getOwner(), ObjectInstanceID::NONE, finishingBattle->winnerHero->id, false);
-		if(finishingBattle->loserHero)
-		{
-			packHero.srcArtHolder = finishingBattle->loserHero->id;
-			for(const auto & slot : ArtifactUtils::commonWornSlots())
-			{
-				if(const auto artSlot = finishingBattle->loserHero->artifactsWorn.find(slot);
-					artSlot != finishingBattle->loserHero->artifactsWorn.end() && ArtifactUtils::isArtRemovable(*artSlot))
-				{
-					addArtifactToTransfer(packHero, artSlot->first, artSlot->second.getArt());
-				}
-			}
-			for(const auto & artSlot : finishingBattle->loserHero->artifactsInBackpack)
-			{
-				if(const auto art = artSlot.getArt(); art->getTypeId() != ArtifactID::GRAIL)
-					addArtifactToTransfer(packHero, finishingBattle->loserHero->getArtPos(art), art);
-			}
+		if(finishingBattle->loserHero) {
+            packHero.srcArtHolder = finishingBattle->loserHero->id;
+            for (const auto &slot: ArtifactUtils::commonWornSlots()) {
+                if (const auto artSlot = finishingBattle->loserHero->artifactsWorn.find(slot);
+                        artSlot != finishingBattle->loserHero->artifactsWorn.end() &&
+                        ArtifactUtils::isArtRemovable(*artSlot)) {
+                    addArtifactToTransfer(packHero, artSlot->first, artSlot->second.getArt());
+                }
+            }
+            for (const auto &artSlot: finishingBattle->loserHero->artifactsInBackpack) {
+                if (const auto art = artSlot.getArt(); art->getTypeId() != ArtifactID::GRAIL)
+                    addArtifactToTransfer(packHero, finishingBattle->loserHero->getArtPos(art), art);
+            }
 
-			if(finishingBattle->loserHero->commander)
-			{
-				BulkMoveArtifacts packCommander(finishingBattle->winnerHero->getOwner(), finishingBattle->loserHero->id, finishingBattle->winnerHero->id, false);
-				packCommander.srcCreature = finishingBattle->loserHero->findStack(finishingBattle->loserHero->commander);
-				for(const auto & artSlot : finishingBattle->loserHero->commander->artifactsWorn)
-					addArtifactToTransfer(packCommander, artSlot.first, artSlot.second.getArt());
-				sendArtifacts(packCommander);
-			}
-		}
-		auto armyObj = battle.battleGetArmyObject(battle.otherSide(battleResult->winner));
-		for(const auto & armySlot : armyObj->stacks)
-		{
-			BulkMoveArtifacts packsArmy(finishingBattle->winnerHero->getOwner(), finishingBattle->loserHero->id, finishingBattle->winnerHero->id, false);
-			packsArmy.srcArtHolder = armyObj->id;
-			packsArmy.srcCreature = armySlot.first;
-			for(const auto & artSlot : armySlot.second->artifactsWorn)
-				addArtifactToTransfer(packsArmy, artSlot.first, armySlot.second->getArt(artSlot.first));
-			sendArtifacts(packsArmy);
-		}
+            if (finishingBattle->loserHero->commander) {
+                BulkMoveArtifacts packCommander(finishingBattle->winnerHero->getOwner(), finishingBattle->loserHero->id,
+                                                finishingBattle->winnerHero->id, false);
+                packCommander.srcCreature = finishingBattle->loserHero->findStack(
+                        finishingBattle->loserHero->commander);
+                for (const auto &artSlot: finishingBattle->loserHero->commander->artifactsWorn)
+                    addArtifactToTransfer(packCommander, artSlot.first, artSlot.second.getArt());
+                sendArtifacts(packCommander);
+            }
+
+            auto armyObj = battle.battleGetArmyObject(battle.otherSide(battleResult->winner));
+            for (const auto &armySlot: armyObj->stacks) {
+                BulkMoveArtifacts packsArmy(finishingBattle->winnerHero->getOwner(), finishingBattle->loserHero->id,
+                                            finishingBattle->winnerHero->id, false);
+                packsArmy.srcArtHolder = armyObj->id;
+                packsArmy.srcCreature = armySlot.first;
+                for (const auto &artSlot: armySlot.second->artifactsWorn)
+                    addArtifactToTransfer(packsArmy, artSlot.first, armySlot.second->getArt(artSlot.first));
+                sendArtifacts(packsArmy);
+            }
+        }
 		// Display loot
 		if(!arts.empty())
 		{
