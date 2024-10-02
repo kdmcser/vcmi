@@ -639,262 +639,278 @@ Install successfully downloaded?</source>
         <translation>Ні</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="307"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="808"/>
         <source>Artificial Intelligence</source>
         <translation>Штучний інтелект</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="1072"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="588"/>
         <source>Interface Scaling</source>
         <translation>Масштабування інтерфейсу</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="924"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="311"/>
         <source>Neutral AI in battles</source>
         <translation>Нейтральний ШІ в боях</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="738"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="853"/>
         <source>Enemy AI in battles</source>
         <translation>Ворожий ШІ в боях</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="821"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="118"/>
         <source>Additional repository</source>
         <translation>Додатковий репозиторій</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="893"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="476"/>
         <source>Downscaling Filter</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="931"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="970"/>
         <source>Adventure Map Allies</source>
         <translation>Союзники на мапі пригод</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="490"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="234"/>
         <source>Online Lobby port</source>
         <translation>Порт онлайн лобі</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="331"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="779"/>
         <source>Autocombat AI in battles</source>
         <translation>ШІ автобою</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="352"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="451"/>
         <source>Sticks Sensitivity</source>
         <translation>Чутливість стиків</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="618"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="726"/>
         <source>Automatic (Linear)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="798"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="977"/>
         <source>Haptic Feedback</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="835"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="1144"/>
+        <source>Original</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../settingsView/csettingsview_moc.ui" line="1276"/>
         <source>Software Cursor</source>
         <translation>Програмний курсор</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="1166"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="339"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="751"/>
         <source>Automatic</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="1171"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="701"/>
+        <source>Font Scaling (experimental)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../settingsView/csettingsview_moc.ui" line="756"/>
         <source>None</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="1176"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="761"/>
         <source>xBRZ x2</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="1181"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="766"/>
         <source>xBRZ x3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="1186"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="771"/>
         <source>xBRZ x4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="1194"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="786"/>
         <source>Use scalable fonts</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="138"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="1289"/>
+        <source>Scalable</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../settingsView/csettingsview_moc.ui" line="605"/>
         <source>Online Lobby address</source>
         <translation>Адреса онлайн-лобі</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="1158"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="531"/>
         <source>Upscaling Filter</source>
         <translation>Фільтр масштабування</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="317"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="95"/>
         <source>Use Relative Pointer Mode</source>
         <translation>Режим відносного вказівника</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="608"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="716"/>
         <source>Nearest</source>
         <translation>Найближчий</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="613"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="721"/>
         <source>Linear</source>
         <translation>Лінійний</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="750"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="1208"/>
         <source>Input - Touchscreen</source>
         <translation>Введення - Сенсорний екран</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="900"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="355"/>
         <source>Adventure Map Enemies</source>
         <translation>Вороги на мапі пригод</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="1144"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="227"/>
         <source>Show Tutorial again</source>
         <translation>Повторно показати навчання</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="1151"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="1065"/>
         <source>Reset</source>
         <translation>Скинути</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="854"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="1128"/>
         <source>Network</source>
         <translation>Мережа</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="536"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="463"/>
         <source>Audio</source>
         <translation>Аудіо</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="842"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="241"/>
         <source>Relative Pointer Speed</source>
         <translation>Швидкість відносного вказівника</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="1137"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="125"/>
         <source>Music Volume</source>
         <translation>Гучність музики</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="767"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="524"/>
         <source>Ignore SSL errors</source>
         <translation>Ігнорувати помилки SSL</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="943"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="323"/>
         <source>Input - Mouse</source>
         <translation>Введення - Миша</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="345"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="163"/>
         <source>Long Touch Duration</source>
         <translation>Тривалість довгого дотику</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="115"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="984"/>
         <source>%</source>
         <translation>%</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="1037"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="1231"/>
         <source>Controller Click Tolerance</source>
         <translation>Допуск на натискання контролера</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="359"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="248"/>
         <source>Touch Tap Tolerance</source>
         <translation>Допуск на натискання дотиком</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="1020"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="1090"/>
         <source>Input - Controller</source>
         <translation>Введення - Контролер</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="1086"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="694"/>
         <source>Sound Volume</source>
         <translation>Гучність звуку</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="402"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="268"/>
         <source>Windowed</source>
         <translation>У вікні</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="407"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="273"/>
         <source>Borderless fullscreen</source>
         <translation>Повноекранне вікно</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="412"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="278"/>
         <source>Exclusive fullscreen</source>
         <translation>Повноекранний (ексклюзивно)</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="777"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="421"/>
         <source>Autosave limit (0 = off)</source>
         <translation>Кількість автозбережень</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="1030"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="708"/>
         <source>Framerate Limit</source>
         <translation>Обмеження частоти кадрів</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="760"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="680"/>
         <source>Autosave prefix</source>
         <translation>Префікс назв автозбережень</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="828"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="1019"/>
         <source>Mouse Click Tolerance</source>
         <translation>Допуск кліків миші</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="94"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="860"/>
         <source>Sticks Acceleration</source>
         <translation>Прискорення стиків</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="1008"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="902"/>
         <source>empty = map name prefix</source>
         <translation>(використовувати назву карти)</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="101"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="538"/>
         <source>Refresh now</source>
         <translation>Оновити зараз</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="249"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="428"/>
         <source>Default repository</source>
         <translation>Стандартний репозиторій</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="295"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="414"/>
         <source>Renderer</source>
         <translation>Рендерер</translation>
     </message>
@@ -904,7 +920,7 @@ Install successfully downloaded?</source>
         <translation>Так</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="389"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="255"/>
         <source>Select display mode for game
 
 Windowed - game will run inside a window that covers part of your screen
@@ -921,92 +937,92 @@ Fullscreen Exclusive Mode - game will cover entirety of your screen and will use
 Повноекранний ексклюзивний режим - гра займатиме весь екран і використовуватиме вибрану роздільну здатність.</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="131"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="687"/>
         <source>Reserved screen area</source>
         <translation>Зарезервована зона екрану</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="269"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="220"/>
         <source>Heroes III Translation</source>
         <translation>Переклад Heroes III</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="646"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="1238"/>
         <source>Check on startup</source>
         <translation>Перевіряти на старті</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="324"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="818"/>
         <source>Fullscreen</source>
         <translation>Повноекранний режим</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="64"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="210"/>
         <source>General</source>
         <translation>Загальні налаштування</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="210"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="581"/>
         <source>VCMI Language</source>
         <translation>Мова VCMI</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="1079"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="574"/>
         <source>Resolution</source>
         <translation>Роздільна здатність</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="791"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="407"/>
         <source>Autosave</source>
         <translation>Автозбереження</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="593"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="567"/>
         <source>VSync</source>
         <translation>Вертикальна синхронізація</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="338"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="1100"/>
         <source>Display index</source>
         <translation>Дісплей</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="864"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="1075"/>
         <source>Network port</source>
         <translation>Мережевий порт</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="521"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="195"/>
         <source>Video</source>
         <translation>Графіка</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.ui" line="452"/>
+        <location filename="../settingsView/csettingsview_moc.ui" line="1167"/>
         <source>Show intro</source>
         <translation>Вступні відео</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.cpp" line="525"/>
+        <location filename="../settingsView/csettingsview_moc.cpp" line="521"/>
         <source>Active</source>
         <translation>Активні</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.cpp" line="530"/>
+        <location filename="../settingsView/csettingsview_moc.cpp" line="526"/>
         <source>Disabled</source>
         <translation>Деактивований</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.cpp" line="531"/>
+        <location filename="../settingsView/csettingsview_moc.cpp" line="527"/>
         <source>Enable</source>
         <translation>Активувати</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.cpp" line="536"/>
+        <location filename="../settingsView/csettingsview_moc.cpp" line="532"/>
         <source>Not Installed</source>
         <translation>Не встановлено</translation>
     </message>
     <message>
-        <location filename="../settingsView/csettingsview_moc.cpp" line="537"/>
+        <location filename="../settingsView/csettingsview_moc.cpp" line="533"/>
         <source>Install</source>
         <translation>Встановити</translation>
     </message>
