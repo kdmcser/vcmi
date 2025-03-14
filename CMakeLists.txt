@@ -17,6 +17,14 @@ project(VCMI)
 # It's used currently to make sure that 3rd-party dependencies in git submodules get proper FOLDER property
 # - Make FindFuzzyLite check for the right version and disable FORCE_BUNDLED_FL by default
 
+set(MOD_PASSWORD_ENV $ENV{MOD_PASSWORD})
+if(NOT MOD_PASSWORD_ENV)
+    message(FATAL_ERROR "MOD_PASSWORD is not set in environment various！")
+endif()
+
+add_compile_definitions(MOD_PASSWORD="${MOD_PASSWORD_ENV}")
+
+
 if(APPLE)
 	if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
 		set(APPLE_MACOS 1)
