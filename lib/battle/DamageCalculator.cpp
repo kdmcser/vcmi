@@ -25,6 +25,9 @@ VCMI_LIB_NAMESPACE_BEGIN
 #ifdef HAVE_LUAJIT
 std::unique_ptr<LuaExpressionEvaluator> DamageCalculator::attackSkillEvaluator = nullptr;
 std::unique_ptr<LuaExpressionEvaluator> DamageCalculator::defenseSkillEvaluator = nullptr;
+#else
+std::unique_ptr<LuaExpressionParser> DamageCalculator::attackSkillParser = nullptr;
+std::unique_ptr<LuaExpressionParser> DamageCalculator::defenseSkillParser = nullptr;
 #endif
 
 DamageRange DamageCalculator::getBaseDamageSingle() const
@@ -231,6 +234,26 @@ LuaExpressionEvaluator & DamageCalculator::getDefenseSkillEvaluator() const
 	}
 	return *defenseSkillEvaluator;
 }
+#else
+LuaExpressionParser& DamageCalculator::getAttackSkillParser() const
+{
+	if (!attackSkillParser)
+	{
+		const std::string& formula = LIBRARY->engineSettings()->getValue(EGameSettings::COMBAT_ATTACK_POINT_DAMAGE_FORMULA).String();
+		attackSkillParser = std::make_unique<LuaExpressionParser>(formula) ;
+	}
+	return *attackSkillParser;
+}
+
+LuaExpressionParser& DamageCalculator::getDefenseSkillParser() const
+{
+	if (!defenseSkillParser)
+	{
+		const std::string& formula = LIBRARY->engineSettings()->getValue(EGameSettings::COMBAT_DEFENSE_POINT_DAMAGE_FORMULA).String();
+		defenseSkillParser = std::make_unique<LuaExpressionParser>(formula);
+	}
+	return *defenseSkillParser;
+}
 #endif
 
 double DamageCalculator::getAttackSkillFactor() const
@@ -245,9 +268,14 @@ double DamageCalculator::getAttackSkillFactor() const
 	double result = evaluator.evaluate(params);
 	return result;
 #else
-	int attack = getTargetDefenseEffective();
-	int defense = getTargetDefenseEffective();
-	return std::min(std::max((attack - defense) * 0.05, 0.0), 3.0);
+	LuaExpressionParser& parser = getAttackSkillParser();
+	std::unordered_map<std::string, double> params =
+	{
+		{"defense", getTargetDefenseEffective()},
+			{"attack", getActorAttackEffective()}
+	};
+	double result = parser.evaluate(params);
+	return result;
 #endif
 }
 
@@ -337,9 +365,14 @@ double DamageCalculator::getDefenseSkillFactor() const
 	double result = evaluator.evaluate(params);
 	return result;
 #else
-	int attack = getTargetDefenseEffective();
-	int defense = getTargetDefenseEffective();
-	return std::min(std::max((defense - attack) * 0.25, 0.0), 0.7);
+	LuaExpressionParser& parser = getDefenseSkillParser();
+	std::unordered_map<std::string, double> params =
+	{
+		{"defense", getTargetDefenseEffective()},
+		{"attack", getActorAttackEffective()}
+	};
+	double result = parser.evaluate(params);
+	return result;
 #endif
 }
 

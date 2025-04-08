@@ -172,6 +172,8 @@ set(lib_MAIN_SRCS
 	modding/ModUtility.cpp
 	modding/ModVerificationInfo.cpp
 
+    lua/LuaExpressionParser.cpp
+
 	networkPacks/NetPacksLib.cpp
 
 	pathfinder/CGPathNode.cpp
@@ -571,6 +573,8 @@ set(lib_MAIN_HEADERS
 	modding/ModScope.h
 	modding/ModUtility.h
 	modding/ModVerificationInfo.h
+
+    lua/LuaExpressionParser.h
 
 	networkPacks/ArtifactLocation.h
 	networkPacks/BattleChanges.h
