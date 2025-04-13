@@ -20,7 +20,7 @@ android {
 	packagingOptions.jniLibs.useLegacyPackaging true
 
 	defaultConfig {
-		applicationId "is.xyz.vcmi"
+		applicationId "vcmi.enhancement.h3"
 
 		compileSdk = androidCompileSdkVersion.takeAfter("-") as Integer // has "android-" prepended
 		minSdk = qtMinSdkVersion as Integer
@@ -56,7 +56,7 @@ android {
 			debuggable true
 			applicationIdSuffix '.debug'
 			manifestPlaceholders = [
-				applicationLabel: 'VCMI debug',
+				applicationLabel: '英雄无敌3增强版VCMI测试',
 				applicationVariant: 'debug',
 			]
 			ndk {
@@ -70,7 +70,7 @@ android {
 			signingConfig = signingConfigs[project.findProperty('signingConfig') ?: 'releaseSigning']
 			proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 			manifestPlaceholders = [
-				applicationLabel: project.findProperty('applicationLabel') ?: 'VCMI',
+				applicationLabel: project.findProperty('applicationLabel') ?: '英雄无敌3增强版VCMI',
 				applicationVariant: project.findProperty('applicationVariant') ?: '',
 			]
 			ndk {
