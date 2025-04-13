@@ -60,16 +60,11 @@
 #include "../../lib/GameConstants.h"
 #include "../../lib/CRandomGenerator.h"
 #include "../../lib/GameLibrary.h"
+#include "../../lib/json/JsonUtils.h"
+
+#include <boost/lexical_cast.hpp>
 
 ISelectionScreenInfo * SEL = nullptr;
-
-static void do_quit()
-{
-	ENGINE->dispatchMainThread([]()
-	{
-		handleQuit(false);
-	});
-}
 
 CMenuScreen::CMenuScreen(const JsonNode & configNode)
 	: CWindowObject(BORDERED), config(configNode)
@@ -209,7 +204,7 @@ static std::function<void()> genCommand(CMenuScreen * menu, std::vector<std::str
 			break;
 			case 4: //exit
 			{
-				return []() { CInfoWindow::showYesNoDialog(LIBRARY->generaltexth->allTexts[69], std::vector<std::shared_ptr<CComponent>>(), do_quit, 0, PlayerColor(1)); };
+				return []() { CInfoWindow::showYesNoDialog(LIBRARY->generaltexth->allTexts[69], std::vector<std::shared_ptr<CComponent>>(), [](){GAME->onShutdownRequested(false);}, 0, PlayerColor(1)); };
 			}
 			break;
 			case 5: //highscores
@@ -305,7 +300,7 @@ CMenuEntry::CMenuEntry(CMenuScreen * parent, const JsonNode & config)
 }
 
 CMainMenuConfig::CMainMenuConfig()
-	: campaignSets(JsonPath::builtin("config/campaignSets.json"))
+	: campaignSets(JsonUtils::assembleFromFiles("config/campaignSets.json"))
 	, config(JsonPath::builtin("config/mainmenu.json"))
 {
 	if (!config["scenario-selection"].isStruct())

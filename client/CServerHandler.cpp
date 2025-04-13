@@ -58,6 +58,8 @@
 
 #include <vcmi/events/EventBus.h>
 
+#include <boost/lexical_cast.hpp>
+
 CServerHandler::~CServerHandler()
 {
 	if (serverRunner)
@@ -702,8 +704,6 @@ void CServerHandler::startCampaignScenario(HighScoreParameter param, std::shared
 			Settings entry = persistentStorage.write["completedCampaigns"][ourCampaign->getFilename()];
 			entry->Bool() = true;
 		}
-
-		GAME->mainmenu()->makeActiveInterface();
 
 		if(!ourCampaign->isCampaignFinished())
 			GAME->mainmenu()->openCampaignLobby(ourCampaign);
