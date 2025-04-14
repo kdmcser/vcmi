@@ -1,7 +1,7 @@
 {
-    "userDataPath": "%MyDocuments%\\My Games\\vcmi_enhancement",
-    "userCachePath": "%MyDocuments%\\My Games\\vcmi_enhancement\\cache",
-    "userConfigPath": "%MyDocuments%\\My Games\\vcmi_enhancement\\config",
-    "userLogsPath": "%MyDocuments%\\My Games\\vcmi_enhancement\\logs",
-    "userSavePath": "%MyDocuments%\\My Games\\vcmi_enhancement\\saves"
+    "userDataPath": "%USERDOCUMENTS%\\My Games\\vcmi_enhancement",
+    "userCachePath": "%USERDOCUMENTS%\\My Games\\vcmi_enhancement\\cache",
+    "userConfigPath": "%USERDOCUMENTS%\\My Games\\vcmi_enhancement\\config",
+    "userLogsPath": "%USERDOCUMENTS%\\My Games\\vcmi_enhancement\\logs",
+    "userSavePath": "%USERDOCUMENTS%\\My Games\\vcmi_enhancement\\saves"
 }
