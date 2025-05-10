@@ -1,4 +1,4 @@
-/*
+﻿/*
  * ScreenHandler.cpp, part of VCMI engine
  *
  * Authors: listed in file AUTHORS in main folder
@@ -38,7 +38,7 @@ SDL_Surface * screen = nullptr; //main screen surface
 SDL_Surface * screen2 = nullptr; //and hlp surface (used to store not-active interfaces layer)
 SDL_Surface * screenBuf = screen; //points to screen (if only advmapint is present) or screen2 (else) - should be used when updating controls which are not regularly redrawed
 
-static const std::string NAME = GameConstants::VCMI_VERSION; //application name
+static const std::string NAME = "英雄无敌3东方秘境"; //application name
 static constexpr Point heroes3Resolution = Point(800, 600);
 
 std::tuple<int, int> ScreenHandler::getSupportedScalingRange() const
