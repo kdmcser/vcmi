@@ -14,10 +14,13 @@
 
 VCMI_LIB_NAMESPACE_BEGIN
 
+struct Bonus;
+
 class DLL_LINKAGE CRewardableConstructor : public AObjectTypeHandler
 {
 	Rewardable::Info objectInfo;
 
+	void assignBonuses(std::vector<Bonus> & bonuses, MapObjectID objectID) const;
 	void initTypeData(const JsonNode & config) override;
 	
 	bool blockVisit = false;
@@ -25,7 +28,7 @@ class DLL_LINKAGE CRewardableConstructor : public AObjectTypeHandler
 public:
 	bool hasNameTextID() const override;
 
-	CGObjectInstance * create(IGameCallback * cb, std::shared_ptr<const ObjectTemplate> tmpl = nullptr) const override;
+	std::shared_ptr<CGObjectInstance> create(IGameCallback * cb, std::shared_ptr<const ObjectTemplate> tmpl = nullptr) const override;
 
 	void configureObject(CGObjectInstance * object, vstd::RNG & rng) const override;
 

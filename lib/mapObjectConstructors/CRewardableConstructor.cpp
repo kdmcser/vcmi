@@ -16,6 +16,7 @@
 #include "../texts/CGeneralTextHandler.h"
 #include "../IGameCallback.h"
 #include "../CConfigHandler.h"
+#include "../GameLibrary.h"
 
 VCMI_LIB_NAMESPACE_BEGIN
 
@@ -37,13 +38,22 @@ bool CRewardableConstructor::hasNameTextID() const
 	return !objectInfo.getParameters()["name"].isNull();
 }
 
-CGObjectInstance * CRewardableConstructor::create(IGameCallback * cb, std::shared_ptr<const ObjectTemplate> tmpl) const
+std::shared_ptr<CGObjectInstance> CRewardableConstructor::create(IGameCallback * cb, std::shared_ptr<const ObjectTemplate> tmpl) const
 {
-	auto * ret = new CRewardableObject(cb);
-	preInitObject(ret);
+	auto ret = std::make_shared<CRewardableObject>(cb);
+	preInitObject(ret.get());
 	ret->appearance = tmpl;
 	ret->blockVisit = blockVisit;
 	return ret;
+}
+
+void CRewardableConstructor::assignBonuses(std::vector<Bonus> & bonuses, MapObjectID objectID) const
+{
+	for (auto & bonus : bonuses)
+	{
+		bonus.source = BonusSource::OBJECT_TYPE;
+		bonus.sid = BonusSourceID(objectID);
+	}
 }
 
 Rewardable::Configuration CRewardableConstructor::generateConfiguration(IGameCallback * cb, vstd::RNG & rand, MapObjectID objectID, const std::map<std::string, JsonNode> & presetVariables) const
@@ -61,11 +71,9 @@ Rewardable::Configuration CRewardableConstructor::generateConfiguration(IGameCal
 
 	for(auto & rewardInfo : result.info)
 	{
-		for (auto & bonus : rewardInfo.reward.bonuses)
-		{
-			bonus.source = BonusSource::OBJECT_TYPE;
-			bonus.sid = BonusSourceID(objectID);
-		}
+		assignBonuses(rewardInfo.reward.heroBonuses, objectID);
+		assignBonuses(rewardInfo.reward.commanderBonuses, objectID);
+		assignBonuses(rewardInfo.reward.playerBonuses, objectID);
 	}
 
 	return result;

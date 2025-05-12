@@ -35,6 +35,13 @@ enum class ESerializationVersion : int32_t
 	MINIMAL = RELEASE_160,
 
 	MAP_HEADER_DISPOSED_HEROES, // map header contains disposed heroes list
-	
-	CURRENT = MAP_HEADER_DISPOSED_HEROES
+	NO_RAW_POINTERS_IN_SERIALIZER, // large rework that removed all non-owning pointers from serializer
+	STACK_INSTANCE_EXPERIENCE_FIX, // stack experience is stored as total, not as average
+	STACK_INSTANCE_ARMY_FIX, // remove serialization of army that owns stack instance
+	STORE_UID_COUNTER_IN_CMAP,  // fix crash caused by conflicting instanceName after loading game
+	REWARDABLE_EXTENSIONS, // new functionality for rewardable objects
+
+	CURRENT = REWARDABLE_EXTENSIONS,
 };
+
+static_assert(ESerializationVersion::MINIMAL <= ESerializationVersion::CURRENT, "Invalid serialization version definition!");

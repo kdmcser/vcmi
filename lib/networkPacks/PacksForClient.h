@@ -408,17 +408,31 @@ struct DLL_LINKAGE SetAvailableHero : public CPackForClient
 
 struct DLL_LINKAGE GiveBonus : public CPackForClient
 {
-	enum class ETarget : int8_t { OBJECT, PLAYER, BATTLE };
-	
+	using VariantType = VariantIdentifier<ObjectInstanceID, PlayerColor, BattleID>;
+	enum class ETarget : int8_t
+	{
+		OBJECT,
+		PLAYER,
+		BATTLE,
+		HERO_COMMANDER
+	};
+
 	explicit GiveBonus(ETarget Who = ETarget::OBJECT)
 		:who(Who)
+	{
+	}
+
+	GiveBonus(ETarget who, const VariantType & id, const Bonus & bonus)
+		: who(who)
+		, id(id)
+		, bonus(bonus)
 	{
 	}
 
 	void applyGs(CGameState * gs) override;
 
 	ETarget who = ETarget::OBJECT;
-	VariantIdentifier<ObjectInstanceID, PlayerColor, BattleID> id;
+	VariantType id;
 	Bonus bonus;
 
 	void visitTyped(ICPackVisitor & visitor) override;
@@ -806,7 +820,7 @@ struct DLL_LINKAGE NewObject : public CPackForClient
 	void applyGs(CGameState * gs) override;
 
 	/// Object ID to create
-	CGObjectInstance * newObject;
+	std::shared_ptr<CGObjectInstance> newObject;
 	/// Which player initiated creation of this object
 	PlayerColor initiator;
 
@@ -968,22 +982,6 @@ struct DLL_LINKAGE BulkRebalanceStacks : CGarrisonOperationPack
 	}
 };
 
-struct DLL_LINKAGE BulkSmartRebalanceStacks : CGarrisonOperationPack
-{
-	std::vector<RebalanceStacks> moves;
-	std::vector<ChangeStackCount> changes;
-
-	void applyGs(CGameState * gs) override;
-	void visitTyped(ICPackVisitor & visitor) override;
-
-	template <typename Handler>
-	void serialize(Handler & h)
-	{
-		h & moves;
-		h & changes;
-	}
-};
-
 struct DLL_LINKAGE CArtifactOperationPack : CPackForClient
 {
 };
@@ -1049,27 +1047,6 @@ struct DLL_LINKAGE BulkEraseArtifacts : CArtifactOperationPack
 
 struct DLL_LINKAGE BulkMoveArtifacts : CArtifactOperationPack
 {
-	struct LinkedSlots
-	{
-		ArtifactPosition srcPos;
-		ArtifactPosition dstPos;
-		bool askAssemble;
-
-		LinkedSlots() = default;
-		LinkedSlots(const ArtifactPosition & srcPos, const ArtifactPosition & dstPos, bool askAssemble = false)
-			: srcPos(srcPos)
-			, dstPos(dstPos)
-			, askAssemble(askAssemble)
-		{
-		}
-		template <typename Handler> void serialize(Handler & h)
-		{
-			h & srcPos;
-			h & dstPos;
-			h & askAssemble;
-		}
-	};
-
 	PlayerColor interfaceOwner;
 	ObjectInstanceID srcArtHolder;
 	ObjectInstanceID dstArtHolder;
@@ -1095,8 +1072,8 @@ struct DLL_LINKAGE BulkMoveArtifacts : CArtifactOperationPack
 
 	void applyGs(CGameState * gs) override;
 
-	std::vector<LinkedSlots> artsPack0;
-	std::vector<LinkedSlots> artsPack1;
+	std::vector<MoveArtifactInfo> artsPack0;
+	std::vector<MoveArtifactInfo> artsPack1;
 
 	void visitTyped(ICPackVisitor & visitor) override;
 
@@ -1244,7 +1221,6 @@ struct DLL_LINKAGE ChangeObjectVisitors : public CPackForClient
 	{
 		VISITOR_ADD_HERO,   // mark hero as one that have visited this object
 		VISITOR_ADD_PLAYER, // mark player as one that have visited this object instance
-		VISITOR_GLOBAL,     // mark player as one that have visited object of this type
 		VISITOR_SCOUTED,    // marks targeted team as having scouted this object
 		VISITOR_CLEAR,      // clear all visitors from this object (object reset)
 	};

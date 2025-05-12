@@ -226,7 +226,7 @@ void ApplyOnServerNetPackVisitor::visitLobbyStartGame(LobbyStartGame & pack)
 	}
 	
 	pack.initializedStartInfo = std::make_shared<StartInfo>(*srv.gh->getInitialStartInfo());
-	pack.initializedGameState = srv.gh->gameState();
+	pack.initializedGameState = srv.gh->gs;
 	result = true;
 }
 
@@ -382,7 +382,7 @@ void ApplyOnServerNetPackVisitor::visitLobbyPvPAction(LobbyPvPAction & pack)
 	switch(pack.action) {
 		case LobbyPvPAction::COIN:
 			txt.appendTextID("vcmi.lobby.pvp.coin.hover");
-			txt.appendRawString(" - " + std::to_string(std::rand()%2));
+			txt.appendRawString(" - " + std::to_string(srv.gh->getRandomGenerator().nextInt(1)));
 			srv.announceTxt(txt);
 			break;
 		case LobbyPvPAction::RANDOM_TOWN:

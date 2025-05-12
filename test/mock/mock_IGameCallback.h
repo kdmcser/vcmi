@@ -20,13 +20,17 @@
 
 class GameCallbackMock : public IGameCallback
 {
+	std::shared_ptr<CGameState> gamestate;
 public:
 	using UpperCallback = ::ServerCallback;
 
 	GameCallbackMock(UpperCallback * upperCallback_);
 	virtual ~GameCallbackMock();
 
-	void setGameState(CGameState * gameState);
+	void setGameState(std::shared_ptr<CGameState> gameState);
+	CGameState & gameState() final { return *gamestate; }
+	const CGameState & gameState() const final { return *gamestate; }
+
 
 	///STUBS, to be removed as long as same methods moved from GameHandler
 
@@ -58,7 +62,7 @@ public:
 	void giveResources(PlayerColor player, TResources resources) override {}
 
 	void giveCreatures(const CArmedInstance *objid, const CGHeroInstance * h, const CCreatureSet &creatures, bool remove) override {}
-	void takeCreatures(ObjectInstanceID objid, const std::vector<CStackBasicDescriptor> &creatures) override {}
+	void takeCreatures(ObjectInstanceID objid, const std::vector<CStackBasicDescriptor> &creatures, bool forceRemoval) override {}
 	bool changeStackCount(const StackLocation &sl, TQuantity count, bool absoluteValue = false) override {return false;}
 	bool changeStackType(const StackLocation &sl, const CCreature *c) override {return false;}
 	bool insertNewStack(const StackLocation &sl, const CCreature *c, TQuantity count = -1) override {return false;} //count -1 => moves whole stack
@@ -68,7 +72,7 @@ public:
 	void tryJoiningArmy(const CArmedInstance *src, const CArmedInstance *dst, bool removeObjWhenFinished, bool allowMerging) override {} //merges army from src do dst or opens a garrison window
 	bool moveStack(const StackLocation &src, const StackLocation &dst, TQuantity count) override {return false;}
 
-	void removeAfterVisit(const CGObjectInstance *object) override {} //object will be destroyed when interaction is over. Do not call when interaction is not ongoing!
+	void removeAfterVisit(const ObjectInstanceID & id) override {} //object will be destroyed when interaction is over. Do not call when interaction is not ongoing!
 
 	bool giveHeroNewArtifact(const CGHeroInstance * h, const ArtifactID & artId, const ArtifactPosition & pos) override {return false;}
 	bool giveHeroNewScroll(const CGHeroInstance * h, const SpellID & spellId, const ArtifactPosition & pos) override {return false;}

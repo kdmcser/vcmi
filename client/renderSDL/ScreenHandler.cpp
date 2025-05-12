@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ScreenHandler.cpp, part of VCMI engine
  *
  * Authors: listed in file AUTHORS in main folder
@@ -34,7 +34,6 @@
 // TODO: should be made into a private members of ScreenHandler
 SDL_Renderer * mainRenderer = nullptr;
 
-static const std::string NAME = "英雄无敌3增强版VCMI"; //application name
 static constexpr Point heroes3Resolution = Point(800, 600);
 
 std::tuple<int, int> ScreenHandler::getSupportedScalingRange() const
@@ -373,7 +372,7 @@ EUpscalingFilter ScreenHandler::loadUpscalingFilter() const
 	if (scaling <= 1.001f)
 		return EUpscalingFilter::NONE; // running at original resolution or even lower than that - no need for xbrz
 
-	if (systemMemoryMb < 2048)
+	if (systemMemoryMb <= 4096)
 		return EUpscalingFilter::NONE; // xbrz2 may use ~1.0 - 1.5 Gb of RAM and has notable CPU cost - avoid on low-spec hardware
 
 	// Only using xbrz2 for autoselection.
@@ -435,7 +434,7 @@ SDL_Window * ScreenHandler::createWindowImpl(Point dimensions, int flags, bool c
 {
 	int displayIndex = getPreferredDisplayIndex();
 	int positionFlags = center ? SDL_WINDOWPOS_CENTERED_DISPLAY(displayIndex) : SDL_WINDOWPOS_UNDEFINED_DISPLAY(displayIndex);
-	return SDL_CreateWindow(NAME.c_str(), positionFlags, positionFlags, dimensions.x, dimensions.y, flags);
+	return SDL_CreateWindow("英雄无敌3增强版VCMI", positionFlags, positionFlags, dimensions.x, dimensions.y, flags);
 }
 
 SDL_Window * ScreenHandler::createWindow()

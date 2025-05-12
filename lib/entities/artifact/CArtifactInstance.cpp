@@ -11,13 +11,33 @@
 #include "StdInc.h"
 #include "CArtifactInstance.h"
 
-#include "ArtifactUtils.h"
-#include "CArtHandler.h"
-#include "networkPacks/ArtifactLocation.h"
+#include "CArtifact.h"
+#include "CArtifactSet.h"
+
+#include "../../IGameCallback.h"
+#include "../../gameState/CGameState.h"
 
 VCMI_LIB_NAMESPACE_BEGIN
 
-void CCombinedArtifactInstance::addPart(CArtifactInstance * art, const ArtifactPosition & slot)
+CCombinedArtifactInstance::PartInfo::PartInfo(const CArtifactInstance * artifact, ArtifactPosition slot)
+	: artifactPtr(artifact)
+	, artifactID(artifact->getId())
+	, slot(slot)
+{
+}
+
+const CArtifactInstance * CCombinedArtifactInstance::PartInfo::getArtifact() const
+{
+	assert(artifactPtr != nullptr || !artifactID.hasValue());
+	return artifactPtr;
+}
+
+ArtifactInstanceID CCombinedArtifactInstance::PartInfo::getArtifactID() const
+{
+	return artifactID;
+}
+
+void CCombinedArtifactInstance::addPart(const CArtifactInstance * art, const ArtifactPosition & slot)
 {
 	auto artInst = static_cast<CArtifactInstance*>(this);
 	assert(vstd::contains_if(artInst->getType()->getConstituents(),
@@ -27,7 +47,7 @@ void CCombinedArtifactInstance::addPart(CArtifactInstance * art, const ArtifactP
 		}));
 	assert(art->getParentNodes().size() == 1  &&  art->getParentNodes().front() == art->getType());
 	partsInfo.emplace_back(art, slot);
-	artInst->attachTo(*art);
+	artInst->attachToSource(*art);
 }
 
 bool CCombinedArtifactInstance::isPart(const CArtifactInstance * supposedPart) const
@@ -37,7 +57,7 @@ bool CCombinedArtifactInstance::isPart(const CArtifactInstance * supposedPart) c
 
 	for(const PartInfo & constituent : partsInfo)
 	{
-		if(constituent.art == supposedPart)
+		if(constituent.getArtifactID() == supposedPart->getId())
 			return true;
 	}
 
@@ -59,8 +79,8 @@ void CCombinedArtifactInstance::addPlacementMap(const CArtifactSet::ArtPlacement
 	if(!placementMap.empty())
 		for(auto & part : partsInfo)
 		{
-			if(placementMap.find(part.art) != placementMap.end())
-				part.slot = placementMap.at(part.art);
+			if(placementMap.find(part.getArtifact()) != placementMap.end())
+				part.slot = placementMap.at(part.getArtifact());
 		}
 }
 
@@ -105,22 +125,16 @@ void CGrowingArtifactInstance::growingUp()
 	}
 }
 
-void CArtifactInstance::init()
+CArtifactInstance::CArtifactInstance(IGameCallback *cb, const CArtifact * art)
+	:CArtifactInstance(cb)
 {
-	// Artifact to be randomized
-	id = static_cast<ArtifactInstanceID>(ArtifactID::NONE);
-	setNodeType(ARTIFACT_INSTANCE);
-}
-
-CArtifactInstance::CArtifactInstance(const CArtifact * art)
-{
-	init();
 	setType(art);
 }
 
-CArtifactInstance::CArtifactInstance()
+CArtifactInstance::CArtifactInstance(IGameCallback *cb)
+	: CBonusSystemNode(ARTIFACT_INSTANCE)
+	, CCombinedArtifactInstance(cb)
 {
-	init();
 }
 
 void CArtifactInstance::setType(const CArtifact * art)
@@ -169,11 +183,20 @@ bool CArtifactInstance::isScroll() const
 	return getType()->isScroll();
 }
 
-void CArtifactInstance::deserializationFix()
+void CArtifactInstance::attachToBonusSystem(CGameState & gs)
 {
-	setType(artTypeID.toArtifact());
 	for(PartInfo & part : partsInfo)
-		attachTo(*part.art);
+	{
+		part = PartInfo(gs.getArtInstance(part.getArtifactID()), part.slot);
+		attachToSource(*gs.getArtInstance(part.getArtifactID()));
+	}
+}
+
+void CArtifactInstance::saveCompatibilityFixArtifactID(std::shared_ptr<CArtifactInstance> self)
+{
+	self->cb->gameState().saveCompatibilityLastAllocatedArtifactID = ArtifactInstanceID(self->cb->gameState().saveCompatibilityLastAllocatedArtifactID.getNum()+1);
+	self->id = self->cb->gameState().saveCompatibilityLastAllocatedArtifactID;
+	self->cb->gameState().saveCompatibilityUnregisteredArtifacts.push_back(self);
 }
 
 VCMI_LIB_NAMESPACE_END
