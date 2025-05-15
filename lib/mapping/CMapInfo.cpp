@@ -40,11 +40,6 @@ CMapInfo::~CMapInfo()
 	vstd::clear_pointer(scenarioOptionsOfSave);
 }
 
-std::string CMapInfo::getFullFileURI(const ResourcePath & file) const
-{
-	auto path = boost::filesystem::canonical(*CResourceHandler::get()->getResourceName(file));
-	return TextOperations::filesystemPathToUtf8(path);
-}
 
 void CMapInfo::mapInit(const std::string & fname)
 {
@@ -52,8 +47,10 @@ void CMapInfo::mapInit(const std::string & fname)
 	CMapService mapService;
 	ResourcePath resource = ResourcePath(fname, EResType::MAP);
 	originalFileURI = resource.getOriginalName();
-	fullFileURI = getFullFileURI(resource);
+	fullFileURI = CResourceHandler::get()->getFullFileURI(resource);
 	mapHeader = mapService.loadMapHeader(resource);
+	lastWrite = CResourceHandler::get()->getLastWriteTime(resource);
+	date = TextOperations::getFormattedDateTimeLocal(lastWrite);
 	countPlayers();
 }
 
@@ -66,9 +63,9 @@ void CMapInfo::saveInit(const ResourcePath & file)
 	lf >> *(mapHeader) >> scenarioOptionsOfSave;
 	fileURI = file.getName();
 	originalFileURI = file.getOriginalName();
-	fullFileURI = getFullFileURI(file);
+	fullFileURI = CResourceHandler::get()->getFullFileURI(file);
 	countPlayers();
-	lastWrite = boost::filesystem::last_write_time(*CResourceHandler::get()->getResourceName(file));
+	lastWrite = CResourceHandler::get()->getLastWriteTime(file);
 	date = TextOperations::getFormattedDateTimeLocal(lastWrite);
 
 	// We absolutely not need this data for lobby and server will read it from save
@@ -80,7 +77,7 @@ void CMapInfo::campaignInit()
 {
 	ResourcePath resource = ResourcePath(fileURI, EResType::CAMPAIGN);
 	originalFileURI = resource.getOriginalName();
-	fullFileURI = getFullFileURI(resource);
+	fullFileURI = CResourceHandler::get()->getFullFileURI(resource);
 	campaign = CampaignHandler::getHeader(fileURI);
 }
 
