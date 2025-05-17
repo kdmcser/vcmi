@@ -1,5 +1,6 @@
 #ifndef MASK_H
 #define MASK_H
+#include <cstddef>
 
 // Auto-generated mask array from MOD_PASSWORD_MASK
 constexpr unsigned char mask[] = { @MASK_BYTES_STR@ };
