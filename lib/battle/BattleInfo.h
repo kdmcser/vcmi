@@ -14,7 +14,7 @@
 #include "SideInBattle.h"
 #include "SiegeInfo.h"
 
-#include "../GameCallbackHolder.h"
+#include "../callback/GameCallbackHolder.h"
 #include "../bonuses/Bonus.h"
 #include "../bonuses/CBonusSystemNode.h"
 #include "../int3.h"
@@ -74,8 +74,8 @@ public:
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	BattleInfo(IGameCallback *cb, const BattleLayout & layout);
-	BattleInfo(IGameCallback *cb);
+	BattleInfo(IGameInfoCallback *cb, const BattleLayout & layout);
+	BattleInfo(IGameInfoCallback *cb);
 	virtual ~BattleInfo();
 
 	const IBattleInfo * getBattle() const override;
@@ -100,8 +100,6 @@ public:
 	PlayerColor getSidePlayer(BattleSide side) const override;
 	const CArmedInstance * getSideArmy(BattleSide side) const override;
 	const CGHeroInstance * getSideHero(BattleSide side) const override;
-
-	const CGTownInstance * getTown() const;
 
 	ui8 getTacticDist() const override;
 	BattleSide getTacticsSide() const override;
@@ -164,7 +162,7 @@ public:
 	const CGHeroInstance * getHero(const PlayerColor & player) const; //returns fighting hero that belongs to given player
 
 	void localInit();
-	static std::unique_ptr<BattleInfo> setupBattle(IGameCallback *cb, const int3 & tile, TerrainId, const BattleField & battlefieldType, BattleSideArray<const CArmedInstance *> armies, BattleSideArray<const CGHeroInstance *> heroes, const BattleLayout & layout, const CGTownInstance * town);
+	static std::unique_ptr<BattleInfo> setupBattle(IGameInfoCallback *cb, const int3 & tile, TerrainId, const BattleField & battlefieldType, BattleSideArray<const CArmedInstance *> armies, BattleSideArray<const CGHeroInstance *> heroes, const BattleLayout & layout, const CGTownInstance * town);
 
 	BattleSide whatSide(const PlayerColor & player) const;
 

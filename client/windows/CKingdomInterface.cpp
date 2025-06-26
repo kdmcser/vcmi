@@ -29,19 +29,20 @@
 #include "../widgets/ObjectLists.h"
 #include "../windows/CMarketWindow.h"
 
-#include "../../CCallback.h"
-
 #include "../../lib/CConfigHandler.h"
 #include "../../lib/CCreatureHandler.h"
 #include "../../lib/CSkillHandler.h"
 #include "../../lib/GameLibrary.h"
 #include "../../lib/IGameSettings.h"
 #include "../../lib/StartInfo.h"
+#include "../../lib/callback/CCallback.h"
 #include "../../lib/entities/hero/CHeroHandler.h"
+#include "../../lib/texts/TextOperations.h"
 #include "../../lib/mapObjects/CGHeroInstance.h"
 #include "../../lib/mapObjects/CGTownInstance.h"
 #include "../../lib/mapObjects/MiscObjects.h"
-#include "../../lib/texts/CGeneralTextHandler.h"
+#include "texts/CGeneralTextHandler.h"
+#include "../../lib/GameSettings.h"
 
 static const std::string OVERVIEW_BACKGROUND = "OvCast.pcx";
 static const size_t OVERVIEW_SIZE = 4;
@@ -131,9 +132,10 @@ std::string InfoBoxAbstractHeroData::getValueText()
 	switch (type)
 	{
 	case HERO_MANA:
-	case HERO_EXPERIENCE:
 	case HERO_PRIMARY_SKILL:
 		return std::to_string(getValue());
+	case HERO_EXPERIENCE:
+		return TextOperations::formatMetric(getValue(), 6);
 	case HERO_SPECIAL:
 		return LIBRARY->generaltexth->jktexts[5];
 	case HERO_SECONDARY_SKILL:
@@ -375,7 +377,7 @@ std::string InfoBoxHeroData::getValueText()
 			return std::to_string(hero->mana) + '/' +
 				std::to_string(hero->manaLimit());
 		case HERO_EXPERIENCE:
-			return std::to_string(hero->exp);
+			return TextOperations::formatMetric(hero->exp, 6);
 		}
 	}
 	return InfoBoxAbstractHeroData::getValueText();
@@ -832,6 +834,9 @@ CTownItem::CTownItem(const CGTownInstance * Town)
 	{
 		ENGINE->windows().createAndPushWindow<CCastleInterface>(town);
 	});
+
+	labelCreatureGrowth = std::make_shared<CMultiLineLabel>(Rect(4, 76, 50, 35), EFonts::FONT_SMALL, ETextAlignment::CENTERLEFT, Colors::YELLOW, LIBRARY->generaltexth->translate("core.genrltxt.265"));
+	labelCreatureAvailable = std::make_shared<CMultiLineLabel>(Rect(349, 76, 57, 35), EFonts::FONT_SMALL, ETextAlignment::CENTERLEFT, Colors::YELLOW, LIBRARY->generaltexth->translate("core.genrltxt.266"));
 }
 
 void CTownItem::updateGarrisons()
@@ -979,8 +984,17 @@ CHeroItem::CHeroItem(const CGHeroInstance * Hero)
 		heroInfo.push_back(std::make_shared<InfoBox>(Point(78+(int)i*36, 26), InfoBox::POS_DOWN, InfoBox::SIZE_SMALL, data));
 	}
 
-	for(size_t i=0; i<GameConstants::SKILL_PER_HERO; i++)
+	int slots = 8;
+	bool isMoreSkillsThanSlots = hero->secSkills.size() > slots;
+	for(size_t i=0; i<slots; i++)
 	{
+		if(isMoreSkillsThanSlots && i == slots - 1)
+		{
+			Rect r(Point(410+(int)i*36, 5), Point(34, 28));
+			heroInfoFull = std::make_shared<CMultiLineLabel>(r, EFonts::FONT_MEDIUM, ETextAlignment::CENTER, Colors::WHITE, "...");
+			heroInfoFullArea = std::make_shared<LRClickableAreaWText>(r, LIBRARY->generaltexth->translate("vcmi.kingdomOverview.secSkillOverflow.hover"), LIBRARY->generaltexth->translate("vcmi.kingdomOverview.secSkillOverflow.help"));
+			continue;
+		}
 		auto data = std::make_shared<InfoBoxHeroData>(IInfoBoxData::HERO_SECONDARY_SKILL, hero, (int)i);
 		heroInfo.push_back(std::make_shared<InfoBox>(Point(410+(int)i*36, 5), InfoBox::POS_NONE, InfoBox::SIZE_SMALL, data));
 	}

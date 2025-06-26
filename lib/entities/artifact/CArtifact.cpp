@@ -59,22 +59,22 @@ bool CGrowingArtifact::isGrowing() const
 	return !bonusesPerLevel.empty() || !thresholdBonuses.empty();
 }
 
-std::vector <std::pair<ui16, Bonus>> & CGrowingArtifact::getBonusesPerLevel()
+std::vector <std::pair<ui16, std::shared_ptr<Bonus>>> & CGrowingArtifact::getBonusesPerLevel()
 {
 	return bonusesPerLevel;
 }
 
-const std::vector <std::pair<ui16, Bonus>> & CGrowingArtifact::getBonusesPerLevel() const
+const std::vector <std::pair<ui16, std::shared_ptr<Bonus>>> & CGrowingArtifact::getBonusesPerLevel() const
 {
 	return bonusesPerLevel;
 }
 
-std::vector <std::pair<ui16, Bonus>> & CGrowingArtifact::getThresholdBonuses()
+std::vector <std::pair<ui16, std::shared_ptr<Bonus>>> & CGrowingArtifact::getThresholdBonuses()
 {
 	return thresholdBonuses;
 }
 
-const std::vector <std::pair<ui16, Bonus>> & CGrowingArtifact::getThresholdBonuses() const
+const std::vector <std::pair<ui16, std::shared_ptr<Bonus>>> & CGrowingArtifact::getThresholdBonuses() const
 {
 	return thresholdBonuses;
 }
@@ -102,7 +102,6 @@ std::string CArtifact::getModScope() const
 void CArtifact::registerIcons(const IconRegistar & cb) const
 {
 	cb(getIconIndex(), 0, "ARTIFACT", image);
-	cb(getIconIndex(), 0, "ARTIFACTLARGE", large);
 }
 
 ArtifactID CArtifact::getId() const
@@ -143,6 +142,11 @@ std::string CArtifact::getEventTextID() const
 std::string CArtifact::getNameTextID() const
 {
 	return TextIdentifier("artifact", modScope, identifier, "name").get();
+}
+
+std::string CArtifact::getBonusTextID(const std::string & bonusID) const
+{
+	return TextIdentifier("artifact", modScope, identifier, "bonus", bonusID).get();
 }
 
 uint32_t CArtifact::getPrice() const
@@ -246,6 +250,48 @@ bool CArtifact::canBePutAt(const CArtifactSet * artSet, ArtifactPosition slot, b
 	}
 }
 
+CChargedArtifact::CChargedArtifact()
+	: condition(DischargeArtifactCondition::NONE)
+	,	removeOnDepletion(false)
+	, defaultStartCharges(0)
+{
+}
+
+bool CChargedArtifact::isCharged() const
+{
+	return condition != DischargeArtifactCondition::NONE;
+}
+
+void CChargedArtifact::setCondition(const DischargeArtifactCondition & dischargeCondition)
+{
+	condition = dischargeCondition;
+}
+
+void CChargedArtifact::setRemoveOnDepletion(const bool remove)
+{
+	removeOnDepletion = remove;
+}
+
+void CChargedArtifact::setDefaultStartCharges(const uint16_t charges)
+{
+	defaultStartCharges = charges;
+}
+
+uint16_t CChargedArtifact::getDefaultStartCharges() const
+{
+	return defaultStartCharges;
+}
+
+DischargeArtifactCondition CChargedArtifact::getDischargeCondition() const
+{
+	return condition;
+}
+
+bool CChargedArtifact::getRemoveOnDepletion() const
+{
+	return removeOnDepletion;
+}
+
 CArtifact::CArtifact()
 	: iconIndex(ArtifactID::NONE),
 	price(0)
@@ -290,8 +336,11 @@ void CArtifact::addNewBonus(const std::shared_ptr<Bonus>& b)
 {
 	b->source = BonusSource::ARTIFACT;
 	b->duration = BonusDuration::PERMANENT;
-	b->description.appendTextID(getNameTextID());
-	b->description.appendRawString(" %+d");
+	if (b->description.empty() && (b->type == BonusType::LUCK || b->type == BonusType::MORALE))
+	{
+		b->description.appendTextID(getNameTextID());
+		b->description.appendRawString(" %+d");
+	}
 	CBonusSystemNode::addNewBonus(b);
 }
 
@@ -309,7 +358,7 @@ void CArtifact::setImage(int32_t newIconIndex, const std::string & newImage, con
 {
 	iconIndex = newIconIndex;
 	image = newImage;
-	large = newLargeImage;
+	scenarioBonus = newLargeImage;
 }
 
 

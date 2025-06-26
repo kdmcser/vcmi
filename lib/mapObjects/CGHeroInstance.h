@@ -72,7 +72,7 @@ class DLL_LINKAGE CGHeroInstance : public CArmedInstance, public IBoatGenerator,
 	ui32 movement; //remaining movement points
 	bool inTownGarrison; // if hero is in town garrison
 
-	IGameCallback * getCallback() const final { return cb; }
+	IGameInfoCallback * getCallback() const final { return cb; }
 
 public:
 	//////////////////////////////////////////////////////////////////////////
@@ -115,23 +115,6 @@ public:
 			h & patrolRadius;
 		}
 	} patrol;
-
-	struct DLL_LINKAGE SecondarySkillsInfo
-	{
-		ui8 magicSchoolCounter;
-		ui8 wisdomCounter;
-
-		SecondarySkillsInfo();
-
-		void resetMagicSchoolCounter();
-		void resetWisdomCounter();
-
-		template <typename Handler> void serialize(Handler &h)
-		{
-			h & magicSchoolCounter;
-			h & wisdomCounter;
-		}
-	} skillsInfo;
 
 	inline bool isInitialized() const
 	{ // has this hero been on the map at least once?
@@ -200,14 +183,8 @@ public:
 	/// Returns true if hero has lower level than should upon his experience.
 	bool gainsLevel() const;
 
-	/// Returns the next primary skill on level up. Can only be called if hero can gain a level up.
-	PrimarySkill nextPrimarySkill(vstd::RNG & rand) const;
-
-	/// Returns the next secondary skill randomly on level up. Can only be called if hero can gain a level up.
-	std::optional<SecondarySkill> nextSecondarySkill(vstd::RNG & rand) const;
-
-	/// Gets 0, 1 or 2 secondary skills which are proposed on hero level up.
-	std::vector<SecondarySkill> getLevelUpProposedSecondarySkills(vstd::RNG & rand) const;
+	/// Selects 0-2 skills for player to select on levelup
+	std::vector<SecondarySkill> getLevelupSkillCandidates(IGameRandomizer & gameRandomizer) const;
 
 	ui8 getSecSkillLevel(const SecondarySkill & skill) const; //0 - no skill
 	int getPrimSkillLevel(PrimarySkill id) const;
@@ -216,9 +193,10 @@ public:
 	bool canLearnSkill() const;
 	bool canLearnSkill(const SecondarySkill & which) const;
 
-	void setPrimarySkill(PrimarySkill primarySkill, si64 value, ui8 abs);
-	void setSecSkillLevel(const SecondarySkill & which, int val, bool abs); // abs == 0 - changes by value; 1 - sets to value
-	void levelUp(const std::vector<SecondarySkill> & skills);
+	void setExperience(si64 value, ChangeValueMode mode);
+	void setPrimarySkill(PrimarySkill primarySkill, si64 value, ChangeValueMode mode);
+	void setSecSkillLevel(const SecondarySkill & which, int val, ChangeValueMode mode); // abs == 0 - changes by value; 1 - sets to value
+	void levelUp();
 
 	void setMovementPoints(int points);
 	int movementPointsRemaining() const;
@@ -234,7 +212,8 @@ public:
 	double getMagicStrength() const; // takes knowledge / spell power skill but also current mana, whether the hero owns a spell-book and whether that books contains anything into account
 	double getHeroStrength() const; // includes fighting and magic strength
 
-	uint32_t getValueForCampaign() const;
+	/// Returns true if 'left' hero is stronger than 'right' when considering campaign transfer priority
+	static bool compareCampaignValue(const CGHeroInstance * left, const CGHeroInstance * right);
 	uint64_t getValueForDiplomacy() const;
 	
 	ui64 getTotalStrength() const; // includes fighting strength and army strength
@@ -261,9 +240,9 @@ public:
 	const CCommanderInstance * getCommander() const;
 	CCommanderInstance * getCommander();
 
-	void initObj(vstd::RNG & rand) override;
-	void initHero(vstd::RNG & rand);
-	void initHero(vstd::RNG & rand, const HeroTypeID & SUBID);
+	void initObj(IGameRandomizer & gameRandomizer) override;
+	void initHero(IGameRandomizer & gameRandomizer);
+	void initHero(IGameRandomizer & gameRandomizer, const HeroTypeID & SUBID);
 
 	ArtPlacementMap putArtifact(const ArtifactPosition & pos, const CArtifactInstance * art) override;
 	void removeArtifact(const ArtifactPosition & pos) override;
@@ -281,7 +260,7 @@ public:
 	/// If this hero perishes, the scenario is failed
 	bool isMissionCritical() const;
 
-	CGHeroInstance(IGameCallback *cb);
+	CGHeroInstance(IGameInfoCallback *cb);
 	virtual ~CGHeroInstance();
 
 	PlayerColor getOwner() const override;
@@ -296,9 +275,6 @@ public:
 
 	///IConstBonusProvider
 	const IBonusBearer* getBonusBearer() const override;
-
-	CBonusSystemNode * whereShouldBeAttachedOnSiege(const bool isBattleOutsideTown) const;
-	CBonusSystemNode * whereShouldBeAttachedOnSiege(CGameState & gs);
 
 	///spells::Caster
 	int32_t getCasterUnitId() const override;
@@ -320,8 +296,8 @@ public:
 
 	void updateAppearance();
 
-	void pickRandomObject(vstd::RNG & rand) override;
-	void onHeroVisit(const CGHeroInstance * h) const override;
+	void pickRandomObject(IGameRandomizer & gameRandomizer) override;
+	void onHeroVisit(IGameEventCallback & gameEvents, const CGHeroInstance * h) const override;
 	std::string getObjectName() const override;
 	std::string getHoverText(PlayerColor player) const override;
 	std::string getMovementPointsTextIfOwner(PlayerColor player) const;
@@ -351,7 +327,7 @@ protected:
 	void serializeJsonOptions(JsonSerializeFormat & handler) override;
 
 private:
-	void levelUpAutomatically(vstd::RNG & rand);
+	void levelUpAutomatically(IGameRandomizer & gameRandomizer);
 	void attachCommanderToArmy();
 
 public:
@@ -377,7 +353,14 @@ public:
 		h & spells;
 		h & patrol;
 		h & moveDir;
-		h & skillsInfo;
+		if (!h.hasFeature(Handler::Version::RANDOMIZATION_REWORK))
+		{
+			ui8 magicSchoolCounter = 0;
+			ui8 wisdomCounter = 0;
+
+			h & magicSchoolCounter;
+			h & wisdomCounter;
+		}
 
 		if (h.hasFeature(Handler::Version::NO_RAW_POINTERS_IN_SERIALIZER))
 		{

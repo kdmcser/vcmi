@@ -13,6 +13,7 @@
 
 #include "../CCreatureHandler.h"
 #include "../CPlayerState.h"
+#include "../callback/IGameInfoCallback.h"
 #include "../entities/faction/CFaction.h"
 #include "../entities/faction/CTown.h"
 #include "../entities/faction/CTownHandler.h"
@@ -40,12 +41,12 @@ void CArmedInstance::randomizeArmy(FactionID type)
 	}
 }
 
-CArmedInstance::CArmedInstance(IGameCallback *cb)
+CArmedInstance::CArmedInstance(IGameInfoCallback *cb)
 	:CArmedInstance(cb, false)
 {
 }
 
-CArmedInstance::CArmedInstance(IGameCallback *cb, bool isHypothetic):
+CArmedInstance::CArmedInstance(IGameInfoCallback *cb, bool isHypothetic):
 	CGObjectInstance(cb),
 	CBonusSystemNode(isHypothetic),
 	nonEvilAlignmentMix(this, Selector::type()(BonusType::NONEVIL_ALIGNMENT_MIX)), // Take Angelic Alliance troop-mixing freedom of non-evil units into account.
@@ -69,9 +70,6 @@ void CArmedInstance::updateMoraleBonusFromArmy()
 	std::set<FactionID> factions;
 	bool hasUndead = false;
 
-	const std::string undeadCacheKey = "type_UNDEAD";
-	static const CSelector undeadSelector = Selector::type()(BonusType::UNDEAD);
-
 	for(const auto & slot : Slots())
 	{
 		const auto * creature  = slot.second->getCreatureID().toEntity(LIBRARY);
@@ -81,7 +79,7 @@ void CArmedInstance::updateMoraleBonusFromArmy()
 		if (!hasUndead)
 		{
 			//this is costly check, let's skip it at first undead
-			hasUndead |= slot.second->hasBonus(undeadSelector, undeadCacheKey);
+			hasUndead |= slot.second->hasBonusOfType(BonusType::UNDEAD);
 		}
 	}
 

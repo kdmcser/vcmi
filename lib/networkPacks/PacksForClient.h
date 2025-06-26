@@ -57,7 +57,6 @@ struct DLL_LINKAGE PackageApplied : public CPackForClient
 	{
 	}
 	void visitTyped(ICPackVisitor & visitor) override;
-	void applyGs(CGameState *gs) override {}
 
 	ui8 result = 0; //0 - something went wrong, request hasn't been realized; 1 - OK
 	ui32 packType = 0; //type id of applied package
@@ -82,7 +81,6 @@ struct DLL_LINKAGE SystemMessage : public CPackForClient
 	SystemMessage() = default;
 
 	void visitTyped(ICPackVisitor & visitor) override;
-	void applyGs(CGameState *gs) override {}
 
 	MetaString text;
 
@@ -102,7 +100,6 @@ struct DLL_LINKAGE PlayerBlocked : public CPackForClient
 	PlayerColor player;
 
 	void visitTyped(ICPackVisitor & visitor) override;
-	void applyGs(CGameState *gs) override {}
 
 	template <typename Handler> void serialize(Handler & h)
 	{
@@ -114,28 +111,31 @@ struct DLL_LINKAGE PlayerBlocked : public CPackForClient
 
 struct DLL_LINKAGE PlayerCheated : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	PlayerColor player;
+	bool localOnlyCheat = false;
+
 	bool losingCheatCode = false;
 	bool winningCheatCode = false;
+	ColorScheme colorScheme = ColorScheme::KEEP;
 
 	void visitTyped(ICPackVisitor & visitor) override;
 
 	template <typename Handler> void serialize(Handler & h)
 	{
 		h & player;
+		h & localOnlyCheat;
 		h & losingCheatCode;
 		h & winningCheatCode;
+		h & colorScheme;
 	}
 };
 
 struct DLL_LINKAGE TurnTimeUpdate : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-	
 	PlayerColor player;
 	TurnTimerInfo turnTimer;
+
+	void visitTyped(ICPackVisitor & visitor) override;
 		
 	template <typename Handler> void serialize(Handler & h)
 	{
@@ -146,8 +146,6 @@ struct DLL_LINKAGE TurnTimeUpdate : public CPackForClient
 
 struct DLL_LINKAGE PlayerStartsTurn : public Query
 {
-	void applyGs(CGameState * gs) override;
-
 	PlayerColor player;
 
 	void visitTyped(ICPackVisitor & visitor) override;
@@ -161,8 +159,6 @@ struct DLL_LINKAGE PlayerStartsTurn : public Query
 
 struct DLL_LINKAGE DaysWithoutTown : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	PlayerColor player;
 	std::optional<int32_t> daysWithoutCastle;
 
@@ -179,8 +175,6 @@ struct DLL_LINKAGE EntitiesChanged : public CPackForClient
 {
 	std::vector<EntityChanges> changes;
 
-	void applyGs(CGameState * gs) override;
-
 	void visitTyped(ICPackVisitor & visitor) override;
 
 	template <typename Handler> void serialize(Handler & h)
@@ -191,56 +185,80 @@ struct DLL_LINKAGE EntitiesChanged : public CPackForClient
 
 struct DLL_LINKAGE SetResources : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	void visitTyped(ICPackVisitor & visitor) override;
 
-	bool abs = true; //false - changes by value; 1 - sets to value
+	ChangeValueMode mode = ChangeValueMode::ABSOLUTE;
 	PlayerColor player;
 	ResourceSet res; //res[resid] => res amount
 
 	template <typename Handler> void serialize(Handler & h)
 	{
-		h & abs;
+		h & mode;
 		h & player;
 		h & res;
 	}
 };
 
-struct DLL_LINKAGE SetPrimSkill : public CPackForClient
+struct DLL_LINKAGE SetPrimarySkill : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	void visitTyped(ICPackVisitor & visitor) override;
 
-	ui8 abs = 0; //0 - changes by value; 1 - sets to value
+	ChangeValueMode mode = ChangeValueMode::RELATIVE;
 	ObjectInstanceID id;
 	PrimarySkill which = PrimarySkill::ATTACK;
 	si64 val = 0;
 
 	template <typename Handler> void serialize(Handler & h)
 	{
-		h & abs;
+		h & mode;
 		h & id;
 		h & which;
 		h & val;
 	}
 };
 
-struct DLL_LINKAGE SetSecSkill : public CPackForClient
+struct DLL_LINKAGE SetHeroExperience : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	void visitTyped(ICPackVisitor & visitor) override;
 
-	ui8 abs = 0; //0 - changes by value; 1 - sets to value
+	ChangeValueMode mode = ChangeValueMode::RELATIVE;
+	ObjectInstanceID id;
+	si64 val = 0;
+
+	template <typename Handler> void serialize(Handler & h)
+	{
+		h & mode;
+		h & id;
+		h & val;
+	}
+};
+
+struct DLL_LINKAGE GiveStackExperience : public CPackForClient
+{
+	void visitTyped(ICPackVisitor & visitor) override;
+
+	ObjectInstanceID id;
+	std::map<SlotID, si64> val;
+
+	template <typename Handler> void serialize(Handler & h)
+	{
+		h & id;
+		h & val;
+	}
+};
+
+struct DLL_LINKAGE SetSecSkill : public CPackForClient
+{
+	void visitTyped(ICPackVisitor & visitor) override;
+
+	ChangeValueMode mode = ChangeValueMode::RELATIVE;
 	ObjectInstanceID id;
 	SecondarySkill which;
 	ui16 val = 0;
 
 	template <typename Handler> void serialize(Handler & h)
 	{
-		h & abs;
+		h & mode;
 		h & id;
 		h & which;
 		h & val;
@@ -249,22 +267,25 @@ struct DLL_LINKAGE SetSecSkill : public CPackForClient
 
 struct DLL_LINKAGE HeroVisitCastle : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	void visitTyped(ICPackVisitor & visitor) override;
 
-	ui8 flags = 0; //1 - start
+	bool startVisit = false;
 	ObjectInstanceID tid;
 	ObjectInstanceID hid;
 
 	bool start() const //if hero is entering castle (if false - leaving)
 	{
-		return flags & 1;
+		return startVisit;
+	}
+
+	bool leave() const //if hero is entering castle (if false - leaving)
+	{
+		return !startVisit;
 	}
 
 	template <typename Handler> void serialize(Handler & h)
 	{
-		h & flags;
+		h & startVisit;
 		h & tid;
 		h & hid;
 	}
@@ -272,8 +293,6 @@ struct DLL_LINKAGE HeroVisitCastle : public CPackForClient
 
 struct DLL_LINKAGE ChangeSpells : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	void visitTyped(ICPackVisitor & visitor) override;
 
 	ui8 learn = 1; //1 - gives spell, 0 - takes
@@ -290,8 +309,6 @@ struct DLL_LINKAGE ChangeSpells : public CPackForClient
 
 struct DLL_LINKAGE SetResearchedSpells : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	void visitTyped(ICPackVisitor & visitor) override;
 
 	ui8 level = 0;
@@ -310,43 +327,39 @@ struct DLL_LINKAGE SetResearchedSpells : public CPackForClient
 
 struct DLL_LINKAGE SetMana : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	void visitTyped(ICPackVisitor & visitor) override;
 
 	SetMana() = default;
-	SetMana(ObjectInstanceID hid, si32 val, bool absolute)
+	SetMana(ObjectInstanceID hid, si32 val, ChangeValueMode mode)
 		: hid(hid)
 		, val(val)
-		, absolute(absolute)
+		, mode(mode)
 	{}
 
 	ObjectInstanceID hid;
 	si32 val = 0;
-	bool absolute = true;
+	ChangeValueMode mode = ChangeValueMode::RELATIVE;
 
 	template <typename Handler> void serialize(Handler & h)
 	{
 		h & val;
 		h & hid;
-		h & absolute;
+		h & mode;
 	}
 };
 
 struct DLL_LINKAGE SetMovePoints : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	SetMovePoints() = default;
-	SetMovePoints(ObjectInstanceID hid, si32 val, bool absolute)
+	SetMovePoints(ObjectInstanceID hid, si32 val, ChangeValueMode mode)
 		: hid(hid)
 		, val(val)
-		, absolute(absolute)
+		, mode(mode)
 	{}
 
 	ObjectInstanceID hid;
 	si32 val = 0;
-	bool absolute = true;
+	ChangeValueMode mode = ChangeValueMode::RELATIVE;
 
 	void visitTyped(ICPackVisitor & visitor) override;
 
@@ -354,14 +367,12 @@ struct DLL_LINKAGE SetMovePoints : public CPackForClient
 	{
 		h & val;
 		h & hid;
-		h & absolute;
+		h & mode;
 	}
 };
 
 struct DLL_LINKAGE FoWChange : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	std::unordered_set<int3> tiles;
 	PlayerColor player;
 	ETileVisibility mode;
@@ -384,7 +395,6 @@ struct DLL_LINKAGE SetAvailableHero : public CPackForClient
 	{
 		army.clearSlots();
 	}
-	void applyGs(CGameState * gs) override;
 
 	TavernHeroSlot slotID;
 	TavernSlotRole roleID;
@@ -429,8 +439,6 @@ struct DLL_LINKAGE GiveBonus : public CPackForClient
 	{
 	}
 
-	void applyGs(CGameState * gs) override;
-
 	ETarget who = ETarget::OBJECT;
 	VariantType id;
 	Bonus bonus;
@@ -448,8 +456,6 @@ struct DLL_LINKAGE GiveBonus : public CPackForClient
 
 struct DLL_LINKAGE ChangeObjPos : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	/// Object to move
 	ObjectInstanceID objid;
 	/// New position of visitable tile of an object
@@ -469,8 +475,6 @@ struct DLL_LINKAGE ChangeObjPos : public CPackForClient
 
 struct DLL_LINKAGE PlayerEndsTurn : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	PlayerColor player;
 
 	void visitTyped(ICPackVisitor & visitor) override;
@@ -483,8 +487,6 @@ struct DLL_LINKAGE PlayerEndsTurn : public CPackForClient
 
 struct DLL_LINKAGE PlayerEndsGame : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	PlayerColor player;
 	EVictoryLossCheckResult victoryLossCheckResult;
 	StatisticDataSet statistic;
@@ -501,8 +503,6 @@ struct DLL_LINKAGE PlayerEndsGame : public CPackForClient
 
 struct DLL_LINKAGE PlayerReinitInterface : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	std::vector<PlayerColor> players;
 	ui8 playerConnectionId; //PLAYER_AI for AI player
 
@@ -521,8 +521,6 @@ struct DLL_LINKAGE RemoveBonus : public CPackForClient
 		:who(Who)
 	{
 	}
-
-	void applyGs(CGameState * gs) override;
 
 	GiveBonus::ETarget who; //who receives bonus
 	VariantIdentifier<HeroTypeID, PlayerColor, BattleID, ObjectInstanceID> whoID;
@@ -549,8 +547,6 @@ struct DLL_LINKAGE SetCommanderProperty : public CPackForClient
 {
 	enum ECommanderProperty { ALIVE, BONUS, SECONDARY_SKILL, EXPERIENCE, SPECIAL_SKILL };
 
-	void applyGs(CGameState * gs) override;
-
 	ObjectInstanceID heroid;
 
 	ECommanderProperty which = ALIVE;
@@ -572,8 +568,6 @@ struct DLL_LINKAGE SetCommanderProperty : public CPackForClient
 
 struct DLL_LINKAGE AddQuest : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	PlayerColor player;
 	QuestInfo quest;
 
@@ -586,25 +580,11 @@ struct DLL_LINKAGE AddQuest : public CPackForClient
 	}
 };
 
-struct DLL_LINKAGE UpdateArtHandlerLists : public CPackForClient
-{
-	std::map<ArtifactID, int> allocatedArtifacts;
-
-	void applyGs(CGameState * gs) override;
-	void visitTyped(ICPackVisitor & visitor) override;
-
-	template <typename Handler> void serialize(Handler & h)
-	{
-		h & allocatedArtifacts;
-	}
-};
-
 struct DLL_LINKAGE ChangeFormation : public CPackForClient
 {
 	ObjectInstanceID hid;
 	EArmyFormation formation{};
 
-	void applyGs(CGameState * gs) override;
 	void visitTyped(ICPackVisitor & visitor) override;
 
 	template <typename Handler> void serialize(Handler & h)
@@ -623,7 +603,6 @@ struct DLL_LINKAGE RemoveObject : public CPackForClient
 	{
 	}
 
-	void applyGs(CGameState * gs) override;
 	void visitTyped(ICPackVisitor & visitor) override;
 
 	/// ID of removed object
@@ -641,8 +620,6 @@ struct DLL_LINKAGE RemoveObject : public CPackForClient
 
 struct DLL_LINKAGE TryMoveHero : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	enum EResult
 	{
 		FAILED,
@@ -689,8 +666,6 @@ struct DLL_LINKAGE TryMoveHero : public CPackForClient
 
 struct DLL_LINKAGE NewStructures : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	ObjectInstanceID tid;
 	std::set<BuildingID> bid;
 	si16 built = 0;
@@ -707,8 +682,6 @@ struct DLL_LINKAGE NewStructures : public CPackForClient
 
 struct DLL_LINKAGE RazeStructures : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	ObjectInstanceID tid;
 	std::set<BuildingID> bid;
 	si16 destroyed = 0;
@@ -725,8 +698,6 @@ struct DLL_LINKAGE RazeStructures : public CPackForClient
 
 struct DLL_LINKAGE SetAvailableCreatures : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	ObjectInstanceID tid;
 	std::vector<std::pair<ui32, std::vector<CreatureID> > > creatures;
 
@@ -741,8 +712,6 @@ struct DLL_LINKAGE SetAvailableCreatures : public CPackForClient
 
 struct DLL_LINKAGE SetHeroesInTown : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	ObjectInstanceID tid; //id of town
 	ObjectInstanceID visiting; //id of visiting hero
 	ObjectInstanceID garrison; //id of hero in garrison
@@ -759,8 +728,6 @@ struct DLL_LINKAGE SetHeroesInTown : public CPackForClient
 
 struct DLL_LINKAGE HeroRecruited : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	HeroTypeID hid; //subID of hero
 	ObjectInstanceID tid;
 	ObjectInstanceID boatId;
@@ -781,8 +748,6 @@ struct DLL_LINKAGE HeroRecruited : public CPackForClient
 
 struct DLL_LINKAGE GiveHero : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	ObjectInstanceID id; //object id
 	ObjectInstanceID boatId;
 	PlayerColor player;
@@ -804,7 +769,6 @@ struct DLL_LINKAGE OpenWindow : public Query
 	ObjectInstanceID visitor;
 
 	void visitTyped(ICPackVisitor & visitor) override;
-	void applyGs(CGameState *gs) override {}
 
 	template <typename Handler> void serialize(Handler & h)
 	{
@@ -817,8 +781,6 @@ struct DLL_LINKAGE OpenWindow : public Query
 
 struct DLL_LINKAGE NewObject : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	/// Object ID to create
 	std::shared_ptr<CGObjectInstance> newObject;
 	/// Which player initiated creation of this object
@@ -835,8 +797,6 @@ struct DLL_LINKAGE NewObject : public CPackForClient
 
 struct DLL_LINKAGE SetAvailableArtifacts : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	//two variants: id < 0: set artifact pool for Artifact Merchants in towns; id >= 0: set pool for adv. map Black Market (id is the id of Black Market instance then)
 	ObjectInstanceID id;
 	std::vector<ArtifactID> arts;
@@ -859,9 +819,7 @@ struct DLL_LINKAGE ChangeStackCount : CGarrisonOperationPack
 	ObjectInstanceID army;
 	SlotID slot;
 	TQuantity count;
-	bool absoluteValue; //if not -> count will be added (or subtracted if negative)
-
-	void applyGs(CGameState * gs) override;
+	ChangeValueMode mode = ChangeValueMode::RELATIVE;
 
 	void visitTyped(ICPackVisitor & visitor) override;
 
@@ -870,7 +828,7 @@ struct DLL_LINKAGE ChangeStackCount : CGarrisonOperationPack
 		h & army;
 		h & slot;
 		h & count;
-		h & absoluteValue;
+		h & mode;
 	}
 };
 
@@ -879,8 +837,6 @@ struct DLL_LINKAGE SetStackType : CGarrisonOperationPack
 	ObjectInstanceID army;
 	SlotID slot;
 	CreatureID type;
-
-	void applyGs(CGameState * gs) override;
 
 	void visitTyped(ICPackVisitor & visitor) override;
 
@@ -897,7 +853,6 @@ struct DLL_LINKAGE EraseStack : CGarrisonOperationPack
 	ObjectInstanceID army;
 	SlotID slot;
 
-	void applyGs(CGameState * gs) override;
 	void visitTyped(ICPackVisitor & visitor) override;
 
 	template <typename Handler> void serialize(Handler & h)
@@ -914,7 +869,6 @@ struct DLL_LINKAGE SwapStacks : CGarrisonOperationPack
 	SlotID srcSlot;
 	SlotID dstSlot;
 
-	void applyGs(CGameState * gs) override;
 	void visitTyped(ICPackVisitor & visitor) override;
 
 	template <typename Handler> void serialize(Handler & h)
@@ -933,7 +887,6 @@ struct DLL_LINKAGE InsertNewStack : CGarrisonOperationPack
 	CreatureID type;
 	TQuantity count = 0;
 
-	void applyGs(CGameState * gs) override;
 	void visitTyped(ICPackVisitor & visitor) override;
 
 	template <typename Handler> void serialize(Handler & h)
@@ -955,7 +908,6 @@ struct DLL_LINKAGE RebalanceStacks : CGarrisonOperationPack
 
 	TQuantity count;
 
-	void applyGs(CGameState * gs) override;
 	void visitTyped(ICPackVisitor & visitor) override;
 
 	template <typename Handler> void serialize(Handler & h)
@@ -972,7 +924,6 @@ struct DLL_LINKAGE BulkRebalanceStacks : CGarrisonOperationPack
 {
 	std::vector<RebalanceStacks> moves;
 
-	void applyGs(CGameState * gs) override;
 	void visitTyped(ICPackVisitor & visitor) override;
 
 	template <typename Handler>
@@ -984,6 +935,24 @@ struct DLL_LINKAGE BulkRebalanceStacks : CGarrisonOperationPack
 
 struct DLL_LINKAGE CArtifactOperationPack : CPackForClient
 {
+};
+
+struct DLL_LINKAGE GrowUpArtifact : CArtifactOperationPack
+{
+	ArtifactInstanceID id;
+
+	GrowUpArtifact() = default;
+	GrowUpArtifact(const ArtifactInstanceID & id)
+		: id(id)
+	{
+	}
+
+	void visitTyped(ICPackVisitor & visitor) override;
+
+	template <typename Handler> void serialize(Handler & h)
+	{
+		h & id;
+	}
 };
 
 struct DLL_LINKAGE PutArtifact : CArtifactOperationPack
@@ -998,7 +967,6 @@ struct DLL_LINKAGE PutArtifact : CArtifactOperationPack
 	bool askAssemble;
 	ArtifactInstanceID id;
 
-	void applyGs(CGameState * gs) override;
 	void visitTyped(ICPackVisitor & visitor) override;
 
 	template <typename Handler> void serialize(Handler & h)
@@ -1016,7 +984,6 @@ struct DLL_LINKAGE NewArtifact : public CArtifactOperationPack
 	SpellID spellId;
 	ArtifactPosition pos;
 
-	void applyGs(CGameState * gs) override;
 	void visitTyped(ICPackVisitor & visitor) override;
 
 	template <typename Handler> void serialize(Handler & h)
@@ -1034,7 +1001,6 @@ struct DLL_LINKAGE BulkEraseArtifacts : CArtifactOperationPack
 	std::vector<ArtifactPosition> posPack;
 	std::optional<SlotID> creature;
 
-	void applyGs(CGameState * gs) override;
 	void visitTyped(ICPackVisitor & visitor) override;
 
 	template <typename Handler> void serialize(Handler & h)
@@ -1070,8 +1036,6 @@ struct DLL_LINKAGE BulkMoveArtifacts : CArtifactOperationPack
 	{
 	}
 
-	void applyGs(CGameState * gs) override;
-
 	std::vector<MoveArtifactInfo> artsPack0;
 	std::vector<MoveArtifactInfo> artsPack1;
 
@@ -1089,12 +1053,33 @@ struct DLL_LINKAGE BulkMoveArtifacts : CArtifactOperationPack
 	}
 };
 
+struct DLL_LINKAGE DischargeArtifact : CArtifactOperationPack
+{
+	ArtifactInstanceID id;
+	uint16_t charges;
+	std::optional<ArtifactLocation> artLoc;
+
+	DischargeArtifact() = default;
+	DischargeArtifact(const ArtifactInstanceID & id, const uint16_t charges)
+		: id(id)
+		, charges(charges)
+	{
+	}
+
+	void visitTyped(ICPackVisitor & visitor) override;
+
+	template <typename Handler> void serialize(Handler & h)
+	{
+		h & id;
+		h & charges;
+		h & artLoc;
+	}
+};
+
 struct DLL_LINKAGE AssembledArtifact : CArtifactOperationPack
 {
 	ArtifactLocation al;
 	ArtifactID artId;
-
-	void applyGs(CGameState * gs) override;
 
 	void visitTyped(ICPackVisitor & visitor) override;
 
@@ -1108,8 +1093,6 @@ struct DLL_LINKAGE AssembledArtifact : CArtifactOperationPack
 struct DLL_LINKAGE DisassembledArtifact : CArtifactOperationPack
 {
 	ArtifactLocation al;
-
-	void applyGs(CGameState * gs) override;
 
 	void visitTyped(ICPackVisitor & visitor) override;
 
@@ -1126,8 +1109,6 @@ struct DLL_LINKAGE HeroVisit : public CPackForClient
 	ObjectInstanceID objId;
 
 	bool starting; //false -> ending
-
-	void applyGs(CGameState * gs) override;
 
 	void visitTyped(ICPackVisitor & visitor) override;
 
@@ -1149,7 +1130,6 @@ struct DLL_LINKAGE InfoWindow : public CPackForClient //103  - displays simple i
 	ui16 soundID = 0;
 
 	void visitTyped(ICPackVisitor & visitor) override;
-	void applyGs(CGameState * gs) override {}
 
 	template <typename Handler> void serialize(Handler & h)
 	{
@@ -1164,8 +1144,6 @@ struct DLL_LINKAGE InfoWindow : public CPackForClient //103  - displays simple i
 
 struct DLL_LINKAGE NewTurn : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
-
 	void visitTyped(ICPackVisitor & visitor) override;
 
 	ui32 day = 0;
@@ -1197,7 +1175,6 @@ struct DLL_LINKAGE NewTurn : public CPackForClient
 
 struct DLL_LINKAGE SetObjectProperty : public CPackForClient
 {
-	void applyGs(CGameState * gs) override;
 	ObjectInstanceID id;
 	ObjProperty what{};
 
@@ -1228,8 +1205,6 @@ struct DLL_LINKAGE ChangeObjectVisitors : public CPackForClient
 	ObjectInstanceID object;
 	ObjectInstanceID hero; // note: hero owner will be also marked as "visited" this object
 
-	void applyGs(CGameState * gs) override;
-
 	void visitTyped(ICPackVisitor & visitor) override;
 
 	ChangeObjectVisitors() = default;
@@ -1255,7 +1230,6 @@ struct DLL_LINKAGE ChangeArtifactsCostume : public CPackForClient
 	uint32_t costumeIdx = 0;
 	const PlayerColor player = PlayerColor::NEUTRAL;
 
-	void applyGs(CGameState * gs) override;
 	void visitTyped(ICPackVisitor & visitor) override;
 
 	ChangeArtifactsCostume() = default;
@@ -1281,8 +1255,6 @@ struct DLL_LINKAGE HeroLevelUp : public Query
 	PrimarySkill primskill = PrimarySkill::ATTACK;
 	std::vector<SecondarySkill> skills;
 
-	void applyGs(CGameState * gs) override;
-
 	void visitTyped(ICPackVisitor & visitor) override;
 
 	template <typename Handler> void serialize(Handler & h)
@@ -1301,8 +1273,6 @@ struct DLL_LINKAGE CommanderLevelUp : public Query
 	ObjectInstanceID heroId;
 
 	std::vector<ui32> skills; //0-5 - secondary skills, val-100 - special skill
-
-	void applyGs(CGameState * gs) override;
 
 	void visitTyped(ICPackVisitor & visitor) override;
 
@@ -1349,7 +1319,6 @@ struct DLL_LINKAGE BlockingDialog : public Query
 	BlockingDialog() = default;
 
 	void visitTyped(ICPackVisitor & visitor) override;
-	void applyGs(CGameState * gs) override {}
 
 	template <typename Handler> void serialize(Handler & h)
 	{
@@ -1369,7 +1338,6 @@ struct DLL_LINKAGE GarrisonDialog : public Query
 	bool removableUnits = false;
 
 	void visitTyped(ICPackVisitor & visitor) override;
-	void applyGs(CGameState * gs) override {}
 
 	template <typename Handler> void serialize(Handler & h)
 	{
@@ -1388,7 +1356,6 @@ struct DLL_LINKAGE ExchangeDialog : public Query
 	ObjectInstanceID hero2;
 
 	void visitTyped(ICPackVisitor & visitor) override;
-	void applyGs(CGameState * gs) override {}
 
 	template <typename Handler> void serialize(Handler & h)
 	{
@@ -1414,7 +1381,6 @@ struct DLL_LINKAGE TeleportDialog : public Query
 	bool impassable = false;
 
 	void visitTyped(ICPackVisitor & visitor) override;
-	void applyGs(CGameState * gs) override {}
 
 	template <typename Handler> void serialize(Handler & h)
 	{
@@ -1435,7 +1401,6 @@ struct DLL_LINKAGE MapObjectSelectDialog : public Query
 	std::vector<ObjectInstanceID> objects;
 
 	void visitTyped(ICPackVisitor & visitor) override;
-	void applyGs(CGameState * gs) override {}
 
 	template <typename Handler> void serialize(Handler & h)
 	{
@@ -1460,7 +1425,6 @@ struct DLL_LINKAGE AdvmapSpellCast : public CPackForClient
 
 protected:
 	void visitTyped(ICPackVisitor & visitor) override;
-	void applyGs(CGameState * gs) override {}
 };
 
 struct DLL_LINKAGE ShowWorldViewEx : public CPackForClient
@@ -1469,8 +1433,6 @@ struct DLL_LINKAGE ShowWorldViewEx : public CPackForClient
 	bool showTerrain; // TODO: send terrain state
 
 	std::vector<ObjectPosInfo> objectPositions;
-
-	void applyGs(CGameState * gs) override {}
 
 	template <typename Handler> void serialize(Handler & h)
 	{
@@ -1492,7 +1454,6 @@ struct DLL_LINKAGE PlayerMessageClient : public CPackForClient
 	{
 	}
 	void visitTyped(ICPackVisitor & visitor) override;
-	void applyGs(CGameState * gs) override {}
 
 	PlayerColor player;
 	std::string text;
@@ -1511,7 +1472,6 @@ struct DLL_LINKAGE CenterView : public CPackForClient
 	ui32 focusTime = 0; //ms
 
 	void visitTyped(ICPackVisitor & visitor) override;
-	void applyGs(CGameState * gs) override {}
 
 	template <typename Handler> void serialize(Handler & h)
 	{

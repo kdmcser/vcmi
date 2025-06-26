@@ -14,10 +14,10 @@
 #include "CCreatureHandler.h"
 #include "GameLibrary.h"
 #include "IGameSettings.h"
+#include "callback/IGameInfoCallback.h"
 #include "entities/hero/CHeroHandler.h"
 #include "mapObjects/CGHeroInstance.h"
 #include "modding/ModScope.h"
-#include "IGameCallback.h"
 #include "texts/CGeneralTextHandler.h"
 #include "spells/CSpellHandler.h"
 #include "IBonusTypeHandler.h"
@@ -707,7 +707,7 @@ void CCreatureSet::serializeJson(JsonSerializeFormat & handler, const std::strin
 	}
 }
 
-CStackInstance::CStackInstance(IGameCallback *cb, bool isHypothetic)
+CStackInstance::CStackInstance(IGameInfoCallback *cb, bool isHypothetic)
 	: CBonusSystemNode(isHypothetic)
 	, CStackBasicDescriptor(nullptr, 0)
 	, CArtifactSet(cb)
@@ -719,7 +719,7 @@ CStackInstance::CStackInstance(IGameCallback *cb, bool isHypothetic)
 	setNodeType(STACK_INSTANCE);
 }
 
-CStackInstance::CStackInstance(IGameCallback *cb, const CreatureID & id, TQuantity Count, bool isHypothetic)
+CStackInstance::CStackInstance(IGameInfoCallback *cb, const CreatureID & id, TQuantity Count, bool isHypothetic)
 	: CStackInstance(cb, false)
 {
 	setType(id);
@@ -781,12 +781,7 @@ void CStackInstance::giveTotalStackExperience(TExpType experienceToGive)
 	if (!canGainExperience())
 		return;
 
-	int level = std::clamp(getLevel(), 1, 7);
-	TExpType maxAmountPerUnit = LIBRARY->creh->expRanks[level].back();
-	TExpType maxExperience = maxAmountPerUnit * getCount();
-	TExpType maxExperienceToGain = maxExperience - totalExperience;
-	TExpType actualGainedExperience = std::min(maxExperienceToGain, experienceToGive);
-	totalExperience	+= actualGainedExperience;
+	totalExperience	+= experienceToGive;
 }
 
 TExpType CStackInstance::getTotalExperience() const
@@ -840,13 +835,18 @@ void CStackInstance::setCount(TQuantity newCount)
 	CStackBasicDescriptor::setCount(newCount);
 }
 
-std::string CStackInstance::bonusToString(const std::shared_ptr<Bonus>& bonus, bool description) const
+std::string CStackInstance::bonusToString(const std::shared_ptr<Bonus>& bonus) const
 {
-	return LIBRARY->getBth()->bonusToString(bonus, this, description);
+	if (!bonus->description.empty())
+		return bonus->description.toString();
+	else
+		return LIBRARY->getBth()->bonusToString(bonus, this);
 }
 
 ImagePath CStackInstance::bonusToGraphics(const std::shared_ptr<Bonus> & bonus) const
 {
+	if (!bonus->customIconPath.empty())
+		return bonus->customIconPath;
 	return LIBRARY->getBth()->bonusToGraphics(bonus);
 }
 
@@ -1034,11 +1034,11 @@ const IBonusBearer* CStackInstance::getBonusBearer() const
 	return this;
 }
 
-CCommanderInstance::CCommanderInstance(IGameCallback *cb)
+CCommanderInstance::CCommanderInstance(IGameInfoCallback *cb)
 	:CStackInstance(cb)
 {}
 
-CCommanderInstance::CCommanderInstance(IGameCallback *cb, const CreatureID & id)
+CCommanderInstance::CCommanderInstance(IGameInfoCallback *cb, const CreatureID & id)
 	: CStackInstance(cb)
 	, name("Commando")
 {
@@ -1064,7 +1064,7 @@ void CCommanderInstance::setAlive (bool Alive)
 
 bool CCommanderInstance::canGainExperience() const
 {
-	return alive && CStackInstance::canGainExperience();
+	return alive;
 }
 
 int CCommanderInstance::getExpRank() const

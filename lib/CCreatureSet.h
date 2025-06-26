@@ -10,11 +10,11 @@
 #pragma once
 
 #include "CCreatureHandler.h"
-#include "GameCallbackHolder.h"
 #include "GameConstants.h"
 #include "bonuses/Bonus.h"
 #include "bonuses/BonusCache.h"
 #include "bonuses/CBonusSystemNode.h"
+#include "callback/GameCallbackHolder.h"
 #include "serializer/Serializeable.h"
 #include "mapObjects/CGObjectInstance.h"
 #include "entities/artifact/CArtifactSet.h"
@@ -78,7 +78,7 @@ class DLL_LINKAGE CStackInstance : public CBonusSystemNode, public CStackBasicDe
 
 	CArmedInstance * armyInstance = nullptr; //stack must be part of some army, army must be part of some object
 
-	IGameCallback * getCallback() const final { return cb; }
+	IGameInfoCallback * getCallback() const final { return cb; }
 
 	TExpType totalExperience;//commander needs same amount of exp as hero
 public:
@@ -129,7 +129,7 @@ public:
 	void serializeJson(JsonSerializeFormat & handler);
 
 	//overrides CBonusSystemNode
-	std::string bonusToString(const std::shared_ptr<Bonus>& bonus, bool description) const override; // how would bonus description look for this particular type of node
+	std::string bonusToString(const std::shared_ptr<Bonus>& bonus) const override; // how would bonus description look for this particular type of node
 	ImagePath bonusToGraphics(const std::shared_ptr<Bonus> & bonus) const; //file name of graphics from StackSkills , in future possibly others
 
 	//IConstBonusProvider
@@ -146,8 +146,8 @@ public:
 	virtual int getLevel() const; //different for regular stack and commander
 	CreatureID getCreatureID() const; //-1 if not available
 	std::string getName() const; //plural or singular
-	CStackInstance(IGameCallback *cb, bool isHypothetic	= false);
-	CStackInstance(IGameCallback *cb, const CreatureID & id, TQuantity count, bool isHypothetic = false);
+	CStackInstance(IGameInfoCallback *cb, bool isHypothetic	= false);
+	CStackInstance(IGameInfoCallback *cb, const CreatureID & id, TQuantity count, bool isHypothetic = false);
 	virtual ~CStackInstance() = default;
 
 	void setType(const CreatureID & creID);
@@ -182,8 +182,8 @@ public:
 	std::vector <ui8> secondarySkills; //ID -> level
 	std::set <ui8> specialSkills;
 	//std::vector <CArtifactInstance *> arts;
-	CCommanderInstance(IGameCallback *cb);
-	CCommanderInstance(IGameCallback *cb, const CreatureID & id);
+	CCommanderInstance(IGameInfoCallback *cb);
+	CCommanderInstance(IGameInfoCallback *cb, const CreatureID & id);
 	void setAlive (bool alive);
 	void levelUp ();
 

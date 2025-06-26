@@ -247,7 +247,8 @@ void CTownHandler::loadBuildingBonuses(const JsonNode & source, BonusList & bonu
 		if(!JsonUtils::parseBonus(b, bonus.get()))
 			continue;
 
-		bonus->description.appendTextID(building->getNameTextID());
+		if (bonus->description.empty() && (bonus->type == BonusType::MORALE || bonus->type == BonusType::LUCK))
+			bonus->description.appendTextID(building->getNameTextID());
 
 		//JsonUtils::parseBuildingBonus produces UNKNOWN type propagator instead of empty.
 		assert(bonus->propagator == nullptr || bonus->propagator->getPropagatorType() != CBonusSystemNode::ENodeTypes::UNKNOWN);
@@ -281,8 +282,6 @@ void CTownHandler::loadBuilding(CTown * town, const std::string & stringID, cons
 	ret->mode = ret->bid == BuildingID::GRAIL
 		? CBuilding::BUILD_GRAIL
 		: vstd::find_or(CBuilding::MODES, source["mode"].String(), CBuilding::BUILD_NORMAL);
-
-	ret->height = vstd::find_or(CBuilding::TOWER_TYPES, source["height"].String(), CBuilding::HEIGHT_NO_TOWER);
 
 	ret->identifier = stringID;
 	ret->modScope = source.getModScope();
@@ -385,7 +384,23 @@ void CTownHandler::loadBuilding(CTown * town, const std::string & stringID, cons
 	for(const auto & element : source["marketModes"].Vector())
 	{
 		if(MappedKeys::MARKET_NAMES_TO_TYPES.count(element.String()))
-			ret->marketModes.insert(MappedKeys::MARKET_NAMES_TO_TYPES.at(element.String()));
+		{
+			auto mode = MappedKeys::MARKET_NAMES_TO_TYPES.at(element.String());
+			ret->marketModes.insert(mode);
+
+			if (mode == EMarketMode::RESOURCE_SKILL)
+			{
+				const auto & items = source["marketOffer"].Vector();
+				ret->marketOffer.resize(items.size());
+				for (int i = 0; i < items.size(); ++i)
+				{
+					LIBRARY->identifiers()->requestIdentifier("secondarySkill", items[i], [ret, i](si32 identifier)
+					{
+						ret->marketOffer[i] = SecondarySkill(identifier);
+					});
+				}
+			}
+		}
 	}
 
 	registerObject(source.getModScope(), ret->town->getBuildingScope(), ret->identifier, ret->bid.getNum());
@@ -435,6 +450,7 @@ void CTownHandler::loadStructure(CTown &town, const std::string & stringID, cons
 	ret->hiddenUpgrade = source["hidden"].Bool();
 	ret->defName = AnimationPath::fromJson(source["animation"]);
 	ret->borderName = ImagePath::fromJson(source["border"]);
+	ret->campaignBonus = ImagePath::fromJson(source["campaignBonus"]);
 	ret->areaName = ImagePath::fromJson(source["area"]);
 
 	town.clientInfo.structures.emplace_back(ret);

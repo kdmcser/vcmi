@@ -81,10 +81,10 @@ void Rewardable::Reward::loadComponents(std::vector<Component> & comps, const CG
 	
 	for (auto & bonus : heroBonuses)
 	{
-		if (bonus.type == BonusType::MORALE)
-			comps.emplace_back(ComponentType::MORALE, bonus.val);
-		if (bonus.type == BonusType::LUCK)
-			comps.emplace_back(ComponentType::LUCK, bonus.val);
+		if (bonus->type == BonusType::MORALE)
+			comps.emplace_back(ComponentType::MORALE, bonus->val);
+		if (bonus->type == BonusType::LUCK)
+			comps.emplace_back(ComponentType::LUCK, bonus->val);
 	}
 	
 	if (heroExperience)
@@ -107,8 +107,11 @@ void Rewardable::Reward::loadComponents(std::vector<Component> & comps, const CG
 		auto skillID = entry.first;
 		int levelsGained = entry.second;
 		int currentLevel = h ? h->getSecSkillLevel(skillID) : 0;
-		int finalLevel = std::min(static_cast<int>(MasteryLevel::EXPERT), currentLevel + levelsGained);
-		comps.emplace_back(ComponentType::SEC_SKILL, entry.first, finalLevel);
+		int finalLevel = std::clamp<int>(currentLevel + levelsGained, MasteryLevel::NONE, MasteryLevel::EXPERT);
+		if (finalLevel == MasteryLevel::NONE)
+			comps.emplace_back(ComponentType::SEC_SKILL, entry.first);
+		else
+			comps.emplace_back(ComponentType::SEC_SKILL, entry.first, finalLevel);
 	}
 
 	for(const auto & entry : grantedArtifacts)

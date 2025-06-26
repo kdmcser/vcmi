@@ -11,7 +11,7 @@
 
 #include "mock/mock_Services.h"
 #include "mock/mock_MapService.h"
-#include "mock/mock_IGameCallback.h"
+#include "mock/mock_IGameEventCallback.h"
 #include "mock/mock_spells_Problem.h"
 
 #include "../../lib/VCMIDirs.h"
@@ -20,11 +20,13 @@
 #include "../../lib/networkPacks/PacksForClient.h"
 #include "../../lib/networkPacks/PacksForClientBattle.h"
 #include "../../lib/networkPacks/SetStackEffect.h"
+#include "../../lib/CRandomGenerator.h"
 #include "../../lib/StartInfo.h"
 #include "../../lib/TerrainHandler.h"
 
 #include "../../lib/battle/BattleInfo.h"
 #include "../../lib/battle/BattleLayout.h"
+#include "../../lib/callback/GameRandomizer.h"
 #include "../../lib/CStack.h"
 
 #include "../../lib/filesystem/ResourcePath.h"
@@ -39,7 +41,7 @@ class CGameStateTest : public ::testing::Test, public SpellCastEnvironment, publ
 {
 public:
 	CGameStateTest()
-		: gameCallback(new GameCallbackMock(this)),
+		: gameEventCallback(std::make_shared<GameEventCallbackMock>(this)),
 		mapService("test/MiniTest/", this),
 		map(nullptr)
 	{
@@ -48,8 +50,7 @@ public:
 
 	void SetUp() override
 	{
-		gameState = std::make_shared<CGameState>(gameCallback.get());
-		gameCallback->setGameState(gameState);
+		gameState = std::make_shared<CGameState>();
 		gameState->preInit(&services);
 	}
 
@@ -110,14 +111,14 @@ public:
 
 	vstd::RNG * getRNG() override
 	{
-		return &gameState->getRandomGenerator();//todo: mock this
+		return &randomGenerator;//todo: mock this
 	}
 
 	const CMap * getMap() const override
 	{
 		return map;
 	}
-	const CGameInfoCallback * getCb() const override
+	const IGameInfoCallback * getCb() const override
 	{
 		return gameState.get();
 	}
@@ -178,8 +179,9 @@ public:
 			}
 		}
 
+		GameRandomizer randomizer(*gameState);
 		Load::ProgressAccumulator progressTracker;
-		gameState->init(&mapService, &si, progressTracker, false);
+		gameState->init(&mapService, &si, randomizer, progressTracker, false);
 
 		ASSERT_NE(map, nullptr);
 		ASSERT_EQ(map->getHeroesOnMap().size(), 2);
@@ -192,31 +194,32 @@ public:
 
 		int3 tile(4,4,0);
 
-		const auto & t = *gameCallback->getTile(tile);
+		const auto & t = *gameState->getTile(tile);
 
 		auto terrain = t.getTerrainID();
 		BattleField terType(0);
-		BattleLayout layout = BattleLayout::createDefaultLayout(gameState->cb, attacker, defender);
+		BattleLayout layout = BattleLayout::createDefaultLayout(*gameState, attacker, defender);
 
 		//send info about battles
 
-		auto battle = BattleInfo::setupBattle(gameState->cb, tile, terrain, terType, armedInstancies, heroes, layout, nullptr);
+		auto battle = BattleInfo::setupBattle(gameState.get(), tile, terrain, terType, armedInstancies, heroes, layout, nullptr);
 
 		BattleStart bs;
 		bs.info = std::move(battle);
 		ASSERT_EQ(gameState->currentBattles.size(), 0);
-		gameCallback->sendAndApply(bs);
+		gameEventCallback->sendAndApply(bs);
 		ASSERT_EQ(gameState->currentBattles.size(), 1);
 	}
 
 	std::shared_ptr<CGameState> gameState;
 
-	std::shared_ptr<GameCallbackMock> gameCallback;
+	std::shared_ptr<GameEventCallbackMock> gameEventCallback;
 
 	MapServiceMock mapService;
 	ServicesMock services;
 
 	CMap * map;
+	CRandomGenerator randomGenerator;
 };
 
 //Issue #2765, Ghost Dragons can cast Age on Catapults
@@ -237,7 +240,7 @@ TEST_F(CGameStateTest, DISABLED_issue2765)
 		na.artHolder = defender->id;
 		na.artId = ArtifactID::BALLISTA;
 		na.pos = ArtifactPosition::MACH1;
-		gameCallback->sendAndApply(na);
+		gameEventCallback->sendAndApply(na);
 	}
 
 	startTestBattle(attacker, defender);
@@ -254,7 +257,7 @@ TEST_F(CGameStateTest, DISABLED_issue2765)
 		BattleUnitsChanged pack;
 		pack.changedStacks.emplace_back(info.id, UnitChanges::EOperation::ADD);
 		info.save(pack.changedStacks.back().data);
-		gameCallback->sendAndApply(pack);
+		gameEventCallback->sendAndApply(pack);
 	}
 
 	const CStack * att = nullptr;
@@ -317,10 +320,10 @@ TEST_F(CGameStateTest, DISABLED_battleResurrection)
 
 	ASSERT_NE(attacker->tempOwner, defender->tempOwner);
 
-	attacker->setSecSkillLevel(SecondarySkill::EARTH_MAGIC, 3, true);
+	attacker->setSecSkillLevel(SecondarySkill::EARTH_MAGIC, 3, ChangeValueMode::ABSOLUTE);
 	attacker->addSpellToSpellbook(SpellID::RESURRECTION);
-	attacker->setPrimarySkill(PrimarySkill::SPELL_POWER, 100, true);
-	attacker->setPrimarySkill(PrimarySkill::KNOWLEDGE, 20, true);
+	attacker->setPrimarySkill(PrimarySkill::SPELL_POWER, 100, ChangeValueMode::ABSOLUTE);
+	attacker->setPrimarySkill(PrimarySkill::KNOWLEDGE, 20, ChangeValueMode::ABSOLUTE);
 	attacker->mana = attacker->manaLimit();
 
 	{
@@ -328,7 +331,7 @@ TEST_F(CGameStateTest, DISABLED_battleResurrection)
 		na.artHolder = attacker->id;
 		na.artId = ArtifactID::SPELLBOOK;
 		na.pos = ArtifactPosition::SPELLBOOK;
-		gameCallback->sendAndApply(na);
+		gameEventCallback->sendAndApply(na);
 	}
 
 	startTestBattle(attacker, defender);
@@ -347,7 +350,7 @@ TEST_F(CGameStateTest, DISABLED_battleResurrection)
 		BattleUnitsChanged pack;
 		pack.changedStacks.emplace_back(info.id, UnitChanges::EOperation::ADD);
 		info.save(pack.changedStacks.back().data);
-		gameCallback->sendAndApply(pack);
+		gameEventCallback->sendAndApply(pack);
 	}
 
 	{
@@ -362,7 +365,7 @@ TEST_F(CGameStateTest, DISABLED_battleResurrection)
 		BattleUnitsChanged pack;
 		pack.changedStacks.emplace_back(info.id, UnitChanges::EOperation::ADD);
 		info.save(pack.changedStacks.back().data);
-		gameCallback->sendAndApply(pack);
+		gameEventCallback->sendAndApply(pack);
 	}
 
 	CStack * unit = gameState->currentBattles.front()->getStack(unitId);

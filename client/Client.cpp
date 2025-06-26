@@ -22,14 +22,18 @@
 #include "gui/WindowHandler.h"
 #include "mapView/mapHandler.h"
 
-#include "../CCallback.h"
 #include "../lib/CConfigHandler.h"
+#include "../lib/battle/BattleInfo.h"
+#include "../lib/battle/CPlayerBattleCallback.h"
+#include "../lib/callback/CCallback.h"
+#include "../lib/callback/CDynLibHandler.h"
+#include "../lib/callback/CGlobalAI.h"
+#include "../lib/callback/IGameInfoCallback.h"
 #include "../lib/gameState/CGameState.h"
 #include "../lib/CPlayerState.h"
 #include "../lib/CThreadHelper.h"
 #include "../lib/VCMIDirs.h"
 #include "../lib/UnlockGuard.h"
-#include "../lib/battle/BattleInfo.h"
 #include "../lib/serializer/Connection.h"
 #include "../lib/mapping/CMapService.h"
 #include "../lib/mapObjects/CArmedInstance.h"
@@ -87,6 +91,11 @@ CClient::CClient()
 
 CClient::~CClient() = default;
 
+IGameInfoCallback & CClient::gameInfo()
+{
+	return *gamestate;
+}
+
 const Services * CClient::services() const
 {
 	return LIBRARY; //todo: this should be LIBRARY
@@ -99,7 +108,7 @@ const CClient::BattleCb * CClient::battle(const BattleID & battleID) const
 
 const CClient::GameCb * CClient::game() const
 {
-	return this;
+	return gamestate.get();
 }
 
 vstd::CLoggerBase * CClient::logger() const
@@ -143,18 +152,6 @@ void CClient::loadGame(std::shared_ptr<CGameState> initializedGameState)
 
 	initPlayerEnvironments();
 	initPlayerInterfaces();
-}
-
-void CClient::save(const std::string & fname)
-{
-	if(!gameState().currentBattles.empty())
-	{
-		logNetwork->error("Game cannot be saved during battle!");
-		return;
-	}
-
-	SaveGame save_game(fname);
-	sendRequest(save_game, PlayerColor::NEUTRAL);
 }
 
 void CClient::endNetwork()
@@ -358,7 +355,12 @@ void CClient::handlePack(CPackForClient & pack)
 	logNetwork->trace("\tMade second apply on cl: %s", typeid(pack).name());
 }
 
-int CClient::sendRequest(const CPackForServer & request, PlayerColor player)
+std::optional<BattleAction> CClient::makeSurrenderRetreatDecision(PlayerColor player, const BattleID & battleID, const BattleStateInfoForRetreat & battleState)
+{
+	return playerint[player]->makeSurrenderRetreatDecision(battleID, battleState);
+}
+
+int CClient::sendRequest(const CPackForServer & request, PlayerColor player, bool waitTillRealize)
 {
 	static ui32 requestCounter = 1;
 
@@ -371,6 +373,13 @@ int CClient::sendRequest(const CPackForServer & request, PlayerColor player)
 	GAME->server().logicConnection->sendPack(request);
 	if(vstd::contains(playerint, player))
 		playerint[player]->requestSent(&request, requestID);
+
+	if(waitTillRealize)
+	{
+		logGlobal->trace("We'll wait till request %d is answered.\n", requestID);
+		auto gsUnlocker = vstd::makeUnlockSharedGuard(CGameState::mutex);
+		waitingRequest.waitWhileContains(requestID);
+	}
 
 	return requestID;
 }
@@ -490,22 +499,6 @@ void CClient::startPlayerBattleAction(const BattleID & battleID, PlayerColor col
 	}
 }
 
-
-
-vstd::RNG & CClient::getRandomGenerator()
-{
-	// Client should use CRandomGenerator::getDefault() for UI logic
-	// Gamestate should never call this method on client!
-	throw std::runtime_error("Illegal access to random number generator from client code!");
-}
-
-#if SCRIPTING_ENABLED
-scripting::Pool * CClient::getGlobalContextPool() const
-{
-	return clientScripts.get();
-}
-#endif
-
 void CClient::reinitScripting()
 {
 	clientEventBus = std::make_unique<events::EventBus>();
@@ -546,3 +539,13 @@ extern "C" JNIEXPORT jboolean JNICALL Java_eu_vcmi_vcmi_NativeMethods_tryToSaveT
 	return true;
 }
 #endif
+
+void CClient::registerBattleInterface(std::shared_ptr<IBattleEventsReceiver> battleEvents, PlayerColor color)
+{
+	additionalBattleInts[color].push_back(battleEvents);
+}
+
+void CClient::unregisterBattleInterface(std::shared_ptr<IBattleEventsReceiver> battleEvents, PlayerColor color)
+{
+	additionalBattleInts[color] -= battleEvents;
+}

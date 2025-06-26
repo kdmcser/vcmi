@@ -12,6 +12,7 @@
 #include "Limiters.h"
 #include "Updaters.h"
 
+#include "../CBonusTypeHandler.h"
 #include "../GameLibrary.h"
 #include "../entities/faction/CFaction.h"
 #include "../entities/faction/CTownHandler.h"
@@ -97,15 +98,13 @@ JsonNode ILimiter::toJsonNode() const
 	return root;
 }
 
-void ILimiter::acceptUpdater(IUpdater& visitor) {}
-
 ILimiter::EDecision CCreatureTypeLimiter::limit(const BonusLimitationContext &context) const
 {
 	const CCreature *c = retrieveCreature(&context.node);
 	if(!c)
 		return ILimiter::EDecision::NOT_APPLICABLE;
 	
-	auto accept =  c->getId() == creatureID || (includeUpgrades && creatureID.toCreature()->isMyUpgrade(c));
+	auto accept =  c->getId() == creatureID || (includeUpgrades && creatureID.toCreature()->isMyDirectOrIndirectUpgrade(c));
 	return accept ? ILimiter::EDecision::ACCEPT : ILimiter::EDecision::DISCARD;
 	//drop bonus if it's not our creature and (we don`t check upgrades or its not our upgrade)
 }
@@ -136,11 +135,6 @@ JsonNode CCreatureTypeLimiter::toJsonNode() const
 	root["parameters"].Vector().emplace_back(includeUpgrades);
 
 	return root;
-}
-
-void CCreatureTypeLimiter::acceptUpdater(IUpdater & visitor)
-{
-	visitor.visitLimiter(*this);
 }
 
 HasAnotherBonusLimiter::HasAnotherBonusLimiter( BonusType bonus )
@@ -195,7 +189,7 @@ ILimiter::EDecision HasAnotherBonusLimiter::limit(const BonusLimitationContext &
 
 std::string HasAnotherBonusLimiter::toString() const
 {
-	std::string typeName = vstd::findKey(bonusNameMap, type);
+	std::string typeName = LIBRARY->bth->bonusToString(type);
 	if(isSubtypeRelevant)
 	{
 		boost::format fmt("HasAnotherBonusLimiter(type=%s, subtype=%s)");
@@ -213,7 +207,7 @@ std::string HasAnotherBonusLimiter::toString() const
 JsonNode HasAnotherBonusLimiter::toJsonNode() const
 {
 	JsonNode root;
-	std::string typeName = vstd::findKey(bonusNameMap, type);
+	std::string typeName = LIBRARY->bth->bonusToString(type);
 	auto sourceTypeName = vstd::findKey(bonusSourceMap, source);
 
 	root["type"].String() = "HAS_ANOTHER_BONUS_LIMITER";
@@ -224,11 +218,6 @@ JsonNode HasAnotherBonusLimiter::toJsonNode() const
 		root["parameters"].Vector().emplace_back(sourceTypeName);
 
 	return root;
-}
-
-void HasAnotherBonusLimiter::acceptUpdater(IUpdater & visitor)
-{
-	visitor.visitLimiter(*this);
 }
 
 ILimiter::EDecision UnitOnHexLimiter::limit(const BonusLimitationContext &context) const
@@ -260,12 +249,6 @@ JsonNode UnitOnHexLimiter::toJsonNode() const
 
 	return root;
 }
-
-void UnitOnHexLimiter::acceptUpdater(IUpdater& visitor)
-{
-	visitor.visitLimiter(*this);
-}
-
 
 CreatureTerrainLimiter::CreatureTerrainLimiter()
 	: terrainType(ETerrainId::NATIVE_TERRAIN)
@@ -346,11 +329,6 @@ JsonNode CreatureTerrainLimiter::toJsonNode() const
 	return root;
 }
 
-void CreatureTerrainLimiter::acceptUpdater(IUpdater & visitor)
-{
-	visitor.visitLimiter(*this);
-}
-
 FactionLimiter::FactionLimiter(FactionID creatureFaction)
 	: faction(creatureFaction)
 {
@@ -396,11 +374,6 @@ JsonNode FactionLimiter::toJsonNode() const
 	return root;
 }
 
-void FactionLimiter::acceptUpdater(IUpdater & visitor)
-{
-	visitor.visitLimiter(*this);
-}
-
 CreatureLevelLimiter::CreatureLevelLimiter(uint32_t minLevel, uint32_t maxLevel) :
 	minLevel(minLevel),
 	maxLevel(maxLevel)
@@ -433,11 +406,6 @@ JsonNode CreatureLevelLimiter::toJsonNode() const
 	root["parameters"].Vector().emplace_back(maxLevel);
 
 	return root;
-}
-
-void CreatureLevelLimiter::acceptUpdater(IUpdater& visitor)
-{
-	visitor.visitLimiter(*this);
 }
 
 CreatureAlignmentLimiter::CreatureAlignmentLimiter(EAlignment Alignment)
@@ -479,11 +447,6 @@ JsonNode CreatureAlignmentLimiter::toJsonNode() const
 	return root;
 }
 
-void CreatureAlignmentLimiter::acceptUpdater(IUpdater & visitor)
-{
-	visitor.visitLimiter(*this);
-}
-
 RankRangeLimiter::RankRangeLimiter(ui8 Min, ui8 Max)
 	:minRank(Min), maxRank(Max)
 {
@@ -509,26 +472,18 @@ ILimiter::EDecision RankRangeLimiter::limit(const BonusLimitationContext &contex
 	return ILimiter::EDecision::NOT_APPLICABLE;
 }
 
-void RankRangeLimiter::acceptUpdater(IUpdater & visitor)
-{
-	visitor.visitLimiter(*this);
-}
-
-OppositeSideLimiter::OppositeSideLimiter(PlayerColor Owner):
-	owner(std::move(Owner))
+OppositeSideLimiter::OppositeSideLimiter()
 {
 }
 
 ILimiter::EDecision OppositeSideLimiter::limit(const BonusLimitationContext & context) const
 {
-	auto contextOwner = context.node.getOwner();
-	auto decision = (owner == contextOwner || owner == PlayerColor::CANNOT_DETERMINE) ? ILimiter::EDecision::DISCARD : ILimiter::EDecision::ACCEPT;
+	PlayerColor contextOwner = context.node.getOwner();
+	PlayerColor bonusOwner = context.b.bonusOwner;
+	if (contextOwner == PlayerColor::UNFLAGGABLE)
+		contextOwner = PlayerColor::NEUTRAL;
+	auto decision = (bonusOwner == contextOwner || bonusOwner == PlayerColor::CANNOT_DETERMINE) ? ILimiter::EDecision::DISCARD : ILimiter::EDecision::ACCEPT;
 	return decision;
-}
-
-void OppositeSideLimiter::acceptUpdater(IUpdater & visitor)
-{
-	visitor.visitLimiter(*this);
 }
 
 // Aggregate/Boolean Limiters
@@ -551,11 +506,6 @@ JsonNode AggregateLimiter::toJsonNode() const
 	for(const auto & l : limiters)
 		result.Vector().push_back(l->toJsonNode());
 	return result;
-}
-
-void AggregateLimiter::acceptUpdater(IUpdater & visitor)
-{
-	visitor.visitLimiter(*this);
 }
 
 const std::string AllOfLimiter::aggregator = "allOf";

@@ -45,10 +45,14 @@
 #include "inspector/inspector.h"
 #include "mapsettings/mapsettings.h"
 #include "mapsettings/translations.h"
-#include "playersettings.h"
+#include "mapsettings/modsettings.h"
+#include "PlayerSettingsDialog.h"
 #include "validator.h"
 #include "helper.h"
 #include "campaigneditor/campaigneditor.h"
+#ifdef ENABLE_TEMPLATE_EDITOR
+#include "templateeditor/templateeditor.h"
+#endif
 
 QJsonValue jsonFromPixmap(const QPixmap &p)
 {
@@ -260,6 +264,11 @@ MainWindow::MainWindow(QWidget* parent) :
 	ui->actionZoom_out->setIcon(QIcon{":/icons/zoom_minus.png"});
 	ui->actionZoom_reset->setIcon(QIcon{":/icons/zoom_zero.png"});
 	ui->actionCampaignEditor->setIcon(QIcon{":/icons/mapeditor.64x64.png"});
+	ui->actionTemplateEditor->setIcon(QIcon{":/icons/dice.png"});
+
+#ifndef ENABLE_TEMPLATE_EDITOR
+	ui->actionTemplateEditor->setVisible(false);
+#endif
 
 	loadUserSettings(); //For example window size
 	setTitle();
@@ -371,6 +380,10 @@ void MainWindow::initializeMap(bool isNew)
 	initialScale = ui->mapView->mapToScene(ui->mapView->viewport()->geometry()).boundingRect();
 	
 	//enable settings
+	mapSettings = new MapSettings(controller, this);
+	connect(&controller, &MapController::requestModsUpdate,
+		mapSettings->getModSettings(), &ModSettings::updateModWidgetBasedOnMods);
+
 	ui->actionMapSettings->setEnabled(true);
 	ui->actionPlayers_settings->setEnabled(true);
 	ui->actionTranslations->setEnabled(true);
@@ -390,7 +403,7 @@ bool MainWindow::openMap(const QString & filenameSelect)
 {
 	try
 	{
-		controller.setMap(Helper::openMapInternal(filenameSelect));
+		controller.setMap(Helper::openMapInternal(filenameSelect, controller.getCallback()));
 	}
 	catch(const ModIncompatibility & e)
 	{
@@ -601,6 +614,17 @@ void MainWindow::on_actionCampaignEditor_triggered()
 	CampaignEditor::showCampaignEditor();
 }
 
+void MainWindow::on_actionTemplateEditor_triggered()
+{
+#ifdef ENABLE_TEMPLATE_EDITOR
+	if(!getAnswerAboutUnsavedChanges())
+		return;
+
+	hide();
+	TemplateEditor::showTemplateEditor();
+#endif
+}
+
 void MainWindow::on_actionNew_triggered()
 {
 	if(getAnswerAboutUnsavedChanges())
@@ -698,7 +722,7 @@ void MainWindow::addGroupIntoCatalog(const QString & groupName, bool useCustomNa
 			}
 			
 			//create object to extract name
-			auto temporaryObj(factory->create(nullptr, templ));
+			auto temporaryObj(factory->create(controller.getCallback(), templ));
 			QString translated = useCustomName ? QString::fromStdString(temporaryObj->getObjectName().c_str()) : subGroupName;
 			itemType->setText(translated);
 			
@@ -1124,15 +1148,21 @@ void MainWindow::on_inspectorWidget_itemChanged(QTableWidgetItem *item)
 
 void MainWindow::on_actionMapSettings_triggered()
 {
-	auto settingsDialog = new MapSettings(controller, this);
-	settingsDialog->setWindowModality(Qt::WindowModal);
-	settingsDialog->setModal(true);
+	if(mapSettings->isVisible())
+	{
+		mapSettings->raise();
+		mapSettings->activateWindow();
+	}
+	else
+	{
+		mapSettings->show();
+	}
 }
 
 
 void MainWindow::on_actionPlayers_settings_triggered()
 {
-	auto settingsDialog = new PlayerSettings(controller, this);
+	auto settingsDialog = new PlayerSettingsDialog(controller, this);
 	settingsDialog->setWindowModality(Qt::WindowModal);
 	settingsDialog->setModal(true);
 	connect(settingsDialog, &QDialog::finished, this, &MainWindow::onPlayersChanged);
@@ -1155,15 +1185,15 @@ void MainWindow::switchDefaultPlayer(const PlayerColor & player)
 {
 	if(controller.defaultPlayer == player)
 		return;
-	
-	ui->actionNeutral->blockSignals(true);
+
+	QSignalBlocker blockerNeutral(ui->actionNeutral);
 	ui->actionNeutral->setChecked(PlayerColor::NEUTRAL == player);
-	ui->actionNeutral->blockSignals(false);
+
 	for(int i = 0; i < PlayerColor::PLAYER_LIMIT.getNum(); ++i)
 	{
-		getActionPlayer(PlayerColor(i))->blockSignals(true);
-		getActionPlayer(PlayerColor(i))->setChecked(PlayerColor(i) == player);
-		getActionPlayer(PlayerColor(i))->blockSignals(false);
+		QAction * playerEntry = getActionPlayer(PlayerColor(i));
+		QSignalBlocker blocker(playerEntry); 
+		playerEntry->setChecked(PlayerColor(i) == player);
 	}
 	controller.defaultPlayer = player;
 }
@@ -1359,7 +1389,8 @@ void MainWindow::on_actionh3m_converter_triggered()
 		for(auto & m : mapFiles)
 		{
 			CMapService mapService;
-			auto map = Helper::openMapInternal(m);
+			auto map = Helper::openMapInternal(m, controller.getCallback());
+			controller.setCallback(std::make_unique<EditorCallback>(map.get()));
 			controller.repairMap(map.get());
 			mapService.saveMap(map, (saveDirectory + '/' + QFileInfo(m).completeBaseName() + ".vmap").toStdString());
 		}

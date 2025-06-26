@@ -12,6 +12,7 @@
 #include "../../lib/AsyncRunner.h"
 #include "../../lib/UnlockGuard.h"
 #include "../../lib/StartInfo.h"
+#include "../../lib/battle/CPlayerBattleCallback.h"
 #include "../../lib/entities/artifact/ArtifactUtils.h"
 #include "../../lib/entities/artifact/CArtifact.h"
 #include "../../lib/entities/building/CBuilding.h"
@@ -325,6 +326,12 @@ void AIGateway::heroExchangeStarted(ObjectInstanceID hero1, ObjectInstanceID her
 	});
 }
 
+void AIGateway::heroExperienceChanged(const CGHeroInstance * hero, si64 val)
+{
+	LOG_TRACE_PARAMS(logAi, "val '%i'", val);
+	NET_EVENT_HANDLER;
+}
+
 void AIGateway::heroPrimarySkillChanged(const CGHeroInstance * hero, PrimarySkill which, si64 val)
 {
 	LOG_TRACE_PARAMS(logAi, "which '%i', val '%i'", which.getNum() % val);
@@ -576,7 +583,6 @@ void AIGateway::initGameInterface(std::shared_ptr<Environment> env, std::shared_
 	NET_EVENT_HANDLER;
 	playerID = *myCb->getPlayerID();
 	myCb->waitTillRealize = true;
-	myCb->unlockGsWhenWaiting = true;
 
 	nullkiller->init(CB, this);
 	
@@ -775,7 +781,7 @@ void AIGateway::showGarrisonDialog(const CArmedInstance * up, const CGHeroInstan
 	//you can't request action from action-response thread
 	executeActionAsync("showGarrisonDialog", [this, up, down, removableUnits, queryID]()
 	{
-		if(removableUnits && up->tempOwner == down->tempOwner && nullkiller->settings->isGarrisonTroopsUsageAllowed() && !cb->getStartInfo()->isRestorationOfErathiaCampaign())
+		if(removableUnits && up->tempOwner == down->tempOwner && nullkiller->settings->isGarrisonTroopsUsageAllowed() && !cb->getStartInfo()->restrictedGarrisonsForAI())
 		{
 			pickBestCreatures(down, up);
 		}

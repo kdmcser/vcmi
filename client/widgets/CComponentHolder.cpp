@@ -22,11 +22,10 @@
 #include "../render/IRenderHandler.h"
 #include "../CPlayerInterface.h"
 
-#include "../../CCallback.h"
-
 #include "../../lib/CConfigHandler.h"
 #include "../../lib/CSkillHandler.h"
 #include "../../lib/GameLibrary.h"
+#include "../../lib/callback/CCallback.h"
 #include "../../lib/entities/artifact/ArtifactUtils.h"
 #include "../../lib/entities/artifact/CArtifact.h"
 #include "../../lib/mapObjects/CGHeroInstance.h"
@@ -262,6 +261,17 @@ void CArtPlace::addCombinedArtInfo(const std::map<const ArtifactID, std::vector<
 		}
 		text += info.toString();
 	}
+}
+
+void CArtPlace::addChargedArtInfo(const uint16_t charges)
+{
+	MetaString info;
+	info.appendEOL();
+	info.appendEOL();
+	info.appendTextID("vcmi.artifact.charges");
+	info.appendRawString(" %d");
+	info.replaceNumber(charges);
+	text += info.toString();
 }
 
 CSecSkillPlace::CSecSkillPlace(const Point & position, const ImageSize & imageSize, const SecondarySkill & newSkillId, const uint8_t level)

@@ -12,7 +12,7 @@
 #include <vcmi/Player.h>
 #include <vcmi/Team.h>
 
-#include "GameCallbackHolder.h"
+#include "callback/GameCallbackHolder.h"
 #include "ResourceSet.h"
 #include "TurnTimerInfo.h"
 #include "bonuses/Bonus.h"
@@ -75,7 +75,7 @@ public:
 	std::optional<ui8> daysWithoutCastle;
 	TurnTimerInfo turnTimer;
 
-	PlayerState(IGameCallback *cb);
+	PlayerState(IGameInfoCallback *cb);
 	~PlayerState();
 
 	std::string nodeName() const override;

@@ -17,11 +17,11 @@
 #include "../CSkillHandler.h"
 #include "../GameLibrary.h"
 #include "../GameSettings.h"
-#include "../IGameCallback.h"
 #include "../RiverHandler.h"
 #include "../RoadHandler.h"
 #include "../TerrainHandler.h"
 
+#include "../callback/IGameInfoCallback.h"
 #include "../entities/artifact/CArtHandler.h"
 #include "../entities/hero/CHeroHandler.h"
 #include "../gameState/CGameState.h"
@@ -170,7 +170,7 @@ EDiggingStatus TerrainTile::getDiggingStatus(const bool excludeTop) const
 		return EDiggingStatus::CAN_DIG;
 }
 
-CMap::CMap(IGameCallback * cb)
+CMap::CMap(IGameInfoCallback * cb)
 	: GameCallbackHolder(cb)
 	, grailPos(-1, -1, -1)
 	, grailRadius(0)
@@ -251,6 +251,18 @@ void CMap::calculateGuardingGreaturePositions()
 }
 
 CGHeroInstance * CMap::getHero(HeroTypeID heroID)
+{
+	for (const auto & objectID : heroesOnMap)
+	{
+		const auto hero = std::dynamic_pointer_cast<CGHeroInstance>(objects.at(objectID.getNum()));
+
+		if (hero->getHeroTypeID() == heroID)
+			return hero.get();
+	}
+	return nullptr;
+}
+
+const CGHeroInstance * CMap::getHero(HeroTypeID heroID) const
 {
 	for (const auto & objectID : heroesOnMap)
 	{
@@ -838,7 +850,7 @@ CArtifactInstance * CMap::createArtifact(const ArtifactID & artID, const SpellID
 	if(art->isGrowing())
 	{
 		auto bonus = std::make_shared<Bonus>();
-		bonus->type = BonusType::LEVEL_COUNTER;
+		bonus->type = BonusType::ARTIFACT_GROWING;
 		bonus->val = 0;
 		artInst->addNewBonus(bonus);
 	}
@@ -847,6 +859,18 @@ CArtifactInstance * CMap::createArtifact(const ArtifactID & artID, const SpellID
 		artInst->addNewBonus(std::make_shared<Bonus>(BonusDuration::PERMANENT, BonusType::SPELL,
 													 BonusSource::ARTIFACT_INSTANCE, -1, BonusSourceID(ArtifactID(ArtifactID::SPELL_SCROLL)), BonusSubtypeID(spellId)));
 	}
+	if(art->isCharged())
+	{
+		auto bonus = std::make_shared<Bonus>();
+		bonus->type = BonusType::ARTIFACT_CHARGE;
+		bonus->val = 0;
+		artInst->addNewBonus(bonus);
+		artInst->addCharges(art->getDefaultStartCharges());
+	}
+
+	for (const auto & bonus : art->instanceBonuses)
+		artInst->addNewBonus(std::make_shared<Bonus>(*bonus));
+
 	return artInst;
 }
 
@@ -860,12 +884,12 @@ const CArtifactInstance * CMap::getArtifactInstance(const ArtifactInstanceID & a
 	return artInstances.at(artifactID.getNum()).get();
 }
 
-const std::vector<ObjectInstanceID> & CMap::getAllTowns()
+const std::vector<ObjectInstanceID> & CMap::getAllTowns() const
 {
 	return towns;
 }
 
-const std::vector<ObjectInstanceID> & CMap::getHeroesOnMap()
+const std::vector<ObjectInstanceID> & CMap::getHeroesOnMap() const
 {
 	return heroesOnMap;
 }

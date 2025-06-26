@@ -14,7 +14,7 @@
 #include "CMapHeader.h"
 
 #include "../mapObjects/CGObjectInstance.h"
-#include "../GameCallbackHolder.h"
+#include "../callback/GameCallbackHolder.h"
 #include "../networkPacks/TradeItem.h"
 
 VCMI_LIB_NAMESPACE_BEGIN
@@ -80,7 +80,7 @@ public:
 	/// TODO: make private
 	std::vector<std::shared_ptr<CGObjectInstance>> objects;
 
-	explicit CMap(IGameCallback *cb);
+	explicit CMap(IGameInfoCallback *cb);
 	~CMap();
 	void initTerrain();
 
@@ -233,13 +233,14 @@ public:
 
 	/// Returns pointer to hero of specified type if hero is present on map
 	CGHeroInstance * getHero(HeroTypeID heroId);
+	const CGHeroInstance * getHero(HeroTypeID heroId) const;
 
 	/// Returns ID's of all heroes that are currently present on map
 	/// Includes all garrisoned and imprisoned heroes
-	const std::vector<ObjectInstanceID> & getHeroesOnMap();
+	const std::vector<ObjectInstanceID> & getHeroesOnMap() const;
 
 	/// Returns ID's of all towns present on map
-	const std::vector<ObjectInstanceID> & getAllTowns();
+	const std::vector<ObjectInstanceID> & getAllTowns() const;
 
 	/// Sets the victory/loss condition objectives ??
 	void checkForObjectives();
@@ -271,7 +272,6 @@ public:
 	std::map<TeamID, ui8> obelisksVisited; //map: team_id => how many obelisks has been visited
 
 	std::vector<ArtifactID> townMerchantArtifacts;
-	std::vector<TradeItemBuy> townUniversitySkills;
 
 	void overrideGameSettings(const JsonNode & input);
 	void overrideGameSetting(EGameSettings option, const JsonNode & input);
@@ -344,7 +344,11 @@ public:
 		h & obeliskCount;
 		h & obelisksVisited;
 		h & townMerchantArtifacts;
-		h & townUniversitySkills;
+		if (!h.hasFeature(Handler::Version::UNIVERSITY_CONFIG))
+		{
+			std::vector<TradeItemBuy> townUniversitySkills;
+			h & townUniversitySkills;
+		}
 
 		h & instanceNames;
 		h & *gameSettings;

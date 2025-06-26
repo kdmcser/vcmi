@@ -44,7 +44,6 @@
 #include "../adventureMap/CList.h"
 #include "../adventureMap/CResDataBar.h"
 
-#include "../../CCallback.h"
 #include "../../lib/CConfigHandler.h"
 #include "../../lib/CSoundBase.h"
 #include "../../lib/CCreatureHandler.h"
@@ -55,6 +54,7 @@
 #include "../../lib/GameConstants.h"
 #include "../../lib/gameState/UpgradeInfo.h"
 #include "../../lib/StartInfo.h"
+#include "../../lib/callback/CCallback.h"
 #include "../../lib/campaign/CampaignState.h"
 #include "../../lib/entities/artifact/CArtifact.h"
 #include "../../lib/entities/building/CBuilding.h"
@@ -1593,7 +1593,8 @@ void CCastleInterface::keyPressed(EShortcut key)
 		townlist->selectNext();
 		break;
 	case EShortcut::TOWN_OPEN_FORT:
-		ENGINE->windows().createAndPushWindow<CFortScreen>(town);
+		if(town->fortLevel() > CGTownInstance::NONE)
+			ENGINE->windows().createAndPushWindow<CFortScreen>(town);
 		break;
 	case EShortcut::TOWN_OPEN_MARKET:
 		builds->enterAnyMarket();
