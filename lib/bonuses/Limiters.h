@@ -31,14 +31,19 @@ struct BonusLimitationContext
 class DLL_LINKAGE ILimiter : public Serializeable
 {
 public:
-	enum class EDecision : uint8_t {ACCEPT, DISCARD, NOT_SURE};
+	enum class EDecision : uint8_t
+	{
+		ACCEPT,
+		DISCARD,
+		NOT_SURE, // result may still change based on not yet resolved bonuses
+		NOT_APPLICABLE // limiter is not applicable to current node and is never applicable
+	};
 
 	virtual ~ILimiter() = default;
 
 	virtual EDecision limit(const BonusLimitationContext &context) const; //0 - accept bonus; 1 - drop bonus; 2 - delay (drops eventually)
 	virtual std::string toString() const;
 	virtual JsonNode toJsonNode() const;
-	virtual void acceptUpdater(IUpdater & visitor);
 
 	template <typename Handler> void serialize(Handler &h)
 	{
@@ -54,7 +59,6 @@ public:
 	std::vector<TLimiterPtr> limiters;
 	void add(const TLimiterPtr & limiter);
 	JsonNode toJsonNode() const override;
-	void acceptUpdater(IUpdater & visitor) override;
 
 	template <typename Handler> void serialize(Handler & h)
 	{
@@ -106,7 +110,6 @@ public:
 	EDecision limit(const BonusLimitationContext &context) const override;
 	std::string toString() const override;
 	JsonNode toJsonNode() const override;
-	void acceptUpdater(IUpdater & visitor) override;
 
 	template <typename Handler> void serialize(Handler &h)
 	{
@@ -135,7 +138,6 @@ public:
 	EDecision limit(const BonusLimitationContext &context) const override;
 	std::string toString() const override;
 	JsonNode toJsonNode() const override;
-	void acceptUpdater(IUpdater & visitor) override;
 
 	template <typename Handler> void serialize(Handler &h)
 	{
@@ -160,7 +162,6 @@ public:
 	EDecision limit(const BonusLimitationContext &context) const override;
 	std::string toString() const override;
 	JsonNode toJsonNode() const override;
-	void acceptUpdater(IUpdater & visitor) override;
 
 	template <typename Handler> void serialize(Handler &h)
 	{
@@ -180,7 +181,6 @@ public:
 	EDecision limit(const BonusLimitationContext &context) const override;
 	std::string toString() const override;
 	JsonNode toJsonNode() const override;
-	void acceptUpdater(IUpdater & visitor) override;
 
 	template <typename Handler> void serialize(Handler &h)
 	{
@@ -199,7 +199,6 @@ public:
 	EDecision limit(const BonusLimitationContext &context) const override;
 	std::string toString() const override;
 	JsonNode toJsonNode() const override;
-	void acceptUpdater(IUpdater & visitor) override;
 
 	template <typename Handler> void serialize(Handler &h)
 	{
@@ -217,7 +216,6 @@ public:
 	EDecision limit(const BonusLimitationContext &context) const override;
 	std::string toString() const override;
 	JsonNode toJsonNode() const override;
-	void acceptUpdater(IUpdater & visitor) override;
 
 	template <typename Handler> void serialize(Handler &h)
 	{
@@ -229,16 +227,18 @@ public:
 class DLL_LINKAGE OppositeSideLimiter : public ILimiter //applies only to creatures of enemy army during combat
 {
 public:
-	PlayerColor owner;
-	OppositeSideLimiter(PlayerColor Owner = PlayerColor::CANNOT_DETERMINE);
+	OppositeSideLimiter();
 
 	EDecision limit(const BonusLimitationContext &context) const override;
-	void acceptUpdater(IUpdater & visitor) override;
 
 	template <typename Handler> void serialize(Handler &h)
 	{
 		h & static_cast<ILimiter&>(*this);
-		h & owner;
+		if (!h.hasFeature(Handler::Version::OPPOSITE_SIDE_LIMITER_OWNER))
+		{
+			PlayerColor owner;
+			h & owner;
+		}
 	}
 };
 
@@ -251,7 +251,6 @@ public:
 	RankRangeLimiter();
 	RankRangeLimiter(ui8 Min, ui8 Max = 255);
 	EDecision limit(const BonusLimitationContext &context) const override;
-	void acceptUpdater(IUpdater & visitor) override;
 
 	template <typename Handler> void serialize(Handler &h)
 	{
@@ -269,7 +268,6 @@ public:
 	UnitOnHexLimiter(const BattleHexArray & applicableHexes = {});
 	EDecision limit(const BonusLimitationContext &context) const override;
 	JsonNode toJsonNode() const override;
-	void acceptUpdater(IUpdater& visitor) override;
 
 	template <typename Handler> void serialize(Handler &h)
 	{
