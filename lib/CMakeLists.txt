@@ -142,7 +142,6 @@ set(lib_MAIN_SRCS
 	mapObjectConstructors/HillFortInstanceConstructor.cpp
 	mapObjectConstructors/ShipyardInstanceConstructor.cpp
 
-	mapObjects/CArmedInstance.cpp
 	mapObjects/CGCreature.cpp
 	mapObjects/CGDwelling.cpp
 	mapObjects/CGHeroInstance.cpp
@@ -161,6 +160,12 @@ set(lib_MAIN_SRCS
 	mapObjects/MiscObjects.cpp
 	mapObjects/ObjectTemplate.cpp
 	mapObjects/ObstacleSetHandler.cpp
+
+	mapObjects/army/CArmedInstance.cpp
+	mapObjects/army/CCommanderInstance.cpp
+	mapObjects/army/CCreatureSet.cpp
+	mapObjects/army/CStackBasicDescriptor.cpp
+	mapObjects/army/CStackInstance.cpp
 
 	mapping/CDrawRoadsOperation.cpp
 	mapping/CMap.cpp
@@ -251,7 +256,6 @@ set(lib_MAIN_SRCS
 	serializer/SerializerReflection.cpp
 
 	spells/AbilityCaster.cpp
-	spells/AdventureSpellMechanics.cpp
 	spells/BattleSpellMechanics.cpp
 	spells/BonusCaster.cpp
 	spells/CSpellHandler.cpp
@@ -263,6 +267,14 @@ set(lib_MAIN_SRCS
 	spells/SpellSchoolHandler.cpp
 	spells/TargetCondition.cpp
 	spells/ViewSpellInt.cpp
+
+	spells/adventure/AdventureSpellEffect.cpp
+	spells/adventure/AdventureSpellMechanics.cpp
+	spells/adventure/DimensionDoorEffect.cpp
+	spells/adventure/RemoveObjectEffect.cpp
+	spells/adventure/SummonBoatEffect.cpp
+	spells/adventure/TownPortalEffect.cpp
+	spells/adventure/ViewWorldEffect.cpp
 
 	spells/effects/Catapult.cpp
 	spells/effects/Clone.cpp
@@ -293,7 +305,6 @@ set(lib_MAIN_SRCS
 	CAndroidVMHelper.cpp
 	CBonusTypeHandler.cpp
 	CCreatureHandler.cpp
-	CCreatureSet.cpp
 	CPlayerState.cpp
 	CRandomGenerator.cpp
 	CScriptingModule.cpp
@@ -558,7 +569,6 @@ set(lib_MAIN_HEADERS
 	mapObjectConstructors/ShipyardInstanceConstructor.h
 	mapObjectConstructors/SObjectSounds.h
 
-	mapObjects/CArmedInstance.h
 	mapObjects/CGCreature.h
 	mapObjects/CGDwelling.h
 	mapObjects/CGHeroInstance.h
@@ -581,9 +591,17 @@ set(lib_MAIN_HEADERS
 	mapObjects/ObjectTemplate.h
 	mapObjects/ObstacleSetHandler.h
 
+	mapObjects/army/CArmedInstance.h
+	mapObjects/army/CCommanderInstance.h
+	mapObjects/army/CCreatureSet.h
+	mapObjects/army/CSimpleArmy.h
+	mapObjects/army/CStackBasicDescriptor.h
+	mapObjects/army/CStackInstance.h
+
 	mapping/CDrawRoadsOperation.h
-	mapping/CMapDefines.h
+	mapping/CCastleEvent.h
 	mapping/CMapEditManager.h
+	mapping/CMapEvent.h
 	mapping/CMapHeader.h
 	mapping/CMap.h
 	mapping/CMapInfo.h
@@ -598,6 +616,7 @@ set(lib_MAIN_HEADERS
 	mapping/MapReaderH3M.h
 	mapping/MapFormatJson.h
 	mapping/ObstacleProxy.h
+	mapping/TerrainTile.h
 
 	modding/ActiveModsInSaveList.h
 	modding/CModHandler.h
@@ -700,7 +719,6 @@ set(lib_MAIN_HEADERS
 	serializer/SerializerReflection.h
 
 	spells/AbilityCaster.h
-	spells/AdventureSpellMechanics.h
 	spells/BattleSpellMechanics.h
 	spells/BonusCaster.h
 	spells/CSpellHandler.h
@@ -712,6 +730,14 @@ set(lib_MAIN_HEADERS
 	spells/SpellSchoolHandler.h
 	spells/TargetCondition.h
 	spells/ViewSpellInt.h
+
+	spells/adventure/AdventureSpellMechanics.h
+	spells/adventure/AdventureSpellEffect.h
+	spells/adventure/DimensionDoorEffect.h
+	spells/adventure/RemoveObjectEffect.h
+	spells/adventure/SummonBoatEffect.h
+	spells/adventure/TownPortalEffect.h
+	spells/adventure/ViewWorldEffect.h
 
 	spells/effects/Catapult.h
 	spells/effects/Clone.h
@@ -744,7 +770,6 @@ set(lib_MAIN_HEADERS
 	CAndroidVMHelper.h
 	CBonusTypeHandler.h
 	CCreatureHandler.h
-	CCreatureSet.h
 	ConditionalWait.h
 	Color.h
 	CPlayerState.h

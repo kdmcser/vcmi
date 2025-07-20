@@ -10,8 +10,9 @@
 
 #pragma once
 
-#include "CMapDefines.h"
+#include "CMapEvent.h"
 #include "CMapHeader.h"
+#include "TerrainTile.h"
 
 #include "../mapObjects/CGObjectInstance.h"
 #include "../callback/GameCallbackHolder.h"
@@ -221,7 +222,6 @@ public:
 	bool isWaterMap() const;
 	bool calculateWaterContent();
 	void banWaterArtifacts();
-	void banWaterHeroes();
 	void banHero(const HeroTypeID& id);
 	void unbanHero(const HeroTypeID & id);
 	void banWaterSpells();

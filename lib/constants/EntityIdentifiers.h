@@ -51,6 +51,8 @@ class ArtifactInstanceID : public StaticIdentifier<ArtifactInstanceID>
 {
 public:
 	using StaticIdentifier<ArtifactInstanceID>::StaticIdentifier;
+
+	DLL_LINKAGE static std::string encode(const si32 index);
 };
 
 class QueryID : public StaticIdentifier<QueryID>
@@ -854,16 +856,16 @@ public:
 		NONE = -1,
 
 		// Adventure map spells
-		SUMMON_BOAT = 0,
-		SCUTTLE_BOAT = 1,
-		VISIONS = 2,
-		VIEW_EARTH = 3,
-		DISGUISE = 4,
-		VIEW_AIR = 5,
-		FLY = 6,
-		WATER_WALK = 7,
-		DIMENSION_DOOR = 8,
-		TOWN_PORTAL = 9,
+		SUMMON_BOAT [[deprecated("check for spell mechanics instead of spell ID")]] = 0,
+		SCUTTLE_BOAT [[deprecated("check for spell mechanics instead of spell ID")]] = 1,
+		VISIONS [[deprecated("check for spell mechanics instead of spell ID")]] = 2,
+		VIEW_EARTH [[deprecated("check for spell mechanics instead of spell ID")]] = 3,
+		DISGUISE [[deprecated("check for spell mechanics instead of spell ID")]] = 4,
+		VIEW_AIR [[deprecated("check for spell mechanics instead of spell ID")]] = 5,
+		FLY [[deprecated("check for spell mechanics instead of spell ID")]] = 6,
+		WATER_WALK [[deprecated("check for spell mechanics instead of spell ID")]] = 7,
+		DIMENSION_DOOR [[deprecated("check for spell mechanics instead of spell ID")]] = 8,
+		TOWN_PORTAL [[deprecated("check for spell mechanics instead of spell ID")]] = 9,
 
 		// Combat spells
 		QUICKSAND = 10,

@@ -11,8 +11,10 @@
 
 #include <vcmi/spells/Caster.h>
 
-#include "CArmedInstance.h"
 #include "IOwnableObject.h"
+
+#include "army/CArmedInstance.h"
+#include "army/CCommanderInstance.h"
 
 #include "../bonuses/BonusCache.h"
 #include "../entities/hero/EHeroGender.h"
@@ -153,6 +155,7 @@ public:
 	void addSpellToSpellbook(const SpellID & spell);
 	void removeSpellFromSpellbook(const SpellID & spell);
 	bool spellbookContainsSpell(const SpellID & spell) const;
+	std::vector<BonusSourceID> getSourcesForSpell(const SpellID & spell) const;
 	void removeSpellbook();
 	const std::set<SpellID> & getSpellsInSpellbook() const;
 	EAlignment getAlignment() const;
@@ -286,6 +289,7 @@ public:
 	int32_t getEffectPower(const spells::Spell * spell) const override;
 	int32_t getEnchantPower(const spells::Spell * spell) const override;
 	int64_t getEffectValue(const spells::Spell * spell) const override;
+	int64_t getEffectRange(const spells::Spell * spell) const override;
 
 	PlayerColor getCasterOwner() const override;
 	const CGHeroInstance * getHeroCaster() const override;

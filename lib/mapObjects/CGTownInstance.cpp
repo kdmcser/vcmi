@@ -22,6 +22,7 @@
 #include "../texts/CGeneralTextHandler.h"
 #include "../gameState/CGameState.h"
 #include "../gameState/UpgradeInfo.h"
+#include "../mapping/CCastleEvent.h"
 #include "../mapping/CMap.h"
 #include "../CPlayerState.h"
 #include "../StartInfo.h"
@@ -206,7 +207,11 @@ int CGTownInstance::getDwellingBonus(const std::vector<CreatureID>& creatureIds,
 
 TResources CGTownInstance::dailyIncome() const
 {
-	TResources ret;
+	ResourceSet ret;
+
+	for (GameResID k : GameResID::ALL_RESOURCES())
+		ret[k] += valOfBonuses(BonusType::GENERATE_RESOURCE, BonusSubtypeID(k));
+
 	for(const auto & p : getTown()->buildings)
 	{
 		BuildingID buildingUpgrade;
@@ -261,8 +266,9 @@ TownFortifications CGTownInstance::fortificationsLevel() const
 }
 
 CGTownInstance::CGTownInstance(IGameInfoCallback *cb):
-	CGDwelling(cb),
+	CGDwelling(cb, BonusNodeType::TOWN),
 	IMarket(cb),
+	townAndVis(BonusNodeType::TOWN_AND_VISITOR),
 	built(0),
 	destroyed(0),
 	identifier(0),
@@ -271,7 +277,6 @@ CGTownInstance::CGTownInstance(IGameInfoCallback *cb):
 	spellResearchAcceptedCounter(0),
 	spellResearchAllowed(true)
 {
-	setNodeType(CBonusSystemNode::TOWN);
 	attachTo(townAndVis);
 }
 
@@ -1207,11 +1212,6 @@ GrowthInfo::Entry::Entry(int _count, std::string fullDescription):
 	count(_count),
 	description(std::move(fullDescription))
 {
-}
-
-CTownAndVisitingHero::CTownAndVisitingHero()
-{
-	setNodeType(TOWN_AND_VISITOR);
 }
 
 int GrowthInfo::totalGrowth() const

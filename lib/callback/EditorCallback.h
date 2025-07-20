@@ -32,6 +32,7 @@ public:
 
 	const TerrainTile * getTile(int3 tile, bool verbose) const override;
 	const TerrainTile * getTileUnchecked(int3 tile) const override;
+	bool isTileGuardedUnchecked(int3 tile) const override;
 	const CGObjectInstance * getTopObj(int3 pos) const override;
 	EDiggingStatus getTileDigStatus(int3 tile, bool verbose) const override;
 	void calculatePaths(const std::shared_ptr<PathfinderConfig> & config) const override;
@@ -40,7 +41,7 @@ public:
 	std::vector<const CGObjectInstance*> getGuardingCreatures(int3 pos) const override;
 
 	void getTilesInRange(std::unordered_set<int3> & tiles, const int3 & pos, int radius, ETileVisibility mode, std::optional<PlayerColor> player, int3::EDistanceFormula formula) const override;
-	void getAllTiles(std::unordered_set<int3> &tiles, std::optional<PlayerColor> player, int level, std::function<bool(const TerrainTile *)> filter) const override;
+	void getAllTiles(std::unordered_set<int3> &tiles, std::optional<PlayerColor> player, int level, const std::function<bool(const TerrainTile *)> & filter) const override;
 
 	std::vector<ObjectInstanceID> getVisibleTeleportObjects(std::vector<ObjectInstanceID> ids, PlayerColor player) const override;
 	std::vector<ObjectInstanceID> getTeleportChannelEntrances(TeleportChannelID id, PlayerColor player) const override;

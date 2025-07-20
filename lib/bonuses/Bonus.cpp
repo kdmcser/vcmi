@@ -16,7 +16,6 @@
 
 #include "../CBonusTypeHandler.h"
 #include "../CCreatureHandler.h"
-#include "../CCreatureSet.h"
 #include "../CSkillHandler.h"
 #include "../TerrainHandler.h"
 #include "../GameLibrary.h"
@@ -204,6 +203,8 @@ JsonNode Bonus::toJsonNode() const
 		root["updater"] = updater->toJsonNode();
 	if(propagator)
 		root["propagator"].String() = vstd::findKey(bonusPropagatorMap, propagator);
+	if(hidden)
+		root["hidden"].Bool() = hidden;
 	return root;
 }
 
@@ -234,6 +235,12 @@ Bonus::Bonus(BonusDuration::Type Duration, BonusType Type, BonusSource Src, si32
 	turnsRemain = 0;
 	effectRange = BonusLimitEffect::NO_LIMIT;
 	targetSourceType = BonusSource::OTHER;
+}
+
+Bonus::Bonus(const Bonus & inst, const BonusSourceID & sourceId)
+	: Bonus(inst)
+{
+	sid = sourceId;
 }
 
 std::shared_ptr<Bonus> Bonus::addPropagator(const TPropagatorPtr & Propagator)

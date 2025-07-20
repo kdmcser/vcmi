@@ -264,6 +264,12 @@ Defines maximum level of spells than hero can learn from any source (Wisdom)
 
 - val: maximal level to learn
 
+### COMBAT_MANA_BONUS
+
+Grants affected hero additional mana for the duration of combat. Bonus may give total mana above mana limit. Any additional mana not spent during combat will be lost.
+
+- val: amount of additional mana
+
 ## Hero specialties
 
 ### SPECIAL_SPELL_LEV
@@ -882,7 +888,7 @@ Affected unit will not use spellcast as default attack option
 
 ### SPELLCASTER
 
-Affected units can cast a spell as targeted action (Archangel, Faerie Dragon). Use CASTS bonus to specify how many times per combat creature can use spellcasting. Use SPECIFIC_SPELL_POWER, CREATURE_SPELL_POWER or CREATURE_ENCHANT_POWER bonuses to set spell power.
+Affected units can cast a spell as targeted action (Archangel, Faerie Dragon). Use CASTS bonus to specify how many times per combat creature can use spellcasting. Use SPECIFIC_SPELL_POWER, CREATURE_SPELL_POWER or CREATURE_ENCHANT_POWER bonuses to set spell power. SPECIFIC_SPELL_RANGE bonus can be used to limit range of spell.
 
 - subtype: spell identifier
 - val: spell mastery level
@@ -931,6 +937,11 @@ Determines how many times per combat affected creature can cast its targeted spe
 ### SPECIFIC_SPELL_POWER
 
 - value: Used for Thunderbolt and Resurrection cast by units (multiplied by stack size). Also used for Healing secondary skill (for core:spell.firstAid used by First Aid tent)
+- subtype - spell id
+
+### SPECIFIC_SPELL_RANGE
+
+- value: Can be used to limit range of spells casted by creatures.
 - subtype - spell id
 
 ### CREATURE_SPELL_POWER

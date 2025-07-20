@@ -16,6 +16,8 @@
 #include "factionselector.h"
 #include "mineselector.h"
 #include "treasureselector.h"
+#include "objectselector.h"
+#include "townhintselector.h"
 #include "GeometryAlgorithm.h"
 
 #include "../helper.h"
@@ -339,8 +341,8 @@ void TemplateEditor::loadZoneMenuContent(bool onlyPosition)
 	ui->comboBoxZoneType->addItem(tr("Water"), QVariant(static_cast<int>(ETemplateZoneType::WATER)));
 	ui->comboBoxZoneType->addItem(tr("Sealed"), QVariant(static_cast<int>(ETemplateZoneType::SEALED)));
 	for (int i = 0; i < ui->comboBoxZoneType->count(); ++i)
-    	if (ui->comboBoxZoneType->itemData(i).toInt() == static_cast<int>(zone->getType()))
-        	ui->comboBoxZoneType->setCurrentIndex(i);
+		if (ui->comboBoxZoneType->itemData(i).toInt() == static_cast<int>(zone->getType()))
+			ui->comboBoxZoneType->setCurrentIndex(i);
 
 	ui->comboBoxZoneOwner->clear();
 	auto type = static_cast<ETemplateZoneType>(ui->comboBoxZoneType->currentData().toInt());
@@ -370,8 +372,8 @@ void TemplateEditor::loadZoneMenuContent(bool onlyPosition)
 	ui->comboBoxMonsterStrength->addItem(tr("Normal"), QVariant(static_cast<int>(EMonsterStrength::EMonsterStrength::ZONE_NORMAL)));
 	ui->comboBoxMonsterStrength->addItem(tr("Strong"), QVariant(static_cast<int>(EMonsterStrength::EMonsterStrength::ZONE_STRONG)));
 	for (int i = 0; i < ui->comboBoxMonsterStrength->count(); ++i)
-    	if (ui->comboBoxMonsterStrength->itemData(i).toInt() == static_cast<int>(zone->monsterStrength))
-        	ui->comboBoxMonsterStrength->setCurrentIndex(i);
+		if (ui->comboBoxMonsterStrength->itemData(i).toInt() == static_cast<int>(zone->monsterStrength))
+			ui->comboBoxMonsterStrength->setCurrentIndex(i);
 }
 
 void TemplateEditor::loadZoneConnectionMenuContent()
@@ -1032,8 +1034,7 @@ void TemplateEditor::on_pushButtonBannedTowns_clicked()
 
 void TemplateEditor::on_pushButtonTownHints_clicked()
 {
-	//TODO: Implement dialog
-	QMessageBox::critical(this, tr("Error"), tr("Not implemented yet!"));
+	TownHintSelector::showTownHintSelector(templates[selectedTemplate]->getZones().at(selectedZone)->townHints);
 }
 
 void TemplateEditor::on_pushButtonAllowedMonsters_clicked()
@@ -1059,6 +1060,5 @@ void TemplateEditor::on_pushButtonMines_clicked()
 
 void TemplateEditor::on_pushButtonCustomObjects_clicked()
 {
-	//TODO: Implement dialog
-	QMessageBox::critical(this, tr("Error"), tr("Not implemented yet!"));
+	ObjectSelector::showObjectSelector(templates[selectedTemplate]->getZones().at(selectedZone)->objectConfig);
 }

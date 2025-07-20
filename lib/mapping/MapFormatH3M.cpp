@@ -11,6 +11,7 @@
 #include "StdInc.h"
 #include "MapFormatH3M.h"
 
+#include "CCastleEvent.h"
 #include "CMap.h"
 #include "MapReaderH3M.h"
 #include "MapFormatSettings.h"
@@ -2127,7 +2128,7 @@ std::shared_ptr<CGObjectInstance> CMapLoaderH3M::readHero(const int3 & mapPositi
 		bool hasCustomPrimSkills = reader->readBool();
 		if(hasCustomPrimSkills)
 		{
-			auto ps = object->getAllBonuses(Selector::type()(BonusType::PRIMARY_SKILL).And(Selector::sourceType()(BonusSource::HERO_BASE_SKILL)), nullptr);
+			auto ps = object->getAllBonuses(Selector::type()(BonusType::PRIMARY_SKILL).And(Selector::sourceType()(BonusSource::HERO_BASE_SKILL)), "");
 			if(ps->size())
 			{
 				logGlobal->debug("Hero %s has set primary skills twice (in map properties and on adventure map instance). Using the latter set...", object->getHeroTypeID().getNum() );

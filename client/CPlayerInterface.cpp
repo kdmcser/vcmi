@@ -68,6 +68,7 @@
 
 #include "../lib/callback/CDynLibHandler.h"
 #include "../lib/CConfigHandler.h"
+#include "../lib/GameLibrary.h"
 #include "../lib/texts/CGeneralTextHandler.h"
 #include "../lib/CPlayerState.h"
 #include "../lib/CRandomGenerator.h"
@@ -498,6 +499,7 @@ void CPlayerInterface::heroMovePointsChanged(const CGHeroInstance * hero)
 	if (makingTurn && hero->tempOwner == playerID)
 		adventureInt->onHeroChanged(hero);
 	invalidatePaths();
+	localState->verifyPath(hero);
 }
 void CPlayerInterface::receivedResource()
 {
@@ -1232,11 +1234,10 @@ void CPlayerInterface::heroBonusChanged( const CGHeroInstance *hero, const Bonus
 		return;
 
 	adventureInt->onHeroChanged(hero);
-	if ((bonus.type == BonusType::FLYING_MOVEMENT || bonus.type == BonusType::WATER_WALKING) && !gain)
-	{
-		//recalculate paths because hero has lost bonus influencing pathfinding
-		localState->erasePath(hero);
-	}
+
+	//recalculate paths because hero has lost or gained bonus influencing pathfinding
+	if (bonus.type == BonusType::FLYING_MOVEMENT || bonus.type == BonusType::WATER_WALKING || bonus.type == BonusType::ROUGH_TERRAIN_DISCOUNT || bonus.type == BonusType::NO_TERRAIN_PENALTY)
+		localState->verifyPath(hero);
 }
 
 void CPlayerInterface::moveHero( const CGHeroInstance *h, const CGPath& path )
@@ -1599,9 +1600,6 @@ void CPlayerInterface::advmapSpellCast(const CGHeroInstance * caster, SpellID sp
 
 	if(ENGINE->windows().topWindow<CSpellWindow>())
 		ENGINE->windows().popWindows(1);
-
-	if(spellID == SpellID::FLY || spellID == SpellID::WATER_WALK)
-		localState->erasePath(caster);
 
 	auto castSoundPath = spellID.toSpell()->getCastSound();
 	if(!castSoundPath.empty())

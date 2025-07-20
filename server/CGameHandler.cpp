@@ -25,7 +25,6 @@
 
 #include "../lib/CConfigHandler.h"
 #include "../lib/CCreatureHandler.h"
-#include "../lib/CCreatureSet.h"
 #include "../lib/CPlayerState.h"
 #include "../lib/CSoundBase.h"
 #include "../lib/GameConstants.h"
@@ -354,19 +353,21 @@ void CGameHandler::giveStackExperience(const CArmedInstance * army, TExpType val
 void CGameHandler::giveExperience(const CGHeroInstance * hero, TExpType amountToGain)
 {
 	TExpType maxExp = LIBRARY->heroh->reqExp(LIBRARY->heroh->maxSupportedLevel());
-	TExpType currExp = hero->exp;
+	TExpType currHeroExp = hero->exp;
 
 	if (gameState().getMap().levelLimit != 0)
 		maxExp = LIBRARY->heroh->reqExp(gameState().getMap().levelLimit);
 
-	TExpType canGainExp = 0;
-	if (maxExp > currExp)
-		canGainExp = maxExp - currExp;
+	TExpType canGainHeroExp = 0;
+	if (maxExp > currHeroExp)
+		canGainHeroExp = maxExp - currHeroExp;
 
-	if (amountToGain > canGainExp)
+	TExpType actualHeroExperience = 0;
+
+	if (amountToGain > canGainHeroExp)
 	{
 		// set given experience to max possible, but don't decrease if hero already over top
-		amountToGain = canGainExp;
+		actualHeroExperience = canGainHeroExp;
 
 		InfoWindow iw;
 		iw.player = hero->tempOwner;
@@ -374,21 +375,29 @@ void CGameHandler::giveExperience(const CGHeroInstance * hero, TExpType amountTo
 		iw.text.replaceTextID(hero->getNameTextID());
 		sendAndApply(iw);
 	}
+	else
+		actualHeroExperience = amountToGain;
 
 	SetHeroExperience she;
 	she.id = hero->id;
 	she.mode = ChangeValueMode::RELATIVE;
-	she.val = amountToGain;
+	she.val = actualHeroExperience;
 	sendAndApply(she);
 
 	//hero may level up
 	if (hero->getCommander() && hero->getCommander()->alive)
 	{
-		//FIXME: trim experience according to map limit?
+		TExpType canGainCommanderExp = 0;
+		TExpType currCommanderExp = hero->getCommander()->getTotalExperience();
+		if (maxExp > currHeroExp)
+			canGainCommanderExp = maxExp - currCommanderExp;
+
+		TExpType actualCommanderExperience = amountToGain > canGainCommanderExp ? canGainCommanderExp : amountToGain;
+
 		SetCommanderProperty scp;
 		scp.heroid = hero->id;
 		scp.which = SetCommanderProperty::EXPERIENCE;
-		scp.amount = amountToGain;
+		scp.amount = actualCommanderExperience;
 		sendAndApply(scp);
 	}
 
@@ -1335,12 +1344,11 @@ void CGameHandler::setMovePoints(SetMovePoints * smp)
 	sendAndApply(*smp);
 }
 
-void CGameHandler::setMovePoints(ObjectInstanceID hid, int val, ChangeValueMode mode)
+void CGameHandler::setMovePoints(ObjectInstanceID hid, int val)
 {
 	SetMovePoints smp;
 	smp.hid = hid;
 	smp.val = val;
-	smp.mode = mode;
 	sendAndApply(smp);
 }
 
@@ -3939,7 +3947,7 @@ void CGameHandler::castSpell(const spells::Caster * caster, SpellID spellID, con
 	s->adventureCast(spellEnv.get(), p);
 
 	if(const auto * hero = caster->getHeroCaster())
-		useChargedArtifactUsed(hero->id, spellID);
+		useChargeBasedSpell(hero->id, spellID);
 }
 
 bool CGameHandler::swapStacks(const StackLocation & sl1, const StackLocation & sl2)
@@ -4332,33 +4340,38 @@ void CGameHandler::startBattle(const CArmedInstance *army1, const CArmedInstance
 	battles->startBattle(army1, army2);
 }
 
-void CGameHandler::useChargedArtifactUsed(const ObjectInstanceID & heroObjectID, const SpellID & spellID)
+void CGameHandler::useChargeBasedSpell(const ObjectInstanceID & heroObjectID, const SpellID & spellID)
 {
 	const auto * hero = gameInfo().getHero(heroObjectID);
 	assert(hero);
 	assert(hero->canCastThisSpell(spellID.toSpell()));
 
-	if(vstd::contains(hero->getSpellsInSpellbook(), spellID))
-		return;
-
-	std::vector<std::pair<ArtifactPosition, ArtifactInstanceID>> chargedArts;
-	for(const auto & [slot, slotInfo] : hero->artifactsWorn)
+	// Check if hero used charge based spell
+	// Try to find other sources of the spell besides the charged artifacts. If there are any, we use them.
+	std::optional<std::tuple<ArtifactPosition, ArtifactInstanceID, uint16_t>> chargedArt;
+	for(const auto & source : hero->getSourcesForSpell(spellID))
 	{
-		const auto * artInst = slotInfo.getArt();
-		const auto * artType = artInst->getType();
-		if(artType->getDischargeCondition() == DischargeArtifactCondition::SPELLCAST)
+		if(const auto * artInst = hero->getArtByInstanceId(source.as<ArtifactInstanceID>()))
 		{
-			chargedArts.emplace_back(slot, artInst->getId());
+			const auto * artType = artInst->getType();
+			const auto spellCost = artType->getChargeCost(spellID);
+			if(spellCost.has_value() && spellCost.value() <= artInst->getCharges() && artType->getDischargeCondition() == DischargeArtifactCondition::SPELLCAST)
+			{
+				chargedArt.emplace(hero->getArtPos(artInst), artInst->getId(), spellCost.value());
+			}
+			else
+			{
+				return;
+			}
 		}
 		else
 		{
-			if(const auto bonuses = artInst->getBonusesOfType(BonusType::SPELL, spellID); !bonuses->empty())
-				return;
+			return;
 		}
 	}
 
-	assert(!chargedArts.empty());
-	DischargeArtifact msg(chargedArts.front().second, 1);
-	msg.artLoc.emplace(hero->id, chargedArts.front().first);
+	assert(chargedArt.has_value());
+	DischargeArtifact msg(std::get<1>(chargedArt.value()), std::get<2>(chargedArt.value()));
+	msg.artLoc.emplace(hero->id, std::get<0>(chargedArt.value()));
 	sendAndApply(msg);
 }

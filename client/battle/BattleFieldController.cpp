@@ -117,9 +117,6 @@ BattleFieldController::BattleFieldController(BattleInterface & owner):
 	cellUnitMovementHighlight = ENGINE->renderHandler().loadImage(ImagePath::builtin("UnitMovementHighlight.PNG"), EImageBlitMode::COLORKEY);
 	cellUnitMaxMovementHighlight = ENGINE->renderHandler().loadImage(ImagePath::builtin("UnitMaxMovementHighlight.PNG"), EImageBlitMode::COLORKEY);
 
-	attackCursors = ENGINE->renderHandler().loadAnimation(AnimationPath::builtin("CRCOMBAT"), EImageBlitMode::COLORKEY);
-	spellCursors = ENGINE->renderHandler().loadAnimation(AnimationPath::builtin("CRSPELL"), EImageBlitMode::COLORKEY);
-
 	rangedFullDamageLimitImages = ENGINE->renderHandler().loadAnimation(AnimationPath::builtin("battle/rangeHighlights/rangeHighlightsGreen.json"), EImageBlitMode::COLORKEY);
 	shootingRangeLimitImages = ENGINE->renderHandler().loadAnimation(AnimationPath::builtin("battle/rangeHighlights/rangeHighlightsRed.json"), EImageBlitMode::COLORKEY);
 
@@ -392,14 +389,16 @@ BattleHexArray BattleFieldController::getHighlightedHexesForMovementTarget()
 
 	if (stack->doubleWide())
 	{
+		const bool canMoveHeadHere = hoveredHex.isAvailable() && availableHexes.contains(hoveredHex);
+		const bool canMoveTailHere = hoveredHex.isAvailable() && availableHexes.contains(hoveredHex.cloneInDirection(stack->destShiftDir()));
 		const bool backwardsMove = stack->unitSide() == BattleSide::ATTACKER ?
-			hoveredHex.getX() < stack->getPosition().getX():
-			hoveredHex.getX() > stack->getPosition().getX();
+									   hoveredHex.getX() < stack->getPosition().getX():
+									   hoveredHex.getX() > stack->getPosition().getX();
 
-		if (backwardsMove && availableHexes.contains(hoveredHex.cloneInDirection(stack->destShiftDir())))
+		if(canMoveTailHere && (backwardsMove || !canMoveHeadHere))
 			return {hoveredHex, hoveredHex.cloneInDirection(stack->destShiftDir())};
 
-		if (availableHexes.contains(hoveredHex))
+		if (canMoveHeadHere)
 			return {hoveredHex, stack->occupiedHex(hoveredHex)};
 
 		return {};
@@ -820,7 +819,7 @@ bool BattleFieldController::isTileAttackable(const BattleHex & number) const
 
 	for (auto & elem : occupiableHexes)
 	{
-		if (BattleHex::mutualPosition(elem, number) != -1 || elem == number)
+		if (BattleHex::mutualPosition(elem, number) != BattleHex::EDir::NONE || elem == number)
 			return true;
 	}
 	return false;
@@ -859,24 +858,7 @@ void BattleFieldController::show(Canvas & to)
 	renderBattlefield(to);
 
 	if (isActive() && isGesturing() && getHoveredHex() != BattleHex::INVALID)
-	{
-		auto combatCursorIndex = ENGINE->cursor().get<Cursor::Combat>();
-		if (combatCursorIndex)
-		{
-			auto combatImageIndex = static_cast<size_t>(*combatCursorIndex);
-			to.draw(attackCursors->getImage(combatImageIndex), hexPositionAbsolute(getHoveredHex()).center() - ENGINE->cursor().getPivotOffsetCombat(combatImageIndex));
-			return;
-		}
-
-		auto spellCursorIndex = ENGINE->cursor().get<Cursor::Spellcast>();
-		if (spellCursorIndex)
-		{
-			auto spellImageIndex = static_cast<size_t>(*spellCursorIndex);
-			to.draw(spellCursors->getImage(spellImageIndex), hexPositionAbsolute(getHoveredHex()).center() - ENGINE->cursor().getPivotOffsetSpellcast());
-			return;
-		}
-
-	}
+		to.draw(ENGINE->cursor().getCurrentImage(), hexPositionAbsolute(getHoveredHex()).center() - ENGINE->cursor().getPivotOffset());
 }
 
 bool BattleFieldController::receiveEvent(const Point & position, int eventType) const
