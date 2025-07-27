@@ -63,7 +63,7 @@ std::string CBuilding::getDescriptionTextID() const
 BuildingID CBuilding::getBase() const
 {
 	const CBuilding * build = this;
-	while (build->upgrade != BuildingID::NONE)
+	while (build->upgrade != BuildingID::NONE && build->bid.getNum() != build->upgrade)
 	{
 		build = build->town->buildings.at(build->upgrade).get();
 	}

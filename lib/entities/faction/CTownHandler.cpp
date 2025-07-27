@@ -367,7 +367,10 @@ void CTownHandler::loadBuilding(CTown * town, const std::string & stringID, cons
 
 		LIBRARY->identifiers()->requestIdentifier(ret->town->getBuildingScope(), source["upgrades"], [=](si32 identifier)
 		{
-			ret->upgrade = BuildingID(identifier);
+			if(ret->bid.getNum() == identifier)
+				ret->upgrade = BuildingID::NONE;
+			else
+				ret->upgrade = BuildingID(identifier);
 		});
 	}
 	else
