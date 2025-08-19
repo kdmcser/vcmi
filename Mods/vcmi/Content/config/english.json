@@ -698,6 +698,8 @@
 	"vcmi.credits.idea" : "Idea",
 	"vcmi.credits.developing" : "Developing",
 	"vcmi.credits.testing" : "Testing",
+	"vcmi.credits.specialthanks" : "Special Thanks",
+	"vcmi.credits.vcmiehancement" : "Heroes III Enhancement VCMI",
 	"core.credits.createdBy" : "Created By",
 	"core.credits.executiveProducer" : "Executive Producer",
 	"core.credits.producer" : "Producer",
