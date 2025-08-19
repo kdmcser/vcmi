@@ -66,7 +66,7 @@ option(ENABLE_CCACHE "Speed up recompilation by caching previous compilations" O
 # Platform-specific options
 
 if(ANDROID)
-	set(ANDROID_TARGET_SDK_VERSION "34" CACHE STRING "Android target SDK version")
+	set(ANDROID_TARGET_SDK_VERSION "35" CACHE STRING "Android target SDK version")
 	set(ANDROIDDEPLOYQT_OPTIONS "" CACHE STRING "Additional androiddeployqt options separated by semi-colon")
 	set(ANDROID_GRADLE_PROPERTIES "" CACHE STRING "Additional Gradle properties separated by semi-colon")
 
@@ -354,7 +354,8 @@ if(MINGW OR MSVC)
 		set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /FORCE:MULTIPLE")
 
 		# Required at least for compatibility with Boost 1.68 on Vcpkg
-		set(SYSTEM_LIBS ${SYSTEM_LIBS} bcrypt)
+  		# psapi required for ARM64 builds
+		set(SYSTEM_LIBS ${SYSTEM_LIBS} bcrypt psapi)
 	endif(MSVC)
 
 	if(MINGW)
@@ -467,11 +468,15 @@ endif()
 #        Finding packages                  #
 ############################################
 
-set(BOOST_COMPONENTS date_time filesystem locale program_options system)
+set(BOOST_COMPONENTS date_time filesystem locale program_options)
 if(ENABLE_INNOEXTRACT)
 	list(APPEND BOOST_COMPONENTS iostreams)
 endif()
 find_package(Boost 1.48.0 REQUIRED COMPONENTS ${BOOST_COMPONENTS})
+if(Boost_MAJOR_VERSION EQUAL 1 AND Boost_MINOR_VERSION LESS 69)
+	list(APPEND BOOST_COMPONENTS system)
+	find_package(Boost 1.48.0 REQUIRED COMPONENTS ${BOOST_COMPONENTS})
+endif()
 
 find_package(ZLIB REQUIRED)
 # Conan compatibility
@@ -834,6 +839,7 @@ set(CPACK_PACKAGE_VENDOR "VCMI team")
 
 if(WIN32)
 	# Note: due to NSI script generation process all of the backward slashes here are useful
+	set(CPACK_GENERATOR ZIP)
 	set(CPACK_MONOLITHIC_INSTALL 1)
 	set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/license.txt")
 	set(CPACK_PACKAGE_INSTALL_DIRECTORY "${CPACK_PACKAGE_NAME}")

@@ -25,6 +25,7 @@
 #include "../constants/StringConstants.h"
 #include "../filesystem/Filesystem.h"
 #include "CZonePlacer.h"
+#include "CRoadRandomizer.h"
 #include "TileInfo.h"
 #include "Zone.h"
 #include "Functions.h"
@@ -328,6 +329,10 @@ void CMapGenerator::genZones()
 {
 	placer->placeZones(rand.get());
 	placer->assignZones(rand.get());
+	placer->RemoveRoadsForWideConnections();
+	
+	CRoadRandomizer roadRandomizer(*map);
+	roadRandomizer.dropRandomRoads(rand.get());
 
 	logGlobal->info("Zones generated successfully");
 }
@@ -458,7 +463,7 @@ void CMapGenerator::addHeaderInfo()
 	m.version = EMapFormat::VCMI;
 	m.width = mapGenOptions.getWidth();
 	m.height = mapGenOptions.getHeight();
-	m.twoLevel = mapGenOptions.getHasTwoLevels();
+	m.mapLevels = mapGenOptions.getLevels();
 	m.name.appendLocalString(EMetaText::GENERAL_TXT, 740);
 	m.description = getMapDescription();
 	m.difficulty = EMapDifficulty::NORMAL;

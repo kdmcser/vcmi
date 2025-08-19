@@ -185,7 +185,7 @@ void CMapLoaderH3M::readHeader()
 	// Read map name, description, dimensions,...
 	mapHeader->areAnyPlayers = reader->readBool();
 	mapHeader->height = mapHeader->width = reader->readInt32();
-	mapHeader->twoLevel = reader->readBool();
+	mapHeader->mapLevels = reader->readBool() ? 2 : 1;
 	mapHeader->name.appendTextID(readLocalizedString("header.name"));
 	mapHeader->description.appendTextID(readLocalizedString("header.description"));
 	mapHeader->author.appendRawString("");
@@ -743,6 +743,9 @@ void CMapLoaderH3M::readMapOptions()
 				logGlobal->warn("Map '%s': option to ban hero recruitment for %s is not implemented!!", mapName, PlayerColor(i).toString());
 		}
 	}
+
+	const MapIdentifiersH3M & identifierMapper = LIBRARY->mapFormat->getMapping(mapHeader->version);
+	map->overrideGameSettings(identifierMapper.getFormatSettings());
 }
 
 void CMapLoaderH3M::readAllowedArtifacts()
@@ -2471,7 +2474,10 @@ std::shared_ptr<CGObjectInstance> CMapLoaderH3M::readTown(const int3 & position,
 
 	std::optional<FactionID> faction;
 	if (objectTemplate->id == Obj::TOWN)
+	{
 		faction = FactionID(objectTemplate->subid);
+		object->subID = objectTemplate->subid;
+	}
 
 	bool hasName = reader->readBool();
 	if(hasName)

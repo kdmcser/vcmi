@@ -88,6 +88,9 @@ set(vcmiclientcommon_SRCS
 	media/CSoundHandler.cpp
 	media/CVideoHandler.cpp
 
+	netlag/NetworkLagCompensator.cpp
+	netlag/PackRollbackGeneratorVisitor.cpp
+
 	render/AssetGenerator.cpp
 	render/CAnimation.cpp
 	render/CBitmapHandler.cpp
@@ -181,6 +184,7 @@ set(vcmiclientcommon_SRCS
 	windows/settings/SettingsMainWindow.cpp
 	windows/settings/BattleOptionsTab.cpp
 	windows/settings/AdventureOptionsTab.cpp
+	windows/settings/KeyBindingsWindow.cpp
 
 	xBRZ/xbrz.cpp
 
@@ -300,6 +304,12 @@ set(vcmiclientcommon_HEADERS
 	media/ISoundPlayer.h
 	media/IVideoPlayer.h
 
+	netlag/NetworkLagCompensator.h
+	netlag/NetworkLagPredictedPack.h
+	netlag/NetworkLagPredictionTestVisitor.h
+	netlag/NetworkLagReplyPrediction.h
+	netlag/PackRollbackGeneratorVisitor.h
+
 	render/AssetGenerator.h
 	render/CAnimation.h
 	render/CBitmapHandler.h
@@ -403,6 +413,7 @@ set(vcmiclientcommon_HEADERS
 	windows/settings/SettingsMainWindow.h
 	windows/settings/BattleOptionsTab.h
 	windows/settings/AdventureOptionsTab.h
+	windows/settings/KeyBindingsWindow.h
 
 	xBRZ/xbrz.h
 	xBRZ/xbrz_tools.h

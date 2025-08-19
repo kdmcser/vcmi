@@ -233,7 +233,7 @@ void CRClickPopup::createAndPush(const CGObjectInstance * obj, const Point & p, 
 
 		std::vector<std::shared_ptr<CComponent>> guiComponents;
 		for(auto & component : components)
-			guiComponents.push_back(std::make_shared<CComponent>(component));
+			guiComponents.push_back(std::make_shared<CComponent>(component, CComponent::medium));
 
 		if(GAME->interface()->localState->getCurrentHero())
 			CRClickPopup::createAndPush(obj->getPopupText(GAME->interface()->localState->getCurrentHero()), guiComponents);
@@ -351,7 +351,7 @@ MinimapWithIcons::MinimapWithIcons(const Point & position)
 	Rect borderSurface(10, 40, 147, 147);
 	Rect borderUnderground(166, 40, 147, 147);
 
-	bool singleLevelMap = GAME->interface()->cb->getMapSize().z == 1;
+	bool singleLevelMap = GAME->interface()->cb->getMapSize().z == 1; // TODO: multilevel support
 
 	if (singleLevelMap)
 	{
@@ -375,7 +375,7 @@ void MinimapWithIcons::addIcon(const int3 & coordinates, const ImagePath & image
 
 	Rect areaSurface(11, 41, 144, 144);
 	Rect areaUnderground(167, 41, 144, 144);
-	bool singleLevelMap = GAME->interface()->cb->getMapSize().z == 1;
+	bool singleLevelMap = GAME->interface()->cb->getMapSize().z == 1; // TODO: multilevel support
 	if (singleLevelMap)
 		areaSurface.x += 78;
 

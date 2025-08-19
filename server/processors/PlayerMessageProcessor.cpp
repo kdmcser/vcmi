@@ -32,7 +32,6 @@
 #include "../../lib/mapping/CMap.h"
 #include "../../lib/networkPacks/PacksForClient.h"
 #include "../../lib/networkPacks/StackLocation.h"
-#include "../../lib/serializer/Connection.h"
 #include "../../lib/spells/CSpellHandler.h"
 #include "../lib/VCMIDirs.h"
 
@@ -70,17 +69,17 @@ void PlayerMessageProcessor::playerMessage(PlayerColor player, const std::string
 
 void PlayerMessageProcessor::commandExit(PlayerColor player, const std::vector<std::string> & words)
 {
-	bool isHost = gameHandler->gameLobby().isPlayerHost(player);
+	bool isHost = gameHandler->gameServer().isPlayerHost(player);
 	if(!isHost)
 		return;
 
 	broadcastSystemMessage(MetaString::createFromTextID("vcmi.broadcast.gameTerminated"));
-	gameHandler->gameLobby().setState(EServerState::SHUTDOWN);
+	gameHandler->gameServer().setState(EServerState::SHUTDOWN);
 }
 
 void PlayerMessageProcessor::commandKick(PlayerColor player, const std::vector<std::string> & words)
 {
-	bool isHost = gameHandler->gameLobby().isPlayerHost(player);
+	bool isHost = gameHandler->gameServer().isPlayerHost(player);
 	if(!isHost)
 		return;
 
@@ -112,7 +111,7 @@ void PlayerMessageProcessor::commandKick(PlayerColor player, const std::vector<s
 
 void PlayerMessageProcessor::commandSave(PlayerColor player, const std::vector<std::string> & words)
 {
-	bool isHost = gameHandler->gameLobby().isPlayerHost(player);
+	bool isHost = gameHandler->gameServer().isPlayerHost(player);
 	if(!isHost)
 		return;
 
@@ -147,7 +146,7 @@ void PlayerMessageProcessor::commandCheaters(PlayerColor player, const std::vect
 
 void PlayerMessageProcessor::commandStatistic(PlayerColor player, const std::vector<std::string> & words)
 {
-	bool isHost = gameHandler->gameLobby().isPlayerHost(player);
+	bool isHost = gameHandler->gameServer().isPlayerHost(player);
 	if(!isHost)
 		return;
 
@@ -428,7 +427,7 @@ void PlayerMessageProcessor::cheatGiveArmy(PlayerColor player, const CGHeroInsta
 	{
 	}
 
-	std::optional<int32_t> creatureId = LIBRARY->identifiers()->getIdentifier(ModScope::scopeGame(), "creature", creatureIdentifier, false);
+	std::optional<int32_t> creatureId = LIBRARY->identifiers()->getIdentifierCaseInsensitive(ModScope::scopeGame(), "creature", creatureIdentifier, false);
 
 	if(creatureId.has_value())
 	{
@@ -469,7 +468,7 @@ void PlayerMessageProcessor::cheatGiveArtifacts(PlayerColor player, const CGHero
 	{
 		for (auto const & word : words)
 		{
-			auto artID = LIBRARY->identifiers()->getIdentifier(ModScope::scopeGame(), "artifact", word, false);
+			auto artID = LIBRARY->identifiers()->getIdentifierCaseInsensitive(ModScope::scopeGame(), "artifact", word, false);
 			if(artID &&  LIBRARY->arth->objects[*artID])
 				gameHandler->giveHeroNewArtifact(hero, ArtifactID(*artID), ArtifactPosition::FIRST_AVAILABLE);
 		}
@@ -728,7 +727,7 @@ void PlayerMessageProcessor::cheatSkill(PlayerColor player, const CGHeroInstance
 		return;
 	}
 
-	std::optional<int32_t> skillId = LIBRARY->identifiers()->getIdentifier(ModScope::scopeGame(), "skill", identifier, false);
+	std::optional<int32_t> skillId = LIBRARY->identifiers()->getIdentifierCaseInsensitive(ModScope::scopeGame(), "skill", identifier, false);
 	if(!skillId.has_value())
 		return;
 	
@@ -964,25 +963,25 @@ void PlayerMessageProcessor::executeCheatCode(const std::string & cheatName, Pla
 		callbacks.at(cheatName)();
 }
 
-void PlayerMessageProcessor::sendSystemMessage(std::shared_ptr<CConnection> connection, const MetaString & message)
+void PlayerMessageProcessor::sendSystemMessage(GameConnectionID connectionID, const MetaString & message)
 {
 	SystemMessage sm;
 	sm.text = message;
-	connection->sendPack(sm);
+	gameHandler->gameServer().sendPack(sm, connectionID);
 }
 
-void PlayerMessageProcessor::sendSystemMessage(std::shared_ptr<CConnection> connection, const std::string & message)
+void PlayerMessageProcessor::sendSystemMessage(GameConnectionID connectionID, const std::string & message)
 {
 	MetaString str;
 	str.appendRawString(message);
-	sendSystemMessage(connection, str);
+	sendSystemMessage(connectionID, str);
 }
 
 void PlayerMessageProcessor::broadcastSystemMessage(MetaString message)
 {
 	SystemMessage sm;
 	sm.text = message;
-	gameHandler->sendToAllClients(sm);
+	gameHandler->gameServer().applyPack(sm);
 }
 
 void PlayerMessageProcessor::broadcastSystemMessage(const std::string & message)

@@ -25,6 +25,7 @@
 #include "../mapObjectConstructors/DwellingInstanceConstructor.h"
 #include "../mapObjectConstructors/FlaggableInstanceConstructor.h"
 #include "../mapObjectConstructors/HillFortInstanceConstructor.h"
+#include "../mapObjectConstructors/MarketInstanceConstructor.h"
 #include "../mapObjectConstructors/ShipyardInstanceConstructor.h"
 
 #include "../mapObjects/CGCreature.h"
@@ -355,6 +356,12 @@ void CObjectClassesHandler::loadSubObject(const std::string & identifier, JsonNo
 	}
 
 	JsonUtils::inherit(config, mapObjectTypes.at(ID.getNum())->base);
+	for (auto & templ : config["templates"].Struct())
+		JsonUtils::inherit(templ.second, config["base"]);
+
+	if (settings["mods"]["validation"].String() != "off")
+		JsonUtils::validate(config, "vcmi:objectType", identifier);
+
 	loadSubObject(config.getModScope(), identifier, config, mapObjectTypes.at(ID.getNum()).get(), subID.getNum());
 }
 

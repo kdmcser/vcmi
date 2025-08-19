@@ -31,7 +31,6 @@
 #include "../lib/callback/CCallback.h"
 #include "../lib/filesystem/Filesystem.h"
 #include "../lib/filesystem/FileInfo.h"
-#include "../lib/serializer/Connection.h"
 #include "../lib/texts/CGeneralTextHandler.h"
 #include "../lib/GameLibrary.h"
 #include "../lib/mapping/CMap.h"
@@ -419,40 +418,6 @@ void ApplyClientNetPackVisitor::visitPlayerEndsGame(PlayerEndsGame & pack)
 		logAi->info("Red player %s. Ending game.", pack.victoryLossCheckResult.victory() ? "won" : "lost");
 
 		GAME->onShutdownRequested(settings["session"]["spectate"].Bool()); // if spectator is active ask to close client or not
-	}
-}
-
-void ApplyClientNetPackVisitor::visitPlayerReinitInterface(PlayerReinitInterface & pack)
-{
-	auto initInterfaces = [this]()
-	{
-		cl.initPlayerInterfaces();
-
-		for(PlayerColor player(0); player < PlayerColor::PLAYER_LIMIT; ++player)
-		{
-			if(cl.gameState().isPlayerMakingTurn(player))
-			{
-				callAllInterfaces(cl, &IGameEventsReceiver::playerStartsTurn, player);
-				callOnlyThatInterface(cl, player, &CGameInterface::yourTurn, QueryID::NONE);
-			}
-		}
-	};
-	
-	for(auto player : pack.players)
-	{
-		auto & plSettings = GAME->server().si->getIthPlayersSettings(player);
-		if(pack.playerConnectionId == PlayerSettings::PLAYER_AI)
-		{
-			plSettings.connectedPlayerIDs.clear();
-			cl.initPlayerEnvironments();
-			initInterfaces();
-		}
-		else if(pack.playerConnectionId == GAME->server().logicConnection->connectionID)
-		{
-			plSettings.connectedPlayerIDs.insert(pack.playerConnectionId);
-			cl.playerint.clear();
-			initInterfaces();
-		}
 	}
 }
 
@@ -863,7 +828,7 @@ void ApplyClientNetPackVisitor::visitBattleResultsApplied(BattleResultsApplied &
 {
 	if(!pack.learnedSpells.spells.empty())
 	{
-		const auto hero = GAME->interface()->cb->getHero(pack.learnedSpells.hid);
+		const auto * hero = cl.gameInfo().getHero(pack.learnedSpells.hid);
 		assert(hero);
 		callInterfaceIfPresent(cl, pack.victor, &CGameInterface::showInfoDialog, EInfoWindowMode::MODAL,
 			UIHelper::getEagleEyeInfoWindowText(*hero, pack.learnedSpells.spells), UIHelper::getSpellsComponents(pack.learnedSpells.spells), soundBase::soundID(0));
@@ -871,7 +836,7 @@ void ApplyClientNetPackVisitor::visitBattleResultsApplied(BattleResultsApplied &
 
 	if(!pack.movingArtifacts.empty())
 	{
-		const auto artSet = GAME->interface()->cb->getArtSet(ArtifactLocation(pack.movingArtifacts.front().dstArtHolder));
+		const auto * artSet = cl.gameState().getArtSet(ArtifactLocation(pack.movingArtifacts.front().dstArtHolder));
 		assert(artSet);
 		std::vector<Component> artComponents;
 		for(const auto & artPack : pack.movingArtifacts)

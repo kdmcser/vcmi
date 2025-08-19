@@ -75,7 +75,6 @@
 
 #include "../lib/serializer/CSaveFile.h"
 #include "../lib/serializer/CLoadFile.h"
-#include "../lib/serializer/Connection.h"
 
 #include "../lib/spells/CSpellHandler.h"
 
@@ -128,9 +127,9 @@ events::EventBus * CGameHandler::eventBus() const
 	return serverEventBus.get();
 }
 
-CVCMIServer & CGameHandler::gameLobby() const
+IGameServer & CGameHandler::gameServer() const
 {
-	return *lobby;
+	return server;
 }
 
 void CGameHandler::levelUpHero(const CGHeroInstance * hero, SecondarySkill skill)
@@ -437,57 +436,63 @@ void CGameHandler::changeSecSkill(const CGHeroInstance * hero, SecondarySkill wh
 
 }
 
-void CGameHandler::handleClientDisconnection(const std::shared_ptr<CConnection> & c)
+void CGameHandler::handleClientDisconnection(GameConnectionID connectionID)
 {
-	if(gameLobby().getState() == EServerState::SHUTDOWN || !gameState().getStartInfo())
+	if(gameServer().getState() == EServerState::SHUTDOWN || !gameState().getStartInfo())
 	{
 		assert(0); // game should have shut down before reaching this point!
 		return;
 	}
-	
-	for(auto & playerConnections : connections)
-	{
-		PlayerColor playerId = playerConnections.first;
 
-		auto playerConnection = vstd::find(playerConnections.second, c);
-		if(playerConnection == playerConnections.second.end())
+	std::vector<PlayerColor> disconnectedPlayers;
+	std::vector<PlayerColor> remainingPlayers;
+
+	// this player have left the game - broadcast infowindow to all in-game players
+	for (const auto & player : gameState().players)
+	{
+		if (gameInfo().getPlayerState(player.first)->status != EPlayerStatus::INGAME)
 			continue;
 
-		logGlobal->trace("Player %s disconnected. Notifying remaining players", playerId.toString());
+		if (gameServer().hasPlayerAt(player.first, connectionID))
+			disconnectedPlayers.push_back(player.first);
+		else
+			remainingPlayers.push_back(player.first);
+	}
 
-		// this player have left the game - broadcast infowindow to all in-game players
-		for (const auto & player : gameState().players)
+	for (const auto & inGamePlayer : remainingPlayers)
+	{
+		for (const auto & lostPlayer : disconnectedPlayers)
 		{
-			if (player.first == playerId)
-				continue;
-
-			if (gameInfo().getPlayerState(player.first)->status != EPlayerStatus::INGAME)
-				continue;
-
-			logGlobal->trace("Notifying player %s", player.first);
-
 			InfoWindow out;
-			out.player = player.first;
+			out.player = inGamePlayer;
 			out.text.appendTextID("vcmi.server.errors.playerLeft");
-			out.text.replaceName(playerId);
-			out.components.emplace_back(ComponentType::FLAG, playerId);
+			out.text.replaceName(lostPlayer);
+			out.components.emplace_back(ComponentType::FLAG, lostPlayer);
 			sendAndApply(out);
 		}
 	}
 }
 
-void CGameHandler::handleReceivedPack(std::shared_ptr<CConnection> connection, CPackForServer & pack)
+void CGameHandler::handleReceivedPack(GameConnectionID connection, CPackForServer & pack)
 {
 	//prepare struct informing that action was applied
 	auto sendPackageResponse = [&](bool successfullyApplied)
 	{
-		PackageApplied applied;
-		applied.player = pack.player;
-		applied.result = successfullyApplied;
-		applied.packType = CTypeList::getInstance().getTypeID(&pack);
-		applied.requestID = pack.requestID;
-		connection->sendPack(applied);
+		PackageApplied applied(
+			pack.player,
+			pack.requestID,
+			CTypeList::getInstance().getTypeID(&pack),
+			successfullyApplied
+		);
+		gameServer().sendPack(applied, connection);
 	};
+
+	PackageReceived received(
+		pack.player,
+		pack.requestID,
+		CTypeList::getInstance().getTypeID(&pack)
+	);
+	gameServer().sendPack(received, connection);
 
 	if(isBlockedByQueries(&pack, pack.player))
 	{
@@ -517,8 +522,15 @@ void CGameHandler::handleReceivedPack(std::shared_ptr<CConnection> connection, C
 	}
 }
 
-CGameHandler::CGameHandler(CVCMIServer * lobby)
-	: lobby(lobby)
+CGameHandler::CGameHandler(IGameServer & server, const std::shared_ptr<CGameState> & initialGamestate)
+	:CGameHandler(server)
+{
+	gs = initialGamestate;
+	randomizer = std::make_unique<GameRandomizer>(*gs);
+}
+
+CGameHandler::CGameHandler(IGameServer & server)
+	: server(server)
 	, heroPool(std::make_unique<HeroPoolProcessor>(this))
 	, battles(std::make_unique<BattleProcessor>(this))
 	, queries(std::make_unique<QueriesProcessor>())
@@ -731,19 +743,6 @@ void CGameHandler::onNewTurn()
 void CGameHandler::start(bool resume)
 {
 	LOG_TRACE_PARAMS(logGlobal, "resume=%d", resume);
-
-	for (const auto & cc : gameLobby().activeConnections)
-	{
-		auto players = gameLobby().getAllClientPlayers(cc->connectionID);
-		std::stringstream sbuffer;
-		sbuffer << "Connection " << cc->connectionID << " will handle " << players.size() << " player: ";
-		for (PlayerColor color : players)
-		{
-			sbuffer << color << " ";
-			connections[color].insert(cc);
-		}
-		logGlobal->info(sbuffer.str());
-	}
 
 #if SCRIPTING_ENABLED
 	services()->scripts()->run(serverScripts);
@@ -1021,7 +1020,7 @@ bool CGameHandler::moveHero(ObjectInstanceID hid, int3 dst, EMovementMode moveme
 		if (blockingVisit()) // e.g. hero on the other side of teleporter
 			return true;
 
-		EGuardLook guardsCheck = (gameInfo().getSettings().getBoolean(EGameSettings::DIMENSION_DOOR_TRIGGERS_GUARDS) && movementMode == EMovementMode::DIMENSION_DOOR)
+		EGuardLook guardsCheck = (gameInfo().getSettings().getBoolean(EGameSettings::SPELLS_DIMENSION_DOOR_TRIGGERS_GUARDS) && movementMode == EMovementMode::DIMENSION_DOOR)
 			? CHECK_FOR_GUARDS
 			: IGNORE_GUARDS;
 
@@ -1034,10 +1033,8 @@ bool CGameHandler::moveHero(ObjectInstanceID hid, int3 dst, EMovementMode moveme
 			if (const auto * town = dynamic_cast<const CGTownInstance *>(objectToVisit))
 				objectVisited(town, h);
 		}
-
 		return true;
 	}
-	
 
 	//still here? it is standard movement!
 	{
@@ -1131,7 +1128,7 @@ void CGameHandler::showBlockingDialog(const IObjectInterface * caller, BlockingD
 	auto dialogQuery = std::make_shared<CBlockingDialogQuery>(this, caller, *iw);
 	queries->addQuery(dialogQuery);
 	iw->queryID = dialogQuery->queryID;
-	sendToAllClients(*iw);
+	sendAndApply(*iw);
 }
 
 void CGameHandler::showTeleportDialog(TeleportDialog *iw)
@@ -1139,7 +1136,7 @@ void CGameHandler::showTeleportDialog(TeleportDialog *iw)
 	auto dialogQuery = std::make_shared<CTeleportDialogQuery>(this, *iw);
 	queries->addQuery(dialogQuery);
 	iw->queryID = dialogQuery->queryID;
-	sendToAllClients(*iw);
+	sendAndApply(*iw);
 }
 
 void CGameHandler::giveResource(PlayerColor player, GameResID which, int val)
@@ -1504,18 +1501,9 @@ void CGameHandler::heroExchange(ObjectInstanceID hero1, ObjectInstanceID hero2)
 	}
 }
 
-void CGameHandler::sendToAllClients(const CPackForClient & pack)
-{
-	logNetwork->trace("\tSending to all clients: %s", typeid(pack).name());
-	for (const auto & c : gameLobby().activeConnections)
-		c->sendPack(pack);
-}
-
 void CGameHandler::sendAndApply(CPackForClient & pack)
 {
-	sendToAllClients(pack);
-	gs->apply(pack);
-	logNetwork->trace("\tApplied on gameState(): %s", typeid(pack).name());
+	gameServer().applyPack(pack);
 }
 
 void CGameHandler::sendAndApply(CGarrisonOperationPack & pack)
@@ -1536,62 +1524,62 @@ void CGameHandler::sendAndApply(NewStructures & pack)
 	checkVictoryLossConditionsForPlayer(gameInfo().getTown(pack.tid)->tempOwner);
 }
 
-bool CGameHandler::isPlayerOwns(const std::shared_ptr<CConnection> & connection, const CPackForServer * pack, ObjectInstanceID id)
+bool CGameHandler::isPlayerOwns(GameConnectionID connectionID, const CPackForServer * pack, ObjectInstanceID id)
 {
-	return pack->player == gameState().getOwner(id) && hasPlayerAt(gameState().getOwner(id), connection);
+	return pack->player == gameState().getOwner(id) && hasPlayerAt(gameState().getOwner(id), connectionID);
 }
 
-void CGameHandler::throwNotAllowedAction(const std::shared_ptr<CConnection> & connection)
+void CGameHandler::throwNotAllowedAction(GameConnectionID connectionID)
 {
-	playerMessages->sendSystemMessage(connection, MetaString::createFromTextID("vcmi.server.errors.notAllowed"));
+	playerMessages->sendSystemMessage(connectionID, MetaString::createFromTextID("vcmi.server.errors.notAllowed"));
 
 	logNetwork->error("Player is not allowed to perform this action!");
 	throw ExceptionNotAllowedAction();
 }
 
-void CGameHandler::wrongPlayerMessage(const std::shared_ptr<CConnection> & connection, const CPackForServer * pack, PlayerColor expectedplayer)
+void CGameHandler::wrongPlayerMessage(GameConnectionID connectionID, const CPackForServer * pack, PlayerColor expectedplayer)
 {
 	auto str = MetaString::createFromTextID("vcmi.server.errors.wrongIdentified");
 	str.replaceName(pack->player);
 	str.replaceName(expectedplayer);
 	logNetwork->error(str.toString());
 
-	playerMessages->sendSystemMessage(connection, str);
+	playerMessages->sendSystemMessage(connectionID, str);
 }
 
-void CGameHandler::throwIfWrongOwner(const std::shared_ptr<CConnection> & connection, const CPackForServer * pack, ObjectInstanceID id)
+void CGameHandler::throwIfWrongOwner(GameConnectionID connectionID, const CPackForServer * pack, ObjectInstanceID id)
 {
-	if(!isPlayerOwns(connection, pack, id))
+	if(!isPlayerOwns(connectionID, pack, id))
 	{
-		wrongPlayerMessage(connection, pack, gameState().getOwner(id));
-		throwNotAllowedAction(connection);
+		wrongPlayerMessage(connectionID, pack, gameState().getOwner(id));
+		throwNotAllowedAction(connectionID);
 	}
 }
 
-void CGameHandler::throwIfPlayerNotActive(const std::shared_ptr<CConnection> & connection, const CPackForServer * pack)
+void CGameHandler::throwIfPlayerNotActive(GameConnectionID connectionID, const CPackForServer * pack)
 {
-	if (!turnOrder->isPlayerMakingTurn(pack->player))
-		throwNotAllowedAction(connection);
+	if (!vstd::contains(gs->actingPlayers, pack->player))
+		throwNotAllowedAction(connectionID);
 }
 
-void CGameHandler::throwIfWrongPlayer(const std::shared_ptr<CConnection> & connection, const CPackForServer * pack)
+void CGameHandler::throwIfWrongPlayer(GameConnectionID connectionID, const CPackForServer * pack)
 {
-	throwIfWrongPlayer(connection, pack, pack->player);
+	throwIfWrongPlayer(connectionID, pack, pack->player);
 }
 
-void CGameHandler::throwIfWrongPlayer(const std::shared_ptr<CConnection> & connection, const CPackForServer * pack, PlayerColor player)
+void CGameHandler::throwIfWrongPlayer(GameConnectionID connectionID, const CPackForServer * pack, PlayerColor player)
 {
-	if(!hasPlayerAt(player, connection) || pack->player != player)
+	if(!hasPlayerAt(player, connectionID) || pack->player != player)
 	{
-		wrongPlayerMessage(connection, pack, player);
-		throwNotAllowedAction(connection);
+		wrongPlayerMessage(connectionID, pack, player);
+		throwNotAllowedAction(connectionID);
 	}
 }
 
-void CGameHandler::throwAndComplain(const std::shared_ptr<CConnection> & connection, const std::string & txt)
+void CGameHandler::throwAndComplain(GameConnectionID connectionID, const std::string & txt)
 {
 	complain(txt);
-	throwNotAllowedAction(connection);
+	throwNotAllowedAction(connectionID);
 }
 
 void CGameHandler::save(const std::string & filename)
@@ -1616,64 +1604,23 @@ void CGameHandler::save(const std::string & filename)
 	}
 }
 
-bool CGameHandler::load(const std::string & filename)
+void CGameHandler::load(const StartInfo &info)
 {
-	logGlobal->info("Loading from %s", filename);
-	const auto stem	= FileInfo::GetPathStem(filename);
+	logGlobal->info("Loading from %s", info.mapname);
+	const auto stem	= FileInfo::GetPathStem(info.mapname);
 
 	reinitScripting();
 
-	try
-	{
-		CLoadFile lf(*CResourceHandler::get()->getResourceName(ResourcePath(stem.to_string(), EResType::SAVEGAME)), gs.get());
-		gs = std::make_shared<CGameState>();
-		randomizer = std::make_unique<GameRandomizer>(*gs);
-		gs->loadGame(lf);
-		logGlobal->info("Loading server state");
-		lf.load(*this);
-		logGlobal->info("Game has been successfully loaded!");
-	}
-	catch(const ModIncompatibility & e)
-	{
-		logGlobal->error("Failed to load game: %s", e.what());
-		MetaString errorMsg;
-		if(!e.whatMissing().empty())
-		{
-			errorMsg.appendTextID("vcmi.server.errors.modsToEnable");
-			errorMsg.appendRawString("\n");
-			errorMsg.appendRawString(e.whatMissing());
-		}
-		if(!e.whatExcessive().empty())
-		{
-			errorMsg.appendTextID("vcmi.server.errors.modsToDisable");
-			errorMsg.appendRawString("\n");
-			errorMsg.appendRawString(e.whatExcessive());
-		}
-		gameLobby().announceMessage(errorMsg);
-		return false;
-	}
-	catch(const IdentifierResolutionException & e)
-	{
-		logGlobal->error("Failed to load game: %s", e.what());
-		MetaString errorMsg;
-		errorMsg.appendTextID("vcmi.server.errors.unknownEntity");
-		errorMsg.replaceRawString(e.identifierName);
-		gameLobby().announceMessage(errorMsg);
-		return false;
-	}
+	CLoadFile lf(*CResourceHandler::get()->getResourceName(ResourcePath(stem.to_string(), EResType::SAVEGAME)), gs.get());
+	gs = std::make_shared<CGameState>();
+	randomizer = std::make_unique<GameRandomizer>(*gs);
+	gs->loadGame(lf);
+	logGlobal->info("Loading server state");
+	lf.load(*this);
+	logGlobal->info("Game has been successfully loaded!");
 
-	catch(const std::exception & e)
-	{
-		logGlobal->error("Failed to load game: %s", e.what());
-		auto str = MetaString::createFromTextID("vcmi.broadcast.failedLoadGame");
-		str.appendRawString(": ");
-		str.appendRawString(e.what());
-		gameLobby().announceMessage(str);
-		return false;
-	}
 	gs->preInit(LIBRARY);
-	gs->updateOnLoad(gameLobby().si.get());
-	return true;
+	gs->updateOnLoad(info);
 }
 
 bool CGameHandler::bulkSplitStack(SlotID slotSrc, ObjectInstanceID srcOwner, si32 howMany)
@@ -1767,83 +1714,68 @@ bool CGameHandler::bulkMoveArmy(ObjectInstanceID srcArmy, ObjectInstanceID destA
 	if(!srcSlot.validSlot() && complain(complainInvalidSlot))
 		return false;
 
-	const auto * armySrc = dynamic_cast<const CArmedInstance*>(gameInfo().getObjInstance(srcArmy));
-	const CCreatureSet & setSrc = *armySrc;
+	if(!isAllowedExchange(srcArmy, destArmy))
+		COMPLAIN_RET("That heroes cannot make any exchange!");
 
-	if(!vstd::contains(setSrc.stacks, srcSlot) && complain(complainNoCreatures))
+	const auto * armySrc = dynamic_cast<const CArmedInstance*>(gameInfo().getObjInstance(srcArmy));
+	const auto * armyDest = dynamic_cast<const CArmedInstance*>(gameInfo().getObjInstance(destArmy));
+
+	if(!vstd::contains(armySrc->stacks, srcSlot) && complain(complainNoCreatures))
 		return false;
 
-	const auto * armyDest = dynamic_cast<const CArmedInstance*>(gameInfo().getObjInstance(destArmy));
-	const CCreatureSet & setDest = *armyDest;
-	auto freeSlots = setDest.getFreeSlotsQueue();
+	auto freeSlots = armyDest->getFreeSlots();
+	bool allTroopsMoved = true;
 
-	std::map<SlotID, std::pair<SlotID, TQuantity>> moves;
-
-	auto srcQueue = setSrc.getCreatureQueue(srcSlot); // Exclude srcSlot, it should be moved last
-	auto slotsLeft = setSrc.stacksCount();
-	auto destMap = setDest.getCreatureMap();
-	TMapCreatureSlot::key_compare keyComp = destMap.key_comp();
-
-	while(!srcQueue.empty())
-	{
-		auto pair = srcQueue.top();
-		srcQueue.pop();
-
-		const auto * currCreature = pair.first;
-		auto currSlot = pair.second;
-		const auto quantity = setSrc.getStackCount(currSlot);
-
-		const auto lb = destMap.lower_bound(currCreature);
-		const bool alreadyExists = (lb != destMap.end() && !(keyComp(currCreature, lb->first)));
-
-		if(!alreadyExists)
-		{
-			if(freeSlots.empty())
-				continue;
-
-			auto currFreeSlot = freeSlots.front();
-			freeSlots.pop();
-			destMap.insert(lb, TMapCreatureSlot::value_type(currCreature, currFreeSlot));
-		}
-		moves.insert(std::make_pair(currSlot, std::make_pair(destMap[currCreature], quantity)));
-		slotsLeft--;
-	}
-	if(slotsLeft == 1)
-	{
-		const auto * lastCreature = setSrc.getCreature(srcSlot);
-		auto slotToMove = SlotID();
-		// Try to find a slot for last creature
-		if(destMap.find(lastCreature) == destMap.end())
-		{
-			if(!freeSlots.empty())
-				slotToMove = freeSlots.front();
-		}
-		else
-		{
-			slotToMove = destMap[lastCreature];
-		}
-
-		if(slotToMove != SlotID())
-		{
-			const bool needsLastStack = armySrc->needsLastStack();
-			const auto quantity = setSrc.getStackCount(srcSlot) - (needsLastStack ? 1 : 0);
-
-			if(quantity > 0) //0 may happen when we need last creature and we have exactly 1 amount of that creature - amount of "rest we can transfer" becomes 0
-				moves.insert(std::make_pair(srcSlot, std::make_pair(slotToMove, quantity)));
-		}
-	}
 	BulkRebalanceStacks bulkRS;
 
-	for(const auto & move : moves)
+	for (const auto & slot : armySrc->Slots())
 	{
+		auto targetSlot = armyDest->getSlotFor(slot.second->getCreature());
+
+		if (armyDest->slotEmpty(targetSlot))
+		{
+			if (freeSlots.empty())
+			{
+				allTroopsMoved = false;
+				continue; // no more free slots, but we might still have units that are present in both armies
+			}
+
+			targetSlot = freeSlots.front();
+			freeSlots.erase(freeSlots.begin());
+		}
+
 		RebalanceStacks rs;
 		rs.srcArmy = armySrc->id;
 		rs.dstArmy = armyDest->id;
-		rs.srcSlot = move.first;
-		rs.dstSlot = move.second.first;
-		rs.count = move.second.second;
+		rs.srcSlot = slot.first;
+		rs.dstSlot = targetSlot;
+		rs.count = slot.second->getCount();
+
 		bulkRS.moves.push_back(rs);
 	}
+
+	// all troops were moved, but we can't leave source hero without troops - undo movement of 1 unit from srcSlot
+	if (allTroopsMoved)
+	{
+		if (armySrc->getStack(srcSlot).getCount() == 1)
+		{
+			// slot only had 1 unit - remove this move completely
+			vstd::erase_if(bulkRS.moves, [srcSlot](const RebalanceStacks & move)
+			{
+				return move.srcSlot == srcSlot;
+			});
+		}
+		else
+		{
+			// slot has multiple units - move all but one
+			for (auto & move : bulkRS.moves)
+			{
+				if (move.srcSlot == srcSlot)
+					move.count -= 1;
+			}
+		}
+	}
+
 	sendAndApply(bulkRS);
 	return true;
 }
@@ -2086,14 +2018,14 @@ bool CGameHandler::arrangeStacks(ObjectInstanceID id1, ObjectInstanceID id2, ui8
 	return true;
 }
 
-bool CGameHandler::hasPlayerAt(PlayerColor player,  const std::shared_ptr<CConnection> & c) const
+bool CGameHandler::hasPlayerAt(PlayerColor player,  GameConnectionID connectionID) const
 {
-	return connections.count(player) && connections.at(player).count(c);
+	return gameServer().hasPlayerAt(player, connectionID);
 }
 
 bool CGameHandler::hasBothPlayersAtSameConnection(PlayerColor left, PlayerColor right) const
 {
-	return connections.count(left) && connections.count(right) && connections.at(left) == connections.at(right);
+	return gameServer().hasBothPlayersAtSameConnection(left, right);
 }
 
 bool CGameHandler::disbandCreature(ObjectInstanceID id, SlotID pos)
@@ -3000,6 +2932,8 @@ bool CGameHandler::assembleArtifacts(ObjectInstanceID heroID, ArtifactPosition a
 		sendAndApply(da);
 	}
 
+	checkVictoryLossConditionsForPlayer(hero->getOwner());
+
 	return true;
 }
 
@@ -3580,7 +3514,7 @@ void CGameHandler::checkVictoryLossConditionsForPlayer(PlayerColor player)
 
 			if(p->human)
 			{
-				gameLobby().setState(EServerState::SHUTDOWN);
+				gameServer().setState(EServerState::SHUTDOWN);
 			}
 		}
 		else
@@ -4061,7 +3995,7 @@ void CGameHandler::spawnWanderingMonsters(CreatureID creatureID)
 {
 	std::vector<int3>::iterator tile;
 	std::vector<int3> tiles;
-	gameState().getFreeTiles(tiles);
+	gameState().getFreeTiles(tiles, true);
 	ui32 amount = tiles.size() / 200; //Chance is 0.5% for each tile
 
 	RandomGeneratorUtil::randomShuffle(tiles, getRandomGenerator());
@@ -4120,7 +4054,7 @@ void CGameHandler::removeAfterVisit(const ObjectInstanceID & id)
 
 void CGameHandler::changeFogOfWar(int3 center, ui32 radius, PlayerColor player, ETileVisibility mode)
 {
-	std::unordered_set<int3> tiles;
+	FowTilesType tiles;
 
 	if (mode == ETileVisibility::HIDDEN)
 	{
@@ -4133,7 +4067,7 @@ void CGameHandler::changeFogOfWar(int3 center, ui32 radius, PlayerColor player, 
 	changeFogOfWar(tiles, player, mode);
 }
 
-void CGameHandler::changeFogOfWar(const std::unordered_set<int3> &tiles, PlayerColor player, ETileVisibility mode)
+void CGameHandler::changeFogOfWar(const FowTilesType &tiles, PlayerColor player, ETileVisibility mode)
 {
 	if (tiles.empty())
 		return;
@@ -4146,7 +4080,7 @@ void CGameHandler::changeFogOfWar(const std::unordered_set<int3> &tiles, PlayerC
 	if (mode == ETileVisibility::HIDDEN)
 	{
 		// do not hide tiles observed by owned objects. May lead to disastrous AI problems
-		std::unordered_set<int3> observedTiles;
+		FowTilesType observedTiles;
 		const auto * p = gameInfo().getPlayerState(player);
 		for (const auto * obj : p->getOwnedObjects())
 			gameInfo().getTilesInRange(observedTiles, obj->getSightCenter(), obj->getSightRadius(), ETileVisibility::REVEALED, obj->getOwner());

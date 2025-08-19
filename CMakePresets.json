@@ -99,12 +99,24 @@
             "name": "linux-gcc-debug",
             "displayName": "GCC x86_64-pc-linux-gnu (debug)",
             "description": "VCMI Linux GCC (Debug)",
-            "inherits": "linux-release",
+            "inherits": "linux-test",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "ENABLE_LUA" : "ON",
                 "CMAKE_C_COMPILER": "/usr/bin/gcc",
                 "CMAKE_CXX_COMPILER": "/usr/bin/g++"
+            }
+        },
+        {
+            "name": "linux-clang-debug",
+            "displayName": "Clang x86_64-pc-linux-gnu (debug)",
+            "description": "VCMI Linux Clang (Debug)",
+            "inherits": "linux-test",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "ENABLE_LUA" : "ON",
+                "CMAKE_C_COMPILER": "/usr/bin/clang",
+                "CMAKE_CXX_COMPILER": "/usr/bin/clang++"
             }
         },
         {
@@ -153,7 +165,6 @@
                 "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
                 "CMAKE_POLICY_DEFAULT_CMP0091": "NEW",
                 "FORCE_BUNDLED_MINIZIP": "ON"
-
             }
         },
         {
@@ -167,6 +178,22 @@
                 "CMAKE_POLICY_DEFAULT_CMP0091": "NEW",
                 "FORCE_BUNDLED_MINIZIP": "ON",
                 "CMAKE_GENERATOR_PLATFORM": "WIN32"
+            }
+        },
+        {
+            "name": "windows-msvc-release-arm64",
+            "displayName": "Windows ARM64 RelWithDebInfo",
+            "description": "VCMI Windows ARM64 build",
+            "inherits": "default-release",
+            "generator": "Visual Studio 17 2022",
+            "architecture": {
+                "value": "ARM64",
+                "strategy": "set"
+            },
+            "cacheVariables": {
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
+                "CMAKE_POLICY_DEFAULT_CMP0091": "NEW",
+                "FORCE_BUNDLED_MINIZIP": "ON"
             }
         },
         {
@@ -389,6 +416,11 @@
             "inherits": "default-debug"
         },
         {
+            "name": "linux-clang-debug",
+            "configurePreset": "linux-clang-debug",
+            "inherits": "default-debug"
+        },
+        {
             "name": "macos-xcode-release",
             "configurePreset": "macos-xcode-release",
             "inherits": "default-release"
@@ -421,6 +453,11 @@
         {
             "name": "windows-msvc-release-x86",
             "configurePreset": "windows-msvc-release-x86",
+            "inherits": "default-release"
+        },
+        {
+            "name": "windows-msvc-release-arm64",
+            "configurePreset": "windows-msvc-release-arm64",
             "inherits": "default-release"
         },
         {

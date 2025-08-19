@@ -60,7 +60,7 @@
 				},
 				"castsPerDay" : { "type" : "number" },
 				"castsPerDayXL" : { "type" : "number" },
-				"bonuses" : { "additionalProperties" : { "$ref" : "bonusInstance.json" }},
+				"bonuses" : { "additionalProperties" : { "$ref" : "bonusInstance.json" }}
 			},
 			"allOf" : [
 				{ 
@@ -308,7 +308,7 @@
 							"turnsRemaining" : { "type" : "number" },
 							"triggerAbility" : { "type" : "string" },
 							"attacker" : {  },
-							"defender" : {  },
+							"defender" : {  }
 						},
 						"additionalProperties" : false
 					}
@@ -339,7 +339,7 @@
 							"permanent" : { "type" : "boolean" },
 							"exclusive" : { "type" : "boolean" },
 							"summonByHealth" : { "type" : "boolean" },
-							"summonSameUnit" : { "type" : "boolean" },
+							"summonSameUnit" : { "type" : "boolean" }
 						},
 						"additionalProperties" : false
 					}
@@ -376,7 +376,7 @@
 						},
 						"additionalProperties" : false
 					}
-				},
+				}
 			]
 		},
 		"flags" : {
@@ -633,7 +633,12 @@
 		},
 		"targetCondition" : {
 			"type" : "object",
-			"additionalProperties" : true
+			"additionalProperties" : false,
+			"properties" : {
+				"noneOf" : { "type" : "object", "additionalProperties" : { "type" : "string", "enum" : [ "absolute", "normal" ] } },
+				"anyOf" :  { "type" : "object", "additionalProperties" : { "type" : "string", "enum" : [ "absolute", "normal" ] } },
+				"allOf" :  { "type" : "object", "additionalProperties" : { "type" : "string", "enum" : [ "absolute", "normal" ] } }
+			}
 		},
 		"animation" : {"$ref" : "#/definitions/animation"},
 		"graphics" : {
@@ -681,11 +686,6 @@
 			 "type" : "object",
 			 "additionalProperties" : false,
 			 "properties" : {
-				"base" : {
-					"type" : "object",
-					"description" : "will be merged with all levels",
-					"additionalProperties" : true
-				},
 				"none" : {
 					"$ref" : "#/definitions/levelInfo"
 				},

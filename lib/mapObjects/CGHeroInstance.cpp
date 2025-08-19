@@ -976,8 +976,9 @@ CStackBasicDescriptor CGHeroInstance::calculateNecromancy (const BattleResult &b
 	if (improvedNecromancy->empty())
 		return CStackBasicDescriptor();
 
+	bool hasRaisedUnitsBonus = hasBonusOfType(BonusType::UNDEAD_RAISE_PERCENTAGE);
 	int raisedUnitsPercentage = std::clamp(valOfBonuses(BonusType::UNDEAD_RAISE_PERCENTAGE), 0, 100);
-	if (raisedUnitsPercentage == 0)
+	if(raisedUnitsPercentage == 0 && !hasRaisedUnitsBonus)
 		return CStackBasicDescriptor();
 
 	const std::map<CreatureID,si32> &casualties = battleResult.casualties[CBattleInfoEssentials::otherSide(battleResult.winner)];
@@ -1250,15 +1251,20 @@ std::vector<BonusSourceID> CGHeroInstance::getSourcesForSpell(const SpellID & sp
 	for(const auto & bonus : *getBonusesOfType(BonusType::SPELL, spellId))
 		sources.emplace_back(bonus->sid);
 
-	const auto spell = spellId.toSpell();
-	spell->forEachSchool([this, &sources](const SpellSchool & cnf, bool & stop)
-	{
-		for(const auto & bonus : *getBonusesOfType(BonusType::SPELLS_OF_SCHOOL, cnf))
-			sources.emplace_back(bonus->sid);
-	});
+	bool tomesGrantBannedSpells = cb->getSettings().getBoolean(EGameSettings::SPELLS_TOMES_GRANT_BANNED_SPELLS);
 
-	for(const auto & bonus : *getBonusesOfType(BonusType::SPELLS_OF_LEVEL, BonusCustomSubtype::spellLevel(spell->getLevel())))
-		sources.emplace_back(bonus->sid);
+	if (tomesGrantBannedSpells || cb->isAllowed(spellId))
+	{
+		const auto spell = spellId.toSpell();
+		spell->forEachSchool([this, &sources](const SpellSchool & cnf, bool & stop)
+		{
+			for(const auto & bonus : *getBonusesOfType(BonusType::SPELLS_OF_SCHOOL, cnf))
+				sources.emplace_back(bonus->sid);
+		});
+
+		for(const auto & bonus : *getBonusesOfType(BonusType::SPELLS_OF_LEVEL, BonusCustomSubtype::spellLevel(spell->getLevel())))
+			sources.emplace_back(bonus->sid);
+	}
 
 	return sources;
 }
@@ -1271,6 +1277,11 @@ void CGHeroInstance::removeSpellbook()
 	{
 		cb->gameState().getMap().removeArtifactInstance(*this, ArtifactPosition::SPELLBOOK);
 	}
+}
+
+void CGHeroInstance::removeAllSpells()
+{
+	spells.clear();
 }
 
 const std::set<SpellID> & CGHeroInstance::getSpellsInSpellbook() const
@@ -1412,26 +1423,16 @@ std::vector<SecondarySkill> CGHeroInstance::getLevelupSkillCandidates(IGameRando
 			basicAndAdv.insert(elem.first);
 		none.erase(elem.first);
 	}
-
-	if (!basicAndAdv.empty())
+	
+	int maxUpgradedSkills = cb->getSettings().getInteger(EGameSettings::LEVEL_UP_UPGRADED_SKILLS_AMOUNT);
+	while (skills.size() < maxUpgradedSkills && !basicAndAdv.empty())
 	{
 		skills.push_back(gameRandomizer.rollSecondarySkillForLevelup(this, basicAndAdv));
 		basicAndAdv.erase(skills.back());
 	}
 
-	if (!none.empty())
-	{
-		skills.push_back(gameRandomizer.rollSecondarySkillForLevelup(this, none));
-		none.erase(skills.back());
-	}
-
-	if (!basicAndAdv.empty() && skills.size() < 2)
-	{
-		skills.push_back(gameRandomizer.rollSecondarySkillForLevelup(this, basicAndAdv));
-		basicAndAdv.erase(skills.back());
-	}
-
-	if (!none.empty() && skills.size() < 2)
+	int maxTotalSkills = cb->getSettings().getInteger(EGameSettings::LEVEL_UP_TOTAL_SKILLS_AMOUNT);
+	while (skills.size() < maxTotalSkills && !none.empty())
 	{
 		skills.push_back(gameRandomizer.rollSecondarySkillForLevelup(this, none));
 		none.erase(skills.back());
