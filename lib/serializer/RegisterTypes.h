@@ -291,6 +291,13 @@ void registerTypes(Serializer &s)
 	s.template registerType<TimesStackSizeUpdater>(249);
 	s.template registerType<TimesArmySizeUpdater>(250);
 	s.template registerType<PackageReceived>(251);
+	s.template registerType<ChangeTownName>(252);
+	s.template registerType<SetTownName>(253);
+	s.template registerType<LobbySetBattleOnlyModeStartInfo>(254);
+	s.template registerType<BattleEnded>(255);
+	s.template registerType<RequestStatistic>(256);
+	s.template registerType<ResponseStatistic>(257);
+	s.template registerType<LobbyQuickLoadGame>(258);
 }
 
 VCMI_LIB_NAMESPACE_END

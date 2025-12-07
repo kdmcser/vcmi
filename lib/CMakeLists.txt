@@ -111,6 +111,7 @@ set(lib_MAIN_SRCS
 	entities/hero/CHeroClass.cpp
 	entities/hero/CHeroClassHandler.cpp
 	entities/hero/CHeroHandler.cpp
+	entities/ResourceTypeHandler.cpp
 
 	events/ApplyDamage.cpp
 	events/GameResumed.cpp
@@ -152,7 +153,6 @@ set(lib_MAIN_SRCS
 	mapObjects/CGResource.cpp
 	mapObjects/TownBuildingInstance.cpp
 	mapObjects/CGTownInstance.cpp
-	mapObjects/CObjectHandler.cpp
 	mapObjects/CQuest.cpp
 	mapObjects/CRewardableObject.cpp
 	mapObjects/FlaggableMapObject.cpp
@@ -428,6 +428,8 @@ set(lib_MAIN_HEADERS
 	../include/vcmi/HeroClassService.h
 	../include/vcmi/HeroType.h
 	../include/vcmi/HeroTypeService.h
+	../include/vcmi/ResourceType.h
+	../include/vcmi/ResourceTypeService.h
 	../include/vcmi/Metatype.h
 	../include/vcmi/Player.h
 	../include/vcmi/ServerCallback.h
@@ -534,6 +536,7 @@ set(lib_MAIN_HEADERS
 	entities/hero/CHeroClassHandler.h
 	entities/hero/CHeroHandler.h
 	entities/hero/EHeroGender.h
+	entities/ResourceTypeHandler.h
 
 	events/ApplyDamage.h
 	events/GameResumed.h
@@ -581,7 +584,6 @@ set(lib_MAIN_HEADERS
 	mapObjects/TownBuildingInstance.h
 	mapObjects/CGResource.h
 	mapObjects/CGTownInstance.h
-	mapObjects/CObjectHandler.h
 	mapObjects/CQuest.h
 	mapObjects/CRewardableObject.h
 	mapObjects/FlaggableMapObject.h
@@ -833,24 +835,32 @@ target_link_libraries(vcmi PUBLIC
 
 if(ENABLE_STATIC_LIBS AND ENABLE_CLIENT)
 	target_compile_definitions(vcmi PRIVATE STATIC_AI)
-	target_link_libraries(vcmi PRIVATE
-		BattleAI
-		EmptyAI
-		StupidAI
-		VCAI
-	)
+	target_link_libraries(vcmi PRIVATE EmptyAI)
 	if(ENABLE_NULLKILLER_AI)
 		target_link_libraries(vcmi PRIVATE Nullkiller)
 	endif()
+
+	if(ENABLE_NULLKILLER2_AI)
+		target_link_libraries(vcmi PRIVATE Nullkiller2)
+	endif()
+
+	if(ENABLE_STUPID_AI)
+		target_link_libraries(vcmi PRIVATE StupidAI)
+	endif()
+
+	if(ENABLE_BATTLE_AI)
+		target_link_libraries(vcmi PRIVATE BattleAI)
+	endif()
+
 endif()
 
 # no longer necessary, but might be useful to keep in future
 # unfortunately at the moment tests do not support namespaced build, so enable only on some systems
-if(APPLE_IOS OR ANDROID)
+if(IOS OR ANDROID)
 	target_compile_definitions(vcmi PUBLIC VCMI_LIB_NAMESPACE=VCMI)
 endif()
 
-if(APPLE_IOS)
+if(IOS)
 	target_link_libraries(vcmi PUBLIC iOS_utils)
 endif()
 
@@ -866,6 +876,10 @@ if(WIN32)
 			OUTPUT_NAME "VCMI_lib"
 			PROJECT_LABEL "VCMI_lib"
 	)
+	if (MINGW)
+		# Link Windows system libs: WinSock2 (ws2_32) + socket extensions (mswsock) + Debug Help API (dbghelp)
+		target_link_libraries(vcmi PRIVATE ws2_32 mswsock dbghelp)
+	endif()
 endif()
 
 # Use '-Wa,-mbig-obj' for files that generate very large object files
@@ -901,7 +915,7 @@ if(NOT ENABLE_STATIC_LIBS)
 	install(TARGETS vcmi RUNTIME DESTINATION ${LIB_DIR} LIBRARY DESTINATION ${LIB_DIR})
 endif()
 
-if(APPLE_IOS AND NOT USING_CONAN)
+if(IOS AND NOT USING_CONAN)
 	install(IMPORTED_RUNTIME_ARTIFACTS TBB::tbb LIBRARY DESTINATION ${LIB_DIR}) # CMake 3.21+
 
 	get_target_property(LINKED_LIBS vcmi LINK_LIBRARIES)

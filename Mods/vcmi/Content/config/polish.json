@@ -27,6 +27,7 @@
 	"vcmi.adventureMap.moveCostDetailsNoTurns" : "Ruch tutaj będzie kosztował {%POINTS} punktów. {%REMAINING} punktów zostanie po ruchu.",
 	"vcmi.adventureMap.movementPointsHeroInfo" : "(Punkty ruchu: %REMAINING / %POINTS)",
 	"vcmi.adventureMap.replayOpponentTurnNotImplemented" : "Wybacz, powtórka ruchu wroga nie została jeszcze zaimplementowana!",
+	"vcmi.adventureMap.confirmQuickLoadGame"             : "Czy na pewno chcesz załadować szybki zapis?",
 
 	"vcmi.adventureMap.dwelling2" : "{%s}\n\nCzy chciałbyś zrekrutować %s lub %s?",
 	"vcmi.adventureMap.dwelling3" : "{%s}\n\nCzy chciałbyś zrekrutować %s, %s, lub %s?",
@@ -250,7 +251,8 @@
 	"vcmi.server.errors.modsToDisable"   : "{Następujące mody muszą zostać wyłączone}",
 	"vcmi.server.errors.modDependencyLoop" : "Nie udało się wczytać moda {'%s'}!\n Być może znajduje się w pętli zależności",
 	"vcmi.server.errors.notAllowed" : "To działanie nie jest dozwolone!",
-	"vcmi.server.errors.unknownEntity" : "Nie udało się wczytać zapisu! Nieznany element '%s' znaleziony w pliku zapisu! Zapis może nie być zgodny z aktualnie zainstalowaną wersją modów!",
+	"vcmi.server.errors.saveFile.unknownEntity" : "Nie udało się wczytać zapisu! Nieznany element '%s' znaleziony w pliku zapisu! Zapis może nie być zgodny z aktualnie zainstalowaną wersją modów!",
+	"vcmi.server.errors.campOrMapFile.unknownEntity" : "Nie udało się wczytać pliku! Nieznany element '%s' znaleziony w pliku! Plik może nie być zgodny z aktualnie zainstalowaną wersją modów!",
 	"vcmi.server.errors.wrongIdentified" : "Zostałeś zidentyfikowany jako gracz %s natomiast powinieneś być %s",
 	
 	"vcmi.dimensionDoor.seaToLandError" : "Nie jest możliwa teleportacja przez drzwi wymiarów z wód na ląd i na odwrót.",
@@ -417,7 +419,13 @@
 	"vcmi.battleWindow.damageEstimation.damage.1" : "obrażenia: %d",
 	"vcmi.battleWindow.damageEstimation.kills" : "zginie: %d",
 	"vcmi.battleWindow.damageEstimation.kills.1" : "zginie: %d",
-
+	"vcmi.battleWindow.healValuePreview.0" : "przywróci %d pkt. zdrowia",
+	"vcmi.battleWindow.healValuePreview.1" : "przywróci %d pkt. zdrowia",
+	"vcmi.battleWindow.healValuePreview.2" : "przywróci %d pkt. zdrowia",
+	"vcmi.battleWindow.sacrificeAcquiredHealth.0" : "pozyskaj %d pkt. zdrowia",
+	"vcmi.battleWindow.sacrificeAcquiredHealth.1" : "pozyskaj %d pkt. zdrowia",
+	"vcmi.battleWindow.sacrificeAcquiredHealth.2" : "pozyskaj %d pkt. zdrowia",
+	
 	"vcmi.battleWindow.damageRetaliation.will" : "Nastąpi odwet ",
 	"vcmi.battleWindow.damageRetaliation.may" : "Możliwy odwet ",
 	"vcmi.battleWindow.damageRetaliation.never" : "Nie będzie odwetu.",

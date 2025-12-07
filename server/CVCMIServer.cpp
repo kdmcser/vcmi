@@ -20,6 +20,7 @@
 #include "../lib/campaign/CampaignState.h"
 #include "../lib/entities/hero/CHeroHandler.h"
 #include "../lib/entities/hero/CHeroClass.h"
+#include "../lib/entities/ResourceTypeHandler.h"
 #include "../lib/gameState/CGameState.h"
 #include "../lib/mapping/CMapInfo.h"
 #include "../lib/mapping/CMapHeader.h"
@@ -229,9 +230,6 @@ bool CVCMIServer::prepareToStartGame()
 	Load::Progress current(1);
 	progressTracking.include(current);
 
-	if (lobbyProcessor)
-		lobbyProcessor->sendGameStarted();
-
 	auto progressTrackingThread = std::thread([this, &progressTracking]()
 	{
 		setThreadName("progressTrackingThread");
@@ -249,44 +247,77 @@ bool CVCMIServer::prepareToStartGame()
 			}
 			std::this_thread::sleep_for(std::chrono::milliseconds(50));
 		}
+		//send final progress
+		LobbyLoadProgress loadProgress;
+		loadProgress.progress = std::numeric_limits<Load::Type>::max();
+		announcePack(loadProgress);
 	});
 
-	gh = std::make_shared<CGameHandler>(*this);
-	switch(si->mode)
+	auto newGH = std::make_shared<CGameHandler>(*this);
+	bool started = false;
+	try
 	{
-	case EStartMode::CAMPAIGN:
-		logNetwork->info("Preparing to start new campaign");
-		si->startTime = std::time(nullptr);
-		si->fileURI = mi->fileURI;
-		si->campState->setCurrentMap(campaignMap);
-		si->campState->setCurrentMapBonus(campaignBonus);
-		gh->init(si.get(), progressTracking);
-		break;
-
-	case EStartMode::NEW_GAME:
-		logNetwork->info("Preparing to start new game");
-		si->startTime = std::time(nullptr);
-		si->fileURI = mi->fileURI;
-		gh->init(si.get(), progressTracking);
-		break;
-
-	case EStartMode::LOAD_GAME:
-		logNetwork->info("Preparing to start loaded game");
-		if(!loadSavedGame(*si))
+		switch(si->mode)
 		{
-			current.finish();
-			progressTrackingThread.join();
-			return false;
-		}
-		break;
-	default:
-		logNetwork->error("Wrong mode in StartInfo!");
-		assert(0);
-		break;
-	}
+		case EStartMode::CAMPAIGN:
+			logNetwork->info("Preparing to start new campaign");
+			si->startTime = std::time(nullptr);
+			si->fileURI = mi->fileURI;
+			si->campState->setCurrentMap(campaignMap);
+			si->campState->setCurrentMapBonus(campaignBonus);
+			newGH->init(si.get(), progressTracking);	// may throw
+			started = true;
+			break;
+		case EStartMode::NEW_GAME:
+			logNetwork->info("Preparing to start new game");
+			si->startTime = std::time(nullptr);
+			si->fileURI = mi->fileURI;
+			newGH->init(si.get(), progressTracking);	// may throw
+			started = true;
+			break;
 
+		case EStartMode::LOAD_GAME:
+			logNetwork->info("Preparing to start loaded game");
+			if(loadSavedGame(*newGH, *si))
+				started = true;
+			break;
+		default:
+			logNetwork->error("Wrong mode in StartInfo!");
+			assert(0);
+			break;
+		}
+	}
+	catch(const ModIncompatibility & e)
+	{
+		logGlobal->error("Failed to launch game: %s", e.what());
+		announceMessage(e.getFullErrorMsg());
+	}
+	catch(const IdentifierResolutionException & e)
+	{
+		logGlobal->error("Failed to launch game: %s", e.what());
+		MetaString errorMsg;
+		errorMsg.appendTextID("vcmi.server.errors.campOrMapFile.unknownEntity");
+		errorMsg.replaceRawString(e.identifierName);
+		announceMessage(errorMsg);
+	}
+	catch(const std::exception & e)
+	{
+		logGlobal->error("Failed to launch game: %s", e.what());
+		auto str = MetaString::createFromTextID("vcmi.broadcast.failedLoadGame");
+		str.appendRawString(":\n");
+		str.appendRawString(e.what());
+		announceMessage(str);
+	}
 	current.finish();
 	progressTrackingThread.join();
+
+	if (!started)
+		return false;
+
+	gh = std::move(newGH);
+
+	if(lobbyProcessor)
+		lobbyProcessor->sendGameStarted();
 
 	return true;
 }
@@ -410,7 +441,8 @@ void CVCMIServer::clientConnected(std::shared_ptr<GameConnection> c, std::vector
 {
 	assert(getState() == EServerState::LOBBY);
 
-	c->connectionID = vstd::next(currentClientId, 1);
+	c->connectionID = currentClientId;
+	currentClientId = vstd::next(currentClientId, 1);
 	c->uuid = uuid;
 
 	if(hostClientId == GameConnectionID::INVALID)
@@ -424,7 +456,8 @@ void CVCMIServer::clientConnected(std::shared_ptr<GameConnection> c, std::vector
 	for(auto & name : names)
 	{
 		logNetwork->info("Client %d player: %s", static_cast<int>(c->connectionID), name);
-		PlayerConnectionID id = vstd::next(currentPlayerId, 1);
+		PlayerConnectionID id = currentPlayerId;
+		currentPlayerId = vstd::next(currentPlayerId, 1);
 
 		ClientPlayer cp;
 		cp.connection = c->connectionID;
@@ -599,7 +632,7 @@ void CVCMIServer::setPlayer(PlayerColor clickedColor)
 	{
 		PlayerColor color;
 		PlayerConnectionID id;
-		void reset() { id = PlayerConnectionID::PLAYER_AI; color = PlayerColor::CANNOT_DETERMINE; }
+		void reset() { id = PlayerConnectionID::INVALID; color = PlayerColor::CANNOT_DETERMINE; }
 		PlayerToRestore(){ reset(); }
 	};
 
@@ -706,7 +739,7 @@ void CVCMIServer::setPlayerHandicap(PlayerColor color, Handicap handicap)
 		return;
 	}
 
-	for(auto & res : EGameResID::ALL_RESOURCES())
+	for(auto & res : LIBRARY->resourceTypeHandler->getAllObjects())
 		if(handicap.startBonus[res] != 0)
 		{
 			str.appendRawString(" ");
@@ -992,7 +1025,7 @@ void CVCMIServer::multiplayerWelcomeMessage()
 		if(pi.second.isControlledByHuman())
 			humanPlayer++;
 
-	if(humanPlayer < 2) // Singleplayer
+	if(humanPlayer < 2 || mi->mapHeader->battleOnly) // Singleplayer or Battle only mode
 		return;
 
 	gh->playerMessages->broadcastSystemMessage(MetaString::createFromTextID("vcmi.broadcast.command"));
@@ -1005,7 +1038,7 @@ void CVCMIServer::multiplayerWelcomeMessage()
 			str.appendRawString(" ");
 			str.appendName(pi.first);
 			str.appendRawString(":");
-			for(auto & res : EGameResID::ALL_RESOURCES())
+			for(auto & res : LIBRARY->resourceTypeHandler->getAllObjects())
 				if(pi.second.handicap.startBonus[res] != 0)
 				{
 					str.appendRawString(" ");
@@ -1062,36 +1095,23 @@ INetworkServer & CVCMIServer::getNetworkServer()
 	return *networkServer;
 }
 
-bool CVCMIServer::loadSavedGame(const StartInfo &info)
+bool CVCMIServer::loadSavedGame(CGameHandler & handler, const StartInfo & info)
 {
 	try
 	{
-		gh->load(info);
+		handler.load(info);
 	}
 	catch(const ModIncompatibility & e)
 	{
 		logGlobal->error("Failed to load game: %s", e.what());
-		MetaString errorMsg;
-		if(!e.whatMissing().empty())
-		{
-			errorMsg.appendTextID("vcmi.server.errors.modsToEnable");
-			errorMsg.appendRawString("\n");
-			errorMsg.appendRawString(e.whatMissing());
-		}
-		if(!e.whatExcessive().empty())
-		{
-			errorMsg.appendTextID("vcmi.server.errors.modsToDisable");
-			errorMsg.appendRawString("\n");
-			errorMsg.appendRawString(e.whatExcessive());
-		}
-		announceMessage(errorMsg);
+		announceMessage(e.getFullErrorMsg());
 		return false;
 	}
 	catch(const IdentifierResolutionException & e)
 	{
 		logGlobal->error("Failed to load game: %s", e.what());
 		MetaString errorMsg;
-		errorMsg.appendTextID("vcmi.server.errors.unknownEntity");
+		errorMsg.appendTextID("vcmi.server.errors.saveFile.unknownEntity");
 		errorMsg.replaceRawString(e.identifierName);
 		announceMessage(errorMsg);
 		return false;

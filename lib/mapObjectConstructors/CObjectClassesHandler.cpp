@@ -67,6 +67,7 @@ CObjectClassesHandler::CObjectClassesHandler()
 	SET_HANDLER_CLASS("shipyard", ShipyardInstanceConstructor);
 	SET_HANDLER_CLASS("monster", CreatureInstanceConstructor);
 	SET_HANDLER_CLASS("resource", ResourceInstanceConstructor);
+	SET_HANDLER_CLASS("mine", MineInstanceConstructor);
 
 	SET_HANDLER_CLASS("static", CObstacleConstructor);
 	SET_HANDLER_CLASS("", CObstacleConstructor);
@@ -88,7 +89,6 @@ CObjectClassesHandler::CObjectClassesHandler()
 	SET_HANDLER("heroPlaceholder", CGHeroPlaceholder);
 	SET_HANDLER("keymaster", CGKeymasterTent);
 	SET_HANDLER("magi", CGMagi);
-	SET_HANDLER("mine", CGMine);
 	SET_HANDLER("obelisk", CGObelisk);
 	SET_HANDLER("pandora", CGPandoraBox);
 	SET_HANDLER("prison", CGHeroInstance);
@@ -408,9 +408,9 @@ TObjectTypeHandler CObjectClassesHandler::getHandlerFor(const std::string & scop
 			return object->objectTypeHandlers.at(subID.value());
 	}
 
-	std::string errorString = "Failed to find object of type " + type + "::" + subtype;
-	logGlobal->error(errorString);
-	throw std::runtime_error(errorString);
+	std::string objectType = type + "::" + subtype;
+	logGlobal->error("Failed to find object of type %s", objectType);
+	throw IdentifierResolutionException(objectType);
 }
 
 TObjectTypeHandler CObjectClassesHandler::getHandlerFor(CompoundMapObjectID compoundIdentifier) const
@@ -433,7 +433,7 @@ CompoundMapObjectID CObjectClassesHandler::getCompoundIdentifier(const std::stri
 	if(id)
 	{
 		if (subtype.empty())
-			return CompoundMapObjectID(id.value(), 0);
+			return CompoundMapObjectID(id.value(), -1);
 
 		const auto & object = mapObjectTypes.at(id.value());
 		std::optional<si32> subID = LIBRARY->identifiers()->getIdentifier(scope, object->getJsonKey(), subtype);
@@ -449,7 +449,7 @@ CompoundMapObjectID CObjectClassesHandler::getCompoundIdentifier(const std::stri
 
 CompoundMapObjectID CObjectClassesHandler::getCompoundIdentifier(const std::string & objectName) const
 {
-	std::string subtype = "object"; //Default for objects with no subIds
+	std::string subtype;
 	std::string type;
 
 	auto scopeAndFullName = vstd::splitStringToPair(objectName, ':');

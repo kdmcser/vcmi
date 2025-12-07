@@ -107,21 +107,6 @@ si32 CStack::magicResistance() const
 	return static_cast<si32>(100 - castChance);
 }
 
-BattleHex::EDir CStack::destShiftDir() const
-{
-	if(doubleWide())
-	{
-		if(side == BattleSide::ATTACKER)
-			return BattleHex::EDir::RIGHT;
-		else
-			return BattleHex::EDir::LEFT;
-	}
-	else
-	{
-		return BattleHex::EDir::NONE;
-	}
-}
-
 std::vector<SpellID> CStack::activeSpells() const
 {
 	std::vector<SpellID> ret;
@@ -246,7 +231,6 @@ void CStack::prepareAttacked(BattleStackAttacked & bsa, vstd::RNG & rand, const 
 
 BattleHexArray CStack::meleeAttackHexes(const battle::Unit * attacker, const battle::Unit * defender, BattleHex attackerPos, BattleHex defenderPos)
 {
-	int mask = 0;
 	BattleHexArray res;
 
 	if (!attackerPos.isValid())
@@ -254,43 +238,24 @@ BattleHexArray CStack::meleeAttackHexes(const battle::Unit * attacker, const bat
 	if (!defenderPos.isValid())
 		defenderPos = defender->getPosition();
 
-	BattleHex otherAttackerPos = attackerPos.toInt() + (attacker->unitSide() == BattleSide::ATTACKER ? -1 : 1);
-	BattleHex otherDefenderPos = defenderPos.toInt() + (defender->unitSide() == BattleSide::ATTACKER ? -1 : 1);
+	BattleHexArray defenderHexes = defender->getHexes(defenderPos);
+	BattleHexArray attackerHexes = attacker->getHexes(attackerPos);
 
-	if(BattleHex::mutualPosition(attackerPos, defenderPos) >= 0) //front <=> front
+	for (BattleHex defenderHex : defenderHexes)
 	{
-		if((mask & 1) == 0)
+		if (attackerHexes.contains(defenderHex))
 		{
-			mask |= 1;
-			res.insert(defenderPos);
+			logGlobal->debug("CStack::meleeAttackHexes: defender and attacker positions overlap");
+			return res;
 		}
 	}
-	if (attacker->doubleWide() //back <=> front
-		&& BattleHex::mutualPosition(otherAttackerPos, defenderPos) >= 0)
+
+	const BattleHexArray attackableHxs = attacker->getSurroundingHexes(attackerPos);
+
+	for (BattleHex defenderHex : defenderHexes)
 	{
-		if((mask & 1) == 0)
-		{
-			mask |= 1;
-			res.insert(defenderPos);
-		}
-	}
-	if (defender->doubleWide()//front <=> back
-		&& BattleHex::mutualPosition(attackerPos, otherDefenderPos) >= 0)
-	{
-		if((mask & 2) == 0)
-		{
-			mask |= 2;
-			res.insert(otherDefenderPos);
-		}
-	}
-	if (defender->doubleWide() && attacker->doubleWide()//back <=> back
-		&& BattleHex::mutualPosition(otherAttackerPos, otherDefenderPos) >= 0)
-	{
-		if((mask & 2) == 0)
-		{
-			mask |= 2;
-			res.insert(otherDefenderPos);
-		}
+		if (attackableHxs.contains(defenderHex))
+			res.insert(defenderHex);
 	}
 
 	return res;

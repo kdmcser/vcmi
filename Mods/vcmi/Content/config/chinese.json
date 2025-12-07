@@ -27,6 +27,7 @@
 	"vcmi.adventureMap.moveCostDetailsNoTurns"           : "移动到此处总计花费{%POINTS}移动力。移动完成后还会剩下{%REMAINING}点。",
 	"vcmi.adventureMap.movementPointsHeroInfo" 			 : "(移动点数: %REMAINING / %POINTS)",
 	"vcmi.adventureMap.replayOpponentTurnNotImplemented" : "抱歉，重放对手行动功能目前暂未实现！",
+	"vcmi.adventureMap.confirmQuickLoadGame"             : "您確定要載入快速存檔嗎？",
 
 	"vcmi.adventureMap.dwelling2" : "{%s}\n\n你想招募%s还是%s？",
 	"vcmi.adventureMap.dwelling3" : "{%s}\n\n你想招募%s、%s还是%s？",
@@ -103,6 +104,7 @@
 	"vcmi.spellBook.search" : "搜索中...",
 	"vcmi.spellBook.tab.hover" : "%s法术",
 	"vcmi.spellBook.tab.help" : "切换以查看%s法术",
+    "vcmi.spellBook.zero_level.hint" : "0级",
 
 	"vcmi.spellResearch.canNotAfford" : "你没有足够的资源来将{%SPELL1}替换为{%SPELL2}。但你依然可以弃掉此法术，继续法术研究。",
 	"vcmi.spellResearch.comeAgain" : "今日已研究过法术，请明日再来。",
@@ -249,7 +251,7 @@
 	"vcmi.server.errors.existingProcess"     : "一个VCMI进程已经在运行，启动新进程前请结束它。",
 	"vcmi.server.errors.modsToEnable"    : "{需要启用的mod列表}",
 	"vcmi.server.errors.modsToDisable"   : "{需要禁用的mod列表}",
-	"vcmi.server.errors.unknownEntity" : "加载保存失败！ 在保存的游戏中发现未知实体'%s'！ 保存可能与当前安装的mod版本不兼容！",
+	"vcmi.server.errors.saveFile.unknownEntity" : "加载保存失败！ 在保存的游戏中发现未知实体'%s'！ 保存可能与当前安装的mod版本不兼容！",
 	"vcmi.server.errors.wrongIdentified"   : "你被识别为玩家%s，但预期是玩家%s。",
 	"vcmi.server.errors.notAllowed"   : "你无权执行此操作！",
 

@@ -60,6 +60,13 @@ namespace EMonsterStrength // used as int in monster generation procedure and in
 	};
 }
 
+enum class EZoneLevel // used to force zone placement on surface or underground
+{
+	AUTOMATIC = 0,
+	SURFACE = 1,
+	UNDERGROUND = 2
+};
+
 class DLL_LINKAGE CTreasureInfo
 {
 public:
@@ -209,8 +216,8 @@ public:
 
 	void setMonsterTypes(const std::set<FactionID> & value);
 
-	void setMinesInfo(const std::map<TResource, ui16> & value);
-	std::map<TResource, ui16> getMinesInfo() const;
+	void setMinesInfo(const std::map<GameResID, ui16> & value);
+	std::map<GameResID, ui16> getMinesInfo() const;
 
 	void setTreasureInfo(const std::vector<CTreasureInfo> & value);
 	void addTreasureInfo(const CTreasureInfo & value);
@@ -253,6 +260,9 @@ public:
 	float getVisibleSize() const;
 	void setVisibleSize(float value);
 
+	EZoneLevel getForcedLevel() const;
+	void setForcedLevel(EZoneLevel value);
+
 protected:
 	TRmgTemplateZoneId id;
 	ETemplateZoneType type;
@@ -277,7 +287,7 @@ protected:
 	std::set<FactionID> monsterTypes;
 	std::set<FactionID> bannedMonsters;
 
-	std::map<TResource, ui16> mines; //obligatory mines to spawn in this zone
+	std::map<GameResID, ui16> mines; //obligatory mines to spawn in this zone
 
 	std::vector<CTreasureInfo> treasureInfo;
 
@@ -289,6 +299,7 @@ protected:
 	TRmgTemplateZoneId terrainTypeLikeZone;
 	TRmgTemplateZoneId treasureLikeZone;
 	TRmgTemplateZoneId customObjectsLikeZone;
+	EZoneLevel forcedLevel;
 };
 
 }
@@ -373,7 +384,7 @@ private:
 	std::set<HeroTypeID> bannedHeroes;
 
 	std::set<TerrainId> inheritTerrainType(std::shared_ptr<rmg::ZoneOptions> zone, uint32_t iteration = 0);
-	std::map<TResource, ui16> inheritMineTypes(std::shared_ptr<rmg::ZoneOptions> zone, uint32_t iteration = 0);
+	std::map<GameResID, ui16> inheritMineTypes(std::shared_ptr<rmg::ZoneOptions> zone, uint32_t iteration = 0);
 	std::vector<CTreasureInfo> inheritTreasureInfo(std::shared_ptr<rmg::ZoneOptions> zone, uint32_t iteration = 0);
 
 	void inheritTownProperties(std::shared_ptr<rmg::ZoneOptions> zone, uint32_t iteration = 0);

@@ -18,6 +18,7 @@
 #include "../GameLibrary.h"
 #include "../constants/StringConstants.h"
 #include "../entities/faction/CTownHandler.h"
+#include "../entities/ResourceTypeHandler.h"
 #include "../modding/ModScope.h"
 #include "../serializer/JsonSerializeFormat.h"
 
@@ -154,7 +155,8 @@ ZoneOptions::ZoneOptions():
 	treasureLikeZone(NO_ZONE),
 	customObjectsLikeZone(NO_ZONE),
 	visiblePosition(Point(0, 0)),
-	visibleSize(1.0)
+	visibleSize(1.0),
+	forcedLevel(EZoneLevel::AUTOMATIC)
 {
 }
 
@@ -258,12 +260,12 @@ std::set<FactionID> ZoneOptions::getMonsterTypes() const
 	return vstd::difference(monsterTypes, bannedMonsters);
 }
 
-void ZoneOptions::setMinesInfo(const std::map<TResource, ui16> & value)
+void ZoneOptions::setMinesInfo(const std::map<GameResID, ui16> & value)
 {
 	mines = value;
 }
 
-std::map<TResource, ui16> ZoneOptions::getMinesInfo() const
+std::map<GameResID, ui16> ZoneOptions::getMinesInfo() const
 {
 	return mines;
 }
@@ -352,6 +354,16 @@ float ZoneOptions::getVisibleSize() const
 void ZoneOptions::setVisibleSize(float value)
 {
 	visibleSize = value;
+}
+
+EZoneLevel ZoneOptions::getForcedLevel() const
+{
+	return forcedLevel;
+}
+
+void ZoneOptions::setForcedLevel(EZoneLevel value)
+{
+	forcedLevel = value;
 }
 
 void ZoneOptions::addConnection(const ZoneConnection & connection)
@@ -532,12 +544,7 @@ void ZoneOptions::serializeJson(JsonSerializeFormat & handler)
 
 	if((minesLikeZone == NO_ZONE) && (!handler.saving || !mines.empty()))
 	{
-		auto minesData = handler.enterStruct("mines");
-
-		for(TResource idx = 0; idx < (GameConstants::RESOURCE_QUANTITY - 1); idx++)
-		{
-			handler.serializeInt(GameConstants::RESOURCE_NAMES[idx], mines[idx], 0);
-		}
+		handler.serializeIdMap<GameResID, ui16>("mines", mines);
 	}
 
 	handler.serializeStruct("customObjects", objectConfig);
@@ -547,6 +554,19 @@ void ZoneOptions::serializeJson(JsonSerializeFormat & handler)
 
 	if(!handler.saving && visibleSize < 0.01)
 		visibleSize = 1.0;
+
+	{
+		static const std::vector<std::string> zoneLevels =
+		{
+			"automatic",
+			"surface",
+			"underground"
+		};
+
+		auto levelIndex = static_cast<int>(forcedLevel);
+		handler.serializeEnum("forcedLevel", levelIndex, static_cast<int>(EZoneLevel::AUTOMATIC), zoneLevels);
+		forcedLevel = static_cast<EZoneLevel>(levelIndex);
+	}
 }
 
 ZoneConnection::ZoneConnection():

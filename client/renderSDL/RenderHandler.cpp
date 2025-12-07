@@ -43,6 +43,7 @@
 #include <vcmi/Services.h>
 #include <vcmi/SkillService.h>
 #include <vcmi/spells/Service.h>
+#include <vcmi/ResourceTypeService.h>
 
 RenderHandler::RenderHandler()
 	:assetGenerator(std::make_unique<AssetGenerator>())
@@ -230,7 +231,10 @@ std::shared_ptr<ISharedImage> RenderHandler::loadImageFromFileUncached(const Ima
 
 		auto generated = assetGenerator->generateImage(imagePath);
 		if (generated)
+		{
+			generated->setAsyncUpscale(false); // do not async upscale base image for generated images -> fixes #6201
 			return generated;
+		}
 
 		logGlobal->error("Failed to load image %s", locator.image->getOriginalName());
 		return std::make_shared<SDLImageShared>(ImagePath::builtin("DEFAULT"));
@@ -322,6 +326,8 @@ std::shared_ptr<SDLImageShared> RenderHandler::loadScaledImage(const ImageLocato
 		img = std::make_shared<SDLImageShared>(imagePathData, optimizeImage);
 	else if(CResourceHandler::get()->existsResource(imagePath))
 		img = std::make_shared<SDLImageShared>(imagePath, optimizeImage);
+	else if(locator.scalingFactor == 1)
+		img = std::dynamic_pointer_cast<SDLImageShared>(assetGenerator->generateImage(imagePath));
 
 	if(img)
 	{
@@ -331,6 +337,9 @@ std::shared_ptr<SDLImageShared> RenderHandler::loadScaledImage(const ImageLocato
 			img = img->drawShadow((*locator.generateShadow) == SharedImageLocator::ShadowMode::SHADOW_SHEAR);
 		if(isOverlay && generateOverlay && (*locator.generateOverlay) == SharedImageLocator::OverlayMode::OVERLAY_OUTLINE)
 			img = img->drawOutline(Colors::WHITE, 1);
+
+		if(locator.scalingFactor == 1)
+			img->setAsyncUpscale(false); // no base image, needs to be done in sync
 	}
 
 	return img;
@@ -339,6 +348,20 @@ std::shared_ptr<SDLImageShared> RenderHandler::loadScaledImage(const ImageLocato
 std::shared_ptr<IImage> RenderHandler::loadImage(const ImageLocator & locator)
 {
 	ImageLocator adjustedLocator = locator;
+
+	if(locator.image)
+	{
+		std::vector<std::string> splitted;
+		boost::split(splitted, (*locator.image).getOriginalName(), boost::is_any_of(":"));
+		if(splitted.size() == 3)
+		{
+			// allows image from def file with following filename (first group, then frame): "deffile.def:0:5"
+			adjustedLocator.defFile = AnimationPath::builtin(splitted[0]);
+			adjustedLocator.defGroup = std::stoi(splitted[1]);
+			adjustedLocator.defFrame = std::stoi(splitted[2]);
+			adjustedLocator.image = std::nullopt;
+		}
+	}
 
 	std::shared_ptr<ScalableImageInstance> result;
 
@@ -380,6 +403,7 @@ std::shared_ptr<IImage> RenderHandler::loadImage(const ImagePath & path, EImageB
 	boost::split(splitted, name, boost::is_any_of(":"));
 	if(splitted.size() == 3)
 	{
+		// allows image from def file with following filename (first group, then frame): "deffile.def:0:5"
 		ImageLocator locator = getLocatorForAnimationFrame(AnimationPath::builtin(splitted[0]), std::stoi(splitted[2]), std::stoi(splitted[1]), 1, mode);
 		return loadImage(locator);
 	}
@@ -481,7 +505,7 @@ void RenderHandler::onLibraryLoadingFinished(const Services * services)
 {
 	assert(animationLayouts.empty());
 	assetGenerator->initialize();
-	animationLayouts = assetGenerator->generateAllAnimations();
+	updateGeneratedAssets();
 
 	addImageListEntries(services->creatures());
 	addImageListEntries(services->heroTypes());
@@ -489,6 +513,7 @@ void RenderHandler::onLibraryLoadingFinished(const Services * services)
 	addImageListEntries(services->factions());
 	addImageListEntries(services->spells());
 	addImageListEntries(services->skills());
+	addImageListEntries(services->resources());
 
 	if (settings["mods"]["validation"].String() == "full")
 	{
@@ -534,4 +559,15 @@ void RenderHandler::exportGeneratedAssets()
 {
 	for (const auto & entry : assetGenerator->generateAllImages())
 		entry.second->exportBitmap(VCMIDirs::get().userDataPath() / "Generated" / (entry.first.getOriginalName() + ".png"), nullptr);
+}
+
+std::shared_ptr<AssetGenerator> RenderHandler::getAssetGenerator()
+{
+	return assetGenerator;
+}
+
+void RenderHandler::updateGeneratedAssets()
+{
+	for (const auto& [key, value] : assetGenerator->generateAllAnimations())
+        animationLayouts[key] = value;
 }

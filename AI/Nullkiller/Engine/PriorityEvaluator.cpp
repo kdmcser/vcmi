@@ -12,6 +12,7 @@
 
 #include "Nullkiller.h"
 #include "../../../lib/entities/artifact/CArtifact.h"
+#include "../../../lib/entities/ResourceTypeHandler.h"
 #include "../../../lib/mapObjectConstructors/AObjectTypeHandler.h"
 #include "../../../lib/mapObjectConstructors/CObjectClassesHandler.h"
 #include "../../../lib/mapObjects/CGResource.h"
@@ -22,6 +23,7 @@
 #include "../../../lib/StartInfo.h"
 #include "../../../lib/GameSettings.h"
 #include "../../../lib/filesystem/Filesystem.h"
+#include "../../../lib/entities/ResourceTypeHandler.h"
 #include "../Goals/ExecuteHeroChain.h"
 #include "../Goals/BuildThis.h"
 #include "../Goals/StayAtTown.h"
@@ -136,7 +138,7 @@ int32_t getResourcesGoldReward(const TResources & res)
 {
 	int32_t result = 0;
 
-	for(auto r : GameResID::ALL_RESOURCES())
+	for(auto r : LIBRARY->resourceTypeHandler->getAllObjects())
 	{
 		if(res[r] > 0)
 			result += r == EGameResID::GOLD ? res[r] : res[r] * 100;
@@ -279,7 +281,9 @@ uint64_t RewardEvaluator::getArmyReward(
 			for(const auto & stackInfo : info.reward.creatures)
 				rewardValue += stackInfo.getType()->getAIValue() * stackInfo.getCount();
 
-			totalValue += rewardValue > 0 ? rewardValue / (info.reward.grantedArtifacts.size() + info.reward.creatures.size()) : 0;
+			auto combined_size = std::min(static_cast<size_t>(1), info.reward.grantedArtifacts.size() + info.reward.creatures.size() + info.reward.grantedScrolls.size());
+
+			totalValue += rewardValue > 0 ? rewardValue / combined_size : 0;
 		}
 
 		return totalValue;
@@ -457,7 +461,7 @@ float RewardEvaluator::getStrategicalValue(const CGObjectInstance * target, cons
 	{
 		auto mine = dynamic_cast<const CGMine *>(target);
 		return mine->producedResource == EGameResID::GOLD
-			? 0.5f 
+			? 0.5f
 			: 0.4f * getTotalResourceRequirementStrength(mine->producedResource) + 0.1f * getResourceRequirementStrength(mine->producedResource);
 	}
 
@@ -466,7 +470,7 @@ float RewardEvaluator::getStrategicalValue(const CGObjectInstance * target, cons
 		auto resource = dynamic_cast<const CGResource *>(target);
 		TResources res;
 		res[resource->resourceID()] = resource->getAmount();
-		
+
 		return getResourceRequirementStrength(res);
 	}
 
@@ -1574,7 +1578,7 @@ float PriorityEvaluator::evaluate(Goals::TSubgoal task, int priorityTier)
 						logAi->trace("Should make sure to build market-place instead of %s", task->toString());
 						for (auto town : ai->cb->getTownsInfo())
 						{
-							if (!town->hasBuiltSomeTradeBuilding())
+							if (!town->hasBuiltResourceMarketplace())
 								return 0;
 						}
 					}
@@ -1589,7 +1593,7 @@ float PriorityEvaluator::evaluate(Goals::TSubgoal task, int priorityTier)
 						needed.positive();
 						int turnsTo = needed.maxPurchasableCount(income);
 						bool haveEverythingButGold = true;
-						for (int i = 0; i < GameConstants::RESOURCE_QUANTITY; i++)
+						for (auto & i : LIBRARY->resourceTypeHandler->getAllObjects())
 						{
 							if (i != GameResID::GOLD && resourcesAvailable[i] < evaluationContext.buildingCost[i])
 								haveEverythingButGold = false;

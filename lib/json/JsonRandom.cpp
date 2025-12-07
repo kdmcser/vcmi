@@ -28,6 +28,7 @@
 #include "../entities/artifact/CArtHandler.h"
 #include "../entities/hero/CHero.h"
 #include "../entities/hero/CHeroClass.h"
+#include "../entities/ResourceTypeHandler.h"
 #include "../gameState/CGameState.h"
 #include "../mapObjects/army/CStackBasicDescriptor.h"
 #include "../mapObjects/IObjectInterface.h"
@@ -298,26 +299,18 @@ JsonRandom::JsonRandom(IGameInfoCallback * cb, IGameRandomizer & gameRandomizer)
 			return ret;
 		}
 
-		for (size_t i=0; i<GameConstants::RESOURCE_QUANTITY; i++)
+		for(auto & i : LIBRARY->resourceTypeHandler->getAllObjects())
 		{
-			ret[i] = loadValue(value[GameConstants::RESOURCE_NAMES[i]], variables);
+			ret[i] = loadValue(value[i.toResource()->getJsonKey()], variables);
 		}
 		return ret;
 	}
 
 	TResources JsonRandom::loadResource(const JsonNode & value, const Variables & variables)
 	{
-		std::set<GameResID> defaultResources{
-			GameResID::WOOD,
-			GameResID::MERCURY,
-			GameResID::ORE,
-			GameResID::SULFUR,
-			GameResID::CRYSTAL,
-			GameResID::GEMS,
-			GameResID::GOLD
-		};
+		auto defaultResources = LIBRARY->resourceTypeHandler->getAllObjects();
 
-		std::set<GameResID> potentialPicks = filterKeys(value, defaultResources, variables);
+		std::set<GameResID> potentialPicks = filterKeys(value, std::set<GameResID>(defaultResources.begin(), defaultResources.end()), variables);
 		GameResID resourceID = *RandomGeneratorUtil::nextItem(potentialPicks, rng);
 		si32 resourceAmount = loadValue(value, variables, 0);
 

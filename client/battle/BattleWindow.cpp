@@ -51,6 +51,7 @@
 #include "../../lib/entities/artifact/CArtHandler.h"
 #include "../../lib/filesystem/ResourcePath.h"
 #include "../../lib/gameState/InfoAboutArmy.h"
+#include "../../lib/mapping/CMapHeader.h"
 #include "../../lib/mapObjects/CGHeroInstance.h"
 #include "../../lib/texts/CGeneralTextHandler.h"
 
@@ -105,6 +106,10 @@ BattleWindow::BattleWindow(BattleInterface & Owner)
 	addShortcut(EShortcut::BATTLE_TOGGLE_HEROES_STATS, [this](){ this->toggleStickyHeroWindowsVisibility();});
 	addShortcut(EShortcut::BATTLE_USE_CREATURE_SPELL, [this](){ this->owner.actionsController->enterCreatureCastingMode(); });
 	addShortcut(EShortcut::GLOBAL_CANCEL, [this](){ this->owner.actionsController->endCastingSpell(); });
+	addShortcut(EShortcut::ADVENTURE_QUICK_LOAD, [this](){
+		//allow quick load only on player turn while no animations are ongoing
+		if (!this->owner.hasAnimations() && this->owner.stacksController->getActiveStack())
+			GAME->interface()->proposeQuickLoadingGame(); });
 
 	build(config);
 	
@@ -148,8 +153,9 @@ void BattleWindow::createQueue()
 		//re-center, taking into account stack queue position
 		pos.y -= queue->pos.h;
 		pos.h += queue->pos.h;
-		pos = center();
 	}
+	if(showQueue)
+		pos = center();
 
 	if (!showQueue)
 		queue->disable();
@@ -236,6 +242,9 @@ void BattleWindow::showStickyQuickSpellWindow()
 	quickSpellWindow->setEnabled(quickSpellWindowVisible);
 	unitActionWindow->setEnabled(unitActionWindowVisible);
 
+	if(owner.actionsController && unitActionWindowVisible) // needed after resize of window
+		owner.actionsController->activateStack();
+
 	createTimerInfoWindows();
 	setPositionInfoWindow();
 	ENGINE->windows().totalRedraw();
@@ -317,8 +326,8 @@ void BattleWindow::hideQueue()
 		//re-center, taking into account stack queue position
 		pos.y += queue->pos.h;
 		pos.h -= queue->pos.h;
-		pos = center();
 	}
+	pos = center();
 	setPositionInfoWindow();
 	ENGINE->windows().totalRedraw();
 }
@@ -847,6 +856,8 @@ void BattleWindow::endWithAutocombat()
 
 void BattleWindow::showAll(Canvas & to)
 {
+	if(owner.curInt->cb->getMapHeader()->battleOnly)
+		to.fillTexture(ENGINE->renderHandler().loadImage(ImagePath::builtin("DiBoxBck"), EImageBlitMode::OPAQUE));
 	CIntObject::showAll(to);
 
 	if (ENGINE->screenDimensions().x != 800 || ENGINE->screenDimensions().y !=600)
@@ -857,6 +868,25 @@ void BattleWindow::show(Canvas & to)
 {
 	CIntObject::show(to);
 	GAME->interface()->cingconsole->show(to);
+}
+
+void BattleWindow::onScreenResize()
+{
+	if(settings["battle"]["showQueue"].Bool())
+	{
+		hideQueue();
+		showQueue();
+	}
+	if(settings["battle"]["enableQuickSpellPanel"].Bool())
+	{
+		hideStickyQuickSpellWindow();
+		showStickyQuickSpellWindow();
+	}
+	if(settings["battle"]["stickyHeroInfoWindows"].Bool())
+	{
+		hideStickyHeroWindows();
+		showStickyHeroWindows();
+	}
 }
 
 void BattleWindow::close()

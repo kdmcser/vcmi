@@ -107,6 +107,7 @@ CServerHandler::CServerHandler()
 	, screenType(ESelectionScreen::unknown)
 	, serverMode(EServerMode::NONE)
 	, loadMode(ELoadMode::NONE)
+	, battleMode(false)
 	, client(nullptr)
 {
 	uuid = boost::uuids::to_string(boost::uuids::random_generator()());
@@ -432,6 +433,13 @@ void CServerHandler::setCampaignBonus(int bonusId) const
 	sendLobbyPack(lscb);
 }
 
+void CServerHandler::setBattleOnlyModeStartInfo(std::shared_ptr<BattleOnlyModeStartInfo> startInfo) const
+{
+	LobbySetBattleOnlyModeStartInfo lsbomsui;
+	lsbomsui.startInfo = startInfo;
+	sendLobbyPack(lsbomsui);
+}
+
 void CServerHandler::setMapInfo(std::shared_ptr<CMapInfo> to, std::shared_ptr<CMapGenOptions> mapGenOpts) const
 {
 	LobbySetMap lsm;
@@ -569,33 +577,24 @@ bool CServerHandler::validateGameStart(bool allowOnlyAI) const
 	catch(ModIncompatibility & e)
 	{
 		logGlobal->warn("Incompatibility exception during start scenario: %s", e.what());
-		std::string errorMsg;
-		if(!e.whatMissing().empty())
-		{
-			errorMsg += LIBRARY->generaltexth->translate("vcmi.server.errors.modsToEnable") + '\n';
-			errorMsg += e.whatMissing();
-		}
-		if(!e.whatExcessive().empty())
-		{
-			errorMsg += LIBRARY->generaltexth->translate("vcmi.server.errors.modsToDisable") + '\n';
-			errorMsg += e.whatExcessive();
-		}
-		showServerError(errorMsg);
+
+		showServerError(e.getFullErrorMsg());
 		return false;
 	}
 	catch(std::exception & e)
 	{
 		logGlobal->error("Exception during startScenario: %s", e.what());
-		showServerError( std::string("Unable to start map! Reason: ") + e.what());
+		showServerError(std::string("Unable to start map!\nReason: ") + e.what());
 		return false;
 	}
 
 	return true;
 }
 
-void CServerHandler::sendStartGame(bool allowOnlyAI) const
+void CServerHandler::sendStartGame(bool allowOnlyAI, bool verify) const
 {
-	verifyStateBeforeStart(allowOnlyAI ? true : settings["session"]["onlyai"].Bool());
+	if(verify)
+		verifyStateBeforeStart(allowOnlyAI ? true : settings["session"]["onlyai"].Bool());
 
 	if(!settings["session"]["headless"].Bool())
 	{
@@ -691,6 +690,43 @@ void CServerHandler::endGameplay()
 		GAME->mainmenu()->playMusic();
 		GAME->mainmenu()->makeActiveInterface();
 	}
+}
+
+std::optional<std::string> CServerHandler::canQuickLoadGame(const std::string & path) const
+{
+	auto mapInfo = std::make_shared<CMapInfo>();
+	mapInfo->saveInit(ResourcePath(path, EResType::SAVEGAME));
+
+	// initial start info from quick load slot
+	const auto * startInfo1 = mapInfo->scenarioOptionsOfSave.get();
+	// initial start info from game state (not current start info)
+	const auto * startInfo2 = client->gameState().getInitialStartInfo();
+
+	if (!startInfo1)
+		return "Missing quick load start info.";
+	if (!startInfo2)
+		return "Missing server start info.";
+	if (startInfo1->startTime != startInfo2->startTime)
+		return "Different initial start time.";
+	if (startInfo1->mapname != startInfo2->mapname)
+		return "Different map name.";
+	if (startInfo1->difficulty != startInfo2->difficulty)
+		return "Different difficulty.";
+	const auto & playerInfos1 = startInfo1->playerInfos;
+	const auto & playerInfos2 = startInfo2->playerInfos;
+	if (playerInfos1.size() != playerInfos2.size())
+		return "Different number of players.";
+	if (!std::equal(playerInfos1.begin(), playerInfos1.end(), playerInfos2.begin(), playerInfos2.end(),
+		[](const auto& p1, const auto& p2) { return p1.first == p2.first && p1.second.connectedPlayerIDs == p2.second.connectedPlayerIDs; }))
+		return "Different players.";
+	return std::nullopt;
+}
+
+void CServerHandler::quickLoadGame(const std::string & path)
+{
+	LobbyQuickLoadGame pack;
+	pack.saveFilePath = path;
+	sendLobbyPack(pack);
 }
 
 void CServerHandler::restartGameplay()

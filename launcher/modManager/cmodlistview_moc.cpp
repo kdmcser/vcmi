@@ -793,6 +793,7 @@ void CModListView::downloadFile(QString file, QUrl url, QString description, qin
 		ui->progressBar->setFormat(progressBarFormat);
 	}
 
+	Helper::keepScreenOn(true);
 	dlManager->downloadFile(url, file, sizeBytes);
 }
 
@@ -852,6 +853,7 @@ void CModListView::downloadFinished(QStringList savedFiles, QStringList failedFi
 	if(doInstallFiles)
 		installFiles(savedFiles);
 
+	Helper::keepScreenOn(false);
 	hideProgressBar();
 }
 
@@ -980,6 +982,8 @@ void CModListView::installFiles(QStringList files)
 
 		float prog = 0.0;
 
+		Helper::keepScreenOn(true);
+
 		auto futureExtract = std::async(std::launch::async, [this, exe, &prog]()
 		{
 			ChroniclesExtractor ce(this, [&prog](float progress) { prog = progress; });
@@ -995,6 +999,7 @@ void CModListView::installFiles(QStringList files)
 
 		if(futureExtract.get())
 		{
+			Helper::keepScreenOn(false);
 			hideProgressBar();
 			ui->abortButton->setEnabled(true);
 			ui->progressWidget->setVisible(false);
@@ -1040,6 +1045,7 @@ void CModListView::installMods(QStringList archives)
 				modsToEnable.push_back(mod);
 
 			manager->uninstallMod(mod);
+			reload(mod);
 		}
 		else
 		{
@@ -1104,8 +1110,10 @@ void CModListView::installMaps(QStringList maps)
 		}
 		else
 		{
-			QString fileName = map.section('/', -1, -1);
-			if (QFile::exists(destDir + fileName))
+		    QString srcPath = Helper::getRealPath(map);
+		    QString fileName = QFileInfo(srcPath).fileName();
+		    QString destFile = destDir + fileName;
+			if (QFile::exists(destFile))
 				conflictCount++;
 		}
 	}
@@ -1192,9 +1200,11 @@ void CModListView::installMaps(QStringList maps)
 		else
 		{
 			// Single map file
-			QString fileName = map.section('/', -1, -1);
+			QString srcPath = Helper::getRealPath(map);
+			QString fileName = QFileInfo(srcPath).fileName();
 			QString destFile = destDir + fileName;
-			logGlobal->info("Importing map '%s'", map.toStdString());
+
+			logGlobal->info("Importing map '%s'", srcPath.toStdString());
 
 			if (QFile::exists(destFile))
 			{
@@ -1206,7 +1216,7 @@ void CModListView::installMaps(QStringList maps)
 				QFile::remove(destFile);
 			}
 
-			if (QFile::copy(map, destFile))
+			if (Helper::performNativeCopy(map, destFile))
 				successCount++;
 			else
 			{
@@ -1232,6 +1242,7 @@ void CModListView::on_abortButton_clicked()
 {
 	delete dlManager;
 	dlManager = nullptr;
+	Helper::keepScreenOn(false);
 	hideProgressBar();
 }
 
@@ -1323,7 +1334,7 @@ void CModListView::doUninstallMod(const QString & modName)
 		if(modStateModel->isModEnabled(modName))
 			manager->disableMod(modName);
 		manager->uninstallMod(modName);
-		reload();
+		reload(modName);
 	}
 }
 

@@ -18,6 +18,7 @@
 #include "../widgets/Buttons.h"
 #include "../widgets/CComponent.h"
 #include "../widgets/CComponentHolder.h"
+#include "../widgets/GraphicalPrimitiveCanvas.h"
 #include "../widgets/Images.h"
 #include "../widgets/TextControls.h"
 #include "../widgets/ObjectLists.h"
@@ -319,7 +320,7 @@ CStackWindow::BonusLineSection::BonusLineSection(CStackWindow * owner, size_t li
 			if (!bi.imagePath.empty())
 				icon[leftRight] = std::make_shared<CPicture>(bi.imagePath, position.x, position.y);
 
-			description[leftRight] = std::make_shared<CMultiLineLabel>(Rect(position.x + 60, position.y + 2, 137, 50), FONT_TINY, ETextAlignment::TOPLEFT, Colors::WHITE, bi.description);
+			description[leftRight] = std::make_shared<CMultiLineLabel>(Rect(position.x + 60, position.y, 137, 50), FONT_TINY, ETextAlignment::TOPLEFT, Colors::WHITE, bi.description);
 			drawBonusSource(leftRight, Point(position.x - 1, position.y - 1), bi);
 		}
 	}
@@ -345,6 +346,7 @@ CStackWindow::BonusesSection::BonusesSection(CStackWindow * owner, int yOffset, 
 	};
 
 	lines = std::make_shared<CListBox>(onCreate, Point(0, 0), Point(0, itemHeight), visibleSize, totalSize, 0, totalSize > 3 ? 1 : 0, Rect(pos.w - 15, 0, pos.h, pos.h));
+	lines->onScroll = [owner](){ owner->redraw(); };
 }
 
 CStackWindow::ButtonsSection::ButtonsSection(CStackWindow * owner, int yOffset)
@@ -427,7 +429,7 @@ CStackWindow::ButtonsSection::ButtonsSection(CStackWindow * owner, int yOffset)
 			};
 
 			std::string tooltipText = "vcmi.creatureWindow." + btnIDs[buttonIndex];
-			parent->switchButtons[buttonIndex] = std::make_shared<CButton>(Point(302 + (int)buttonIndex*40, 5), AnimationPath::builtin("stackWindow/upgradeButton"), CButton::tooltipLocalized(tooltipText), onSwitch);
+			parent->switchButtons[buttonIndex] = std::make_shared<CButton>(Point(342, 5), AnimationPath::builtin("stackWindow/upgradeButton"), CButton::tooltipLocalized(tooltipText), onSwitch);
 			parent->switchButtons[buttonIndex]->setOverlay(std::make_shared<CAnimImage>(AnimationPath::builtin("stackWindow/switchModeIcons"), buttonIndex));
 		}
 		parent->switchButtons[parent->activeTab]->disable();
@@ -536,7 +538,7 @@ CStackWindow::CommanderMainSection::CommanderMainSection(CStackWindow * owner, i
 		};
 
 		abilities = std::make_shared<CListBox>(onCreate, Point(38, 3+pos.h), Point(63, 0), 6, abilitiesCount);
-		abilities->setRedrawParent(true);
+		abilities->onScroll = [owner](){ owner->redraw(); };
 
 		leftBtn = std::make_shared<CButton>(Point(10,  pos.h + 6), AnimationPath::builtin("hsbtns3.def"), CButton::tooltip(), [this](){ abilities->moveToPrev(); }, EShortcut::MOVE_LEFT);
 		rightBtn = std::make_shared<CButton>(Point(411, pos.h + 6), AnimationPath::builtin("hsbtns5.def"), CButton::tooltip(), [this](){ abilities->moveToNext(); }, EShortcut::MOVE_RIGHT);
@@ -612,8 +614,8 @@ CStackWindow::MainSection::MainSection(CStackWindow * owner, int yOffset, bool s
 		
 	icons = std::make_shared<CPicture>(ImagePath::builtin("stackWindow/icons"), 117, 32);
 
-	morale = std::make_shared<MoraleLuckBox>(true, Rect(Point(321, 110), Point(42, 42) ));
-	luck = std::make_shared<MoraleLuckBox>(false,  Rect(Point(375, 110), Point(42, 42) ));
+	morale = std::make_shared<MoraleLuckBox>(true, Rect(Point(321, 32), Point(42, 42) ));
+	luck = std::make_shared<MoraleLuckBox>(false,  Rect(Point(375, 32), Point(42, 42) ));
 
 	if(battleStack != nullptr) // in battle
 	{
@@ -655,7 +657,7 @@ CStackWindow::MainSection::MainSection(CStackWindow * owner, int yOffset, bool s
 	if(showExp)
 	{
 		const CStackInstance * stack = parent->info->stackNode;
-		Point pos = showArt ? Point(321, 32) : Point(347, 32);
+		Point pos = showArt ? Point(321, 111) : Point(349, 111);
 		if(parent->info->commander)
 		{
 			const CCommanderInstance * commander = parent->info->commander;
@@ -671,7 +673,7 @@ CStackWindow::MainSection::MainSection(CStackWindow * owner, int yOffset, bool s
 		}
 		else
 		{
-			expRankIcon = std::make_shared<CAnimImage>(AnimationPath::builtin("stackWindow/levels"), stack->getExpRank(), 0, pos.x, pos.y);
+			expRankIcon = std::make_shared<CAnimImage>(AnimationPath::builtin("stackWindow/levels"), stack->getExpRank(), 0, pos.x, pos.y - 2);
 			expArea = std::make_shared<LRClickableAreaWText>(Rect(pos.x, pos.y, 44, 44));
 			expArea->text = parent->generateStackExpDescription();
 		}
@@ -682,7 +684,7 @@ CStackWindow::MainSection::MainSection(CStackWindow * owner, int yOffset, bool s
 
 	if(showArt)
 	{
-		Point pos = showExp ? Point(375, 32) : Point(347, 32);
+		Point pos = showExp ? Point(373, 109) : Point(347, 109);
 		// ALARMA: do not refactor this into a separate function
 		// otherwise, artifact icon is drawn near the hero's portrait
 		// this is really strange
@@ -697,7 +699,7 @@ CStackWindow::MainSection::MainSection(CStackWindow * owner, int yOffset, bool s
 			if(parent->info->owner)
 			{
 				parent->stackArtifactButton = std::make_shared<CButton>(
-						Point(pos.x - 2 , pos.y + 46), AnimationPath::builtin("stackWindow/cancelButton"),
+						Point(pos.x , pos.y + 47), AnimationPath::builtin("stackWindow/cancelButton"),
 						CButton::tooltipLocalized("vcmi.creatureWindow.returnArtifact"),	[this]()
 				{
 					parent->removeStackArtifact(ArtifactPosition::CREATURE_SLOT);
@@ -831,6 +833,8 @@ void CStackWindow::init()
 {
 	OBJECT_CONSTRUCTION;
 
+	background = std::make_shared<CFilledTexture>(ImagePath::builtin("DIBOXBCK"), pos);
+
 	if(!info->stackNode)
 	{
 		fakeNode = std::make_unique<CStackInstance>(nullptr, info->creature->getId(), 1, true);
@@ -846,6 +850,8 @@ void CStackWindow::init()
 
 	initBonusesList();
 	initSections();
+
+	background->pos = pos;
 }
 
 void CStackWindow::initBonusesList()
@@ -868,10 +874,10 @@ void CStackWindow::initBonusesList()
 			return  info->stackNode->bonusToString(v1) < info->stackNode->bonusToString(v2);
 	};
 
-	// these bonuses require special handling. For example they come with own descriptions, for use in morale/luck description
-	// also, this information is already available in creature window
-	receivedBonuses.remove_if(Selector::type()(BonusType::MORALE));
-	receivedBonuses.remove_if(Selector::type()(BonusType::LUCK));
+	receivedBonuses.remove_if([](const Bonus* b)
+	{
+		return !LIBRARY->bth->shouldPropagateDescription(b->type);
+	});
 
 	std::vector<BonusList> groupedBonuses;
 	while (!receivedBonuses.empty())
@@ -947,8 +953,8 @@ void CStackWindow::initSections()
 {
 	OBJECT_CONSTRUCTION;
 
-	bool showArt = GAME->interface()->cb->getSettings().getBoolean(EGameSettings::MODULE_STACK_ARTIFACT) && info->commander == nullptr && info->stackNode;
-	bool showExp = (GAME->interface()->cb->getSettings().getBoolean(EGameSettings::MODULE_STACK_EXPERIENCE) || info->commander != nullptr) && info->stackNode;
+	bool showArt = GAME->interface() && GAME->interface()->cb->getSettings().getBoolean(EGameSettings::MODULE_STACK_ARTIFACT) && info->commander == nullptr && info->stackNode;
+	bool showExp = ((GAME->interface() && GAME->interface()->cb->getSettings().getBoolean(EGameSettings::MODULE_STACK_EXPERIENCE)) || info->commander != nullptr) && info->stackNode;
 
 	mainSection = std::make_shared<MainSection>(this, pos.h, showExp, showArt);
 
@@ -968,17 +974,13 @@ void CStackWindow::initSections()
 			auto obj = switchTab(index);
 
 			if(obj)
-			{
-				obj->activate();
-				obj->recActions |= (UPDATE | SHOWALL);
-			}
+				obj->enable();
 			return obj;
 		};
 
 		auto deactivateObj = [=](std::shared_ptr<CIntObject> obj)
 		{
-			obj->deactivate();
-			obj->recActions &= ~(UPDATE | SHOWALL);
+			obj->disable();
 		};
 
 		commanderMainSection = std::make_shared<CommanderMainSection>(this, 0);

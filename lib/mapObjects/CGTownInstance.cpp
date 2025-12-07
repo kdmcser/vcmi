@@ -32,6 +32,7 @@
 #include "../callback/IGameRandomizer.h"
 #include "../entities/building/CBuilding.h"
 #include "../entities/faction/CTownHandler.h"
+#include "../entities/ResourceTypeHandler.h"
 #include "../mapObjectConstructors/AObjectTypeHandler.h"
 #include "../mapObjectConstructors/CObjectClassesHandler.h"
 #include "../mapObjects/CGHeroInstance.h"
@@ -209,7 +210,7 @@ TResources CGTownInstance::dailyIncome() const
 {
 	ResourceSet ret;
 
-	for (GameResID k : GameResID::ALL_RESOURCES())
+	for (GameResID k : LIBRARY->resourceTypeHandler->getAllObjects())
 		ret[k] += valOfBonuses(BonusType::GENERATE_RESOURCE, BonusSubtypeID(k));
 
 	for(const auto & p : getTown()->buildings)
@@ -650,7 +651,7 @@ BoatId CGTownInstance::getBoatType() const
 
 int CGTownInstance::getMarketEfficiency() const
 {
-	if(!hasBuiltSomeTradeBuilding())
+	if(!hasBuiltResourceMarketplace())
 		return 0;
 
 	const PlayerState *p = cb->getPlayerState(tempOwner);
@@ -658,7 +659,7 @@ int CGTownInstance::getMarketEfficiency() const
 
 	int marketCount = 0;
 	for(const CGTownInstance *t : p->getTowns())
-		if(t->hasBuiltSomeTradeBuilding())
+		if(t->hasBuiltResourceMarketplace())
 			marketCount++;
 
 	return marketCount;
@@ -697,7 +698,15 @@ ObjectInstanceID CGTownInstance::getObjInstanceID() const
 
 void CGTownInstance::updateAppearance()
 {
-	auto terrain = cb->getTile(visitablePos())->getTerrainID();
+	const auto tile = cb->getTile(visitablePos());
+	if(!tile)
+	{
+		logGlobal->warn("Town is misplaced at (%d, %d, %d)", visitablePos().x,
+				visitablePos().y, visitablePos().z);
+		return;
+	}
+
+	auto terrain = tile->getTerrainID();
 	//FIXME: not the best way to do this
 	auto app = getObjectHandler()->getOverride(terrain, this);
 	if (app)
@@ -851,7 +860,7 @@ CBonusSystemNode & CGTownInstance::whatShouldBeAttached()
 
 std::string CGTownInstance::getNameTranslated() const
 {
-	return LIBRARY->generaltexth->translate(nameTextId);
+	return customName.empty() ? LIBRARY->generaltexth->translate(nameTextId) : customName;
 }
 
 std::string CGTownInstance::getNameTextID() const
@@ -864,6 +873,11 @@ void CGTownInstance::setNameTextId( const std::string & newName )
 	nameTextId = newName;
 }
 
+void CGTownInstance::setCustomName( const std::string & newName )
+{
+	customName = newName;
+}
+
 const CArmedInstance * CGTownInstance::getUpperArmy() const
 {
 	if(getGarrisonHero())
@@ -871,9 +885,10 @@ const CArmedInstance * CGTownInstance::getUpperArmy() const
 	return this;
 }
 
-bool CGTownInstance::hasBuiltSomeTradeBuilding() const
+bool CGTownInstance::hasBuiltResourceMarketplace() const
 {
-	return availableModes().empty() ? false : true;
+	const auto modes = availableModes();
+	return std::find(modes.begin(), modes.end(), EMarketMode::RESOURCE_RESOURCE) != modes.end();
 }
 
 bool CGTownInstance::hasBuilt(BuildingSubID::EBuildingSubID buildingID) const
@@ -889,13 +904,6 @@ bool CGTownInstance::hasBuilt(BuildingSubID::EBuildingSubID buildingID) const
 bool CGTownInstance::hasBuilt(const BuildingID & buildingID) const
 {
 	return vstd::contains(builtBuildings, buildingID);
-}
-
-bool CGTownInstance::hasBuilt(const BuildingID & buildingID, FactionID townID) const
-{
-	if (townID == getTown()->faction->getId() || townID == FactionID::ANY)
-		return hasBuilt(buildingID);
-	return false;
 }
 
 void CGTownInstance::addBuilding(const BuildingID & buildingID)

@@ -38,6 +38,7 @@
 #include "../entities/faction/CTownHandler.h"
 #include "../entities/hero/CHeroHandler.h"
 #include "../entities/hero/CHeroClass.h"
+#include "../entities/ResourceTypeHandler.h"
 #include "../battle/CBattleInfoEssentials.h"
 #include "../campaign/CampaignState.h"
 #include "../json/JsonBonus.h"
@@ -1344,28 +1345,6 @@ void CGHeroInstance::restoreBonusSystem(CGameState & gs)
 	}
 }
 
-void CGHeroInstance::attachToBonusSystem(CGameState & gs)
-{
-	CArmedInstance::attachToBonusSystem(gs);
-	if (boardedBoat.hasValue())
-	{
-		auto boat = gs.getObjInstance(boardedBoat);
-		if (boat)
-			attachTo(dynamic_cast<CGBoat&>(*boat));
-	}
-}
-
-void CGHeroInstance::detachFromBonusSystem(CGameState & gs)
-{
-	CArmedInstance::detachFromBonusSystem(gs);
-	if (boardedBoat.hasValue())
-	{
-		auto boat = gs.getObjInstance(boardedBoat);
-		if (boat)
-			detachFrom(dynamic_cast<CGBoat&>(*boat));
-	}
-}
-
 CBonusSystemNode & CGHeroInstance::whereShouldBeAttached(CGameState & gs)
 {
 	if(visitedTown.hasValue())
@@ -1816,7 +1795,7 @@ ResourceSet CGHeroInstance::dailyIncome() const
 {
 	ResourceSet income;
 
-	for (GameResID k : GameResID::ALL_RESOURCES())
+	for (GameResID k : LIBRARY->resourceTypeHandler->getAllObjects())
 		income[k] += valOfBonuses(BonusType::GENERATE_RESOURCE, BonusSubtypeID(k));
 
 	const auto & playerSettings = cb->getPlayerSettings(getOwner());

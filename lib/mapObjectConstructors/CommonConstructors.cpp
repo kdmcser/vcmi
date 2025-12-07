@@ -17,6 +17,7 @@
 #include "../callback/IGameInfoCallback.h"
 #include "../entities/faction/CTownHandler.h"
 #include "../entities/hero/CHeroClass.h"
+#include "../entities/ResourceTypeHandler.h"
 #include "../mapObjects/CGHeroInstance.h"
 #include "../mapObjects/CGTownInstance.h"
 #include "../mapObjects/MiscObjects.h"
@@ -24,6 +25,7 @@
 #include "../mapping/TerrainTile.h"
 #include "../modding/IdentifierStorage.h"
 #include "../texts/TextIdentifier.h"
+#include "../texts/CGeneralTextHandler.h"
 
 VCMI_LIB_NAMESPACE_BEGIN
 
@@ -60,7 +62,7 @@ bool ResourceInstanceConstructor::hasNameTextID() const
 
 std::string ResourceInstanceConstructor::getNameTextID() const
 {
-	return TextIdentifier("core", "restypes", resourceType.getNum()).get();
+	return resourceType.toResource()->getNameTextID();
 }
 
 GameResID ResourceInstanceConstructor::getResourceType() const
@@ -87,6 +89,51 @@ void ResourceInstanceConstructor::randomizeObject(CGResource * object, IGameRand
 		object->amount = randomizer.loadValue(config["amounts"], dummy, 0) * getAmountMultiplier();
 	else
 		object->amount = 5 * getAmountMultiplier();
+}
+
+void MineInstanceConstructor::initTypeData(const JsonNode & input)
+{
+	config = input;
+
+	resourceType = GameResID::NONE; //set up fallback
+	LIBRARY->identifiers()->requestIdentifierIfNotNull("resource", input["resource"], [&](si32 index)
+	{
+		resourceType = GameResID(index);
+	});
+	defaultQuantity = !config["defaultQuantity"].isNull() ? config["defaultQuantity"].Integer() : 1;
+
+	if (!config["name"].isNull())
+		LIBRARY->generaltexth->registerString(config.getModScope(), getNameTextID(), config["name"]);
+
+	if (!config["description"].isNull())
+		LIBRARY->generaltexth->registerString(config.getModScope(), getDescriptionTextID(), config["description"]);
+
+	kingdomOverviewImage = AnimationPath::fromJson(config["kingdomOverviewImage"]);
+}
+
+GameResID MineInstanceConstructor::getResourceType() const
+{
+	return resourceType;
+}
+
+ui32 MineInstanceConstructor::getDefaultQuantity() const
+{
+	return defaultQuantity;
+}
+
+std::string MineInstanceConstructor::getDescriptionTextID() const
+{
+	return TextIdentifier(getBaseTextID(), "description").get();
+}
+
+std::string MineInstanceConstructor::getDescriptionTranslated() const
+{
+	return LIBRARY->generaltexth->translate(getDescriptionTextID());
+}
+
+AnimationPath MineInstanceConstructor::getKingdomOverviewImage() const
+{
+	return kingdomOverviewImage;
 }
 
 void CTownInstanceConstructor::initTypeData(const JsonNode & input)
