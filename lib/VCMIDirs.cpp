@@ -123,7 +123,9 @@ VCMIDirsWIN32::VCMIDirsWIN32()
 		return;
 
 	std::string buffer((std::istreambuf_iterator<char>(in)), {});
-	dirsConfig = std::make_unique<JsonNode>(reinterpret_cast<const std::byte*>(buffer.data()), buffer.size(), configPath.u8string());
+	auto u8 = configPath.u8string();
+	std::string utf8Path(u8.begin(), u8.end());
+	dirsConfig = std::make_unique<JsonNode>(reinterpret_cast<const std::byte *>(buffer.data()), buffer.size(), utf8Path);
 }
 
 

@@ -12,6 +12,30 @@
 //VCMI PROJECT CODE CONTRIBUTORS:
 const std::vector<std::vector<std::string>> contributors = {
 	//Task          Name                   Aka                    E-Mail
+   { "VCMIEhancement",       "",            "凤凰如梦",           ""                             },
+   { "VCMIEhancement",       "",            "吓死蛮牛",           ""                             },
+   { "VCMIEhancement",       "",            "Lucki",              ""                             },
+   { "VCMIEhancement",       "",            "紫玥炎霄",           ""                             },
+   { "VCMIEhancement",       "",            "火舞龙霄",           ""                             },
+   { "VCMIEhancement",       "",            "不顺",               ""                             },
+   { "VCMIEhancement",       "",            "Ash&Amber",          ""                             },
+   { "VCMIEhancement",       "",            "L",                  ""                             },
+   { "VCMIEhancement",       "",            "红枫居士",           ""                             },
+   { "VCMIEhancement",       "",            "白云飘飘",           ""                             },
+   { "VCMIEhancement",       "",            "辉太郎",             ""                             },
+   { "VCMIEhancement",       "",            "鹏",                 ""                             },
+   { "VCMIEhancement",       "",            "微暖",               ""                             },
+   { "VCMIEhancement",       "",            "哆咪、",             ""                             },
+   { "VCMIEhancement",       "",            "张杰灏",             ""                             },
+   { "VCMIEhancement",       "",            "白水",               ""                             },
+   { "VCMIEhancement",       "",            "刘勇",               ""                             },
+
+   { "SpecialThanks",        "",             "Archer",            ""                             },
+   { "SpecialThanks",        "",             "阿嬳",              ""                             },
+   { "SpecialThanks",        "",             "春风不过冰雪洲",    ""                             },
+   { "SpecialThanks",        "",             "ABCDEFH",           ""                             },
+   { "SpecialThanks",        "",             "英雄无敌爱好者",    ""                             },
+
 	{ "Idea"      , "Mateusz B."         , "Tow dragon"         , "matcio1@gmail.com"            },
 	{ "Idea"      , "Michał Urbańczyk"   , "Tow"                , "impono@gmail.com"             },
 
@@ -54,27 +78,4 @@ const std::vector<std::vector<std::string>> contributors = {
 	{ "Testing"   , ""                   , "Povelitel"          , ""                             },
 
 	// List is ordered by "Name" (if empty than "Aka" will used as sorting key)
-
-   { "VCMIEhancement",       "",            "凤凰如梦",           ""                             },
-   { "VCMIEhancement",       "",            "吓死蛮牛",           ""                             },
-   { "VCMIEhancement",       "",            "Lucki",              ""                             },
-   { "VCMIEhancement",       "",            "火舞龙霄",           ""                             },
-   { "VCMIEhancement",       "",            "紫玥炎霄",           ""                             },
-   { "VCMIEhancement",       "",            "不顺",               ""                             },
-   { "VCMIEhancement",       "",            "Ash&Amber",          ""                             },
-   { "VCMIEhancement",       "",            "L",                  ""                             },
-   { "VCMIEhancement",       "",            "红枫居士",           ""                             },
-   { "VCMIEhancement",       "",            "白云飘飘",           ""                             },
-   { "VCMIEhancement",       "",            "辉太郎",             ""                             },
-   { "VCMIEhancement",       "",            "鹏",                 ""                             },
-   { "VCMIEhancement",       "",            "微暖",               ""                             },
-   { "VCMIEhancement",       "",            "刘勇",               ""                             },
-   { "VCMIEhancement",       "",            "白水",               ""                             },
-
-   { "SpecialThanks",        "",             "Archer",            ""                             },
-   { "SpecialThanks",        "",             "阿嬳",              ""                             },
-   { "SpecialThanks",        "",             "春风不过冰雪洲",    ""                             },
-   { "SpecialThanks",        "",             "ABCDEFH",           ""                             },
-   { "SpecialThanks",        "",             "英雄无敌爱好者",    ""                             },
-
 };
