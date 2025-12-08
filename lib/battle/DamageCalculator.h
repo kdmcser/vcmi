@@ -12,6 +12,12 @@
 
 #include "../GameConstants.h"
 
+#ifdef HAVE_LUAJIT
+#include "../lua/LuaExpressionEvaluator.h"
+# else
+#include "../lua/LuaExpressionParser.h"
+#endif
+
 VCMI_LIB_NAMESPACE_BEGIN
 
 class CBattleInfoCallback;
@@ -25,6 +31,13 @@ class DLL_LINKAGE DamageCalculator
 {
 	const CBattleInfoCallback & callback;
 	const BattleAttackInfo & info;
+#ifdef HAVE_LUAJIT
+	static std::unique_ptr<LuaExpressionEvaluator> attackSkillEvaluator;
+	static std::unique_ptr<LuaExpressionEvaluator> defenseSkillEvaluator;
+#else
+	static std::unique_ptr<LuaExpressionParser> attackSkillParser;
+	static std::unique_ptr<LuaExpressionParser> defenseSkillParser;
+#endif
 
 	int battleBonusValue(const IBonusBearer * bearer, const CSelector & selector) const;
 
@@ -42,6 +55,14 @@ class DLL_LINKAGE DamageCalculator
 	int getTargetDefenseBase() const;
 	int getTargetDefenseEffective() const;
 	int getTargetDefenseIgnored() const;
+
+#ifdef HAVE_LUAJIT
+	LuaExpressionEvaluator & getAttackSkillEvaluator() const;
+	LuaExpressionEvaluator & getDefenseSkillEvaluator() const;
+#else
+	LuaExpressionParser& getAttackSkillParser() const;
+	LuaExpressionParser& getDefenseSkillParser() const;
+#endif
 
 	double getAttackSkillFactor() const;
 	double getAttackOffenseArcheryFactor() const;
