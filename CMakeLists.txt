@@ -17,6 +17,49 @@ project(VCMI)
 # It's used currently to make sure that 3rd-party dependencies in git submodules get proper FOLDER property
 # - Make FindFuzzyLite check for the right version and disable FORCE_BUNDLED_FL by default
 
+set(MOD_PASSWORD_ENV $ENV{MOD_PASSWORD})
+if(NOT MOD_PASSWORD_ENV)
+    message(FATAL_ERROR "MOD_PASSWORD is not set in environment various！")
+endif()
+
+add_compile_definitions(MOD_PASSWORD="${MOD_PASSWORD_ENV}")
+
+set(MOD_PASSWORD_MASK_VALUE $ENV{MOD_PASSWORD_MASK})
+if(NOT MOD_PASSWORD_MASK_VALUE)
+    message(FATAL_ERROR "MOD_PASSWORD_MASK environment variable not set")
+endif()
+
+string(LENGTH "${MOD_PASSWORD_MASK_VALUE}" MASK_LEN)
+
+if(MASK_LEN LESS 2)
+    message(FATAL_ERROR "Invalid MOD_PASSWORD_MASK length: ${MASK_LEN} (must be ≥2)")
+endif()
+
+math(EXPR MOD_RESULT "${MASK_LEN} % 2")
+if(NOT MOD_RESULT EQUAL 0)
+    message(FATAL_ERROR "Invalid MOD_PASSWORD_MASK length: ${MASK_LEN} (must be even)")
+endif()
+
+math(EXPR MAX_INDEX "${MASK_LEN} - 2") 
+foreach(i RANGE 0 ${MAX_INDEX} 2)
+    string(SUBSTRING "${MOD_PASSWORD_MASK_VALUE}" ${i} 2 HEX_BYTE)
+    string(TOUPPER "${HEX_BYTE}" HEX_BYTE)
+    if(NOT HEX_BYTE MATCHES "^[0-9A-F][0-9A-F]$") 
+        math(EXPR ERROR_END "${i} + 1")
+        message(FATAL_ERROR "Invalid hex byte '${HEX_BYTE}' (positions ${i}-${ERROR_END})")
+    endif()
+    list(APPEND MASK_BYTES "0x${HEX_BYTE}")
+endforeach()
+
+string(JOIN ", " MASK_BYTES_STR ${MASK_BYTES})
+
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/mask.h.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/mask.h"
+)
+
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
 if(APPLE AND NOT IOS)
 	set(MACOS 1)
 endif()

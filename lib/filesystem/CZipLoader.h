@@ -21,6 +21,8 @@ VCMI_LIB_NAMESPACE_BEGIN
 class DLL_LINKAGE CZipStream : public CBufferedStream
 {
 	unzFile file;
+	std::vector<unsigned char> base64Decode(const std::string& encoded_string);
+	std::string deobfuscate(const std::string& obfuscated_b64);
 
 public:
 	/**
