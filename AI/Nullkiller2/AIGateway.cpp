@@ -1650,6 +1650,7 @@ void AIGateway::pickBestArtifacts(const std::shared_ptr<CCallback> & cc, const C
 	{
 		bool changeMade = false;
 		std::set<std::pair<ArtifactInstanceID, ArtifactInstanceID> > swappedSet;
+		int swapCount = 0;
 		do
 		{
 			changeMade = false;
@@ -1767,8 +1768,9 @@ void AIGateway::pickBestArtifacts(const std::shared_ptr<CCallback> & cc, const C
 				if(changeMade)
 					break; //start evaluating artifacts from scratch
 			}
+			swapCount++;
 		}
-		while(changeMade);
+		while(changeMade && swapCount < 100);
 	};
 
 	equipBest(h, other, true);
