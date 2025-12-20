@@ -13,6 +13,7 @@
 #include "CCampaignScreen.h"
 #include "CreditsScreen.h"
 #include "CHighScoreScreen.h"
+#include "CImageMd5Calculator.h"
 
 #include "../lobby/CBonusSelection.h"
 #include "../lobby/CSelectionBase.h"
@@ -72,11 +73,17 @@ CMenuScreen::CMenuScreen(const JsonNode & configNode)
 	OBJECT_CONSTRUCTION;
 
 	const auto& bgConfig = config["background"];
-	if (bgConfig.isVector())
-		background = std::make_shared<CPicture>(ImagePath::fromJson(*RandomGeneratorUtil::nextItem(bgConfig.Vector(), CRandomGenerator::getDefault())));
+	ImagePath imagePath;
 
-	if (bgConfig.isString())
-		background = std::make_shared<CPicture>(ImagePath::fromJson(bgConfig));
+	if(bgConfig.isVector())
+		imagePath = ImagePath::fromJson(*RandomGeneratorUtil::nextItem(bgConfig.Vector(), CRandomGenerator::getDefault()));
+
+	if(bgConfig.isString())
+		imagePath = ImagePath::fromJson(bgConfig);
+	CImageMd5Calculator imageMd5Handler;
+	logGlobal->error(imageMd5Handler.calculate(imagePath));
+
+	background = std::make_shared<CPicture>(imagePath);
 
 	if(config["scalable"].Bool())
 		background->scaleTo(ENGINE->screenDimensions());

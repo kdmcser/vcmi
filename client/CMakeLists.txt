@@ -72,6 +72,8 @@ set(vcmiclientcommon_SRCS
 	mainmenu/CreditsScreen.cpp
 	mainmenu/CHighScoreScreen.cpp
 	mainmenu/CStatisticScreen.cpp
+	mainmenu/CStatisticScreen.cpp
+	mainmenu/CImageMd5Calculator.cpp
 
 	mapView/MapRenderer.cpp
 	mapView/MapRendererContext.cpp
@@ -286,6 +288,7 @@ set(vcmiclientcommon_HEADERS
 	mainmenu/CreditsScreen.h
 	mainmenu/CHighScoreScreen.h
 	mainmenu/CStatisticScreen.h
+	mainmenu/CImageMd5Calculator.h
 
 	mapView/IMapRendererContext.h
 	mapView/IMapRendererObserver.h
