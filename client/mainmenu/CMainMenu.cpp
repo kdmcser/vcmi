@@ -106,8 +106,8 @@ CMenuScreen::CMenuScreen(const JsonNode & configNode)
 	{
 		std::string language = settings["general"]["language"].String();
 		std::string messageTitle = language == "chinese" ? "严重错误!" : "Fatal error!";
-		std::string messageToShowENG = "In Heroes3 Enhancement VCMI Edition, modifying the main menu is not allowed. Please disable all other main menu mods and ensure that the Heroes3 Enhancement VCMI High-res Menu Mod is properly installed.";
-		std::string messageToShowCHS = "英雄无敌3增强版VCMI禁止修改主菜单！\n请禁用其他主菜单Mod并确保英雄无敌3增强版VCMI高清菜单Mod被正确安装！";
+		std::string messageToShowENG = "In Heroes3 Enhancement VCMI Edition, modifying the main menu is not allowed. Please disable all other main menu mods and ensure that the Heroes3 Enhancement VCMI High-res Menu Mod is properly installed and enabled.";
+		std::string messageToShowCHS = "英雄无敌3增强版VCMI禁止修改主菜单！\n请禁用其他主菜单Mod并确保英雄无敌3增强版VCMI高清菜单Mod被正确安装并启用！";
 		std::string messageToShow = language == "chinese" ? messageToShowCHS : messageToShowENG;
 		logGlobal->error(messageToShowENG);
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, messageTitle.c_str(), messageToShow.c_str(), nullptr);
