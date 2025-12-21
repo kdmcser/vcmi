@@ -13,6 +13,7 @@
 #include "CCampaignScreen.h"
 #include "CreditsScreen.h"
 #include "CHighScoreScreen.h"
+#include "CImageMd5Calculator.h"
 
 #include "../lobby/CBonusSelection.h"
 #include "../lobby/CSelectionBase.h"
@@ -61,6 +62,8 @@
 #include "../../lib/json/JsonUtils.h"
 
 #include <boost/lexical_cast.hpp>
+#include <SDL_main.h>
+#include <SDL.h>
 
 ISelectionScreenInfo * SEL = nullptr;
 
@@ -72,11 +75,17 @@ CMenuScreen::CMenuScreen(const JsonNode & configNode)
 	OBJECT_CONSTRUCTION;
 
 	const auto& bgConfig = config["background"];
-	if (bgConfig.isVector())
-		background = std::make_shared<CPicture>(ImagePath::fromJson(*RandomGeneratorUtil::nextItem(bgConfig.Vector(), CRandomGenerator::getDefault())));
+	ImagePath imagePath;
 
-	if (bgConfig.isString())
-		background = std::make_shared<CPicture>(ImagePath::fromJson(bgConfig));
+	if(bgConfig.isVector())
+		imagePath = ImagePath::fromJson(*RandomGeneratorUtil::nextItem(bgConfig.Vector(), CRandomGenerator::getDefault()));
+
+	if(bgConfig.isString())
+		imagePath = ImagePath::fromJson(bgConfig);
+	CImageMd5Calculator imageMd5Handler;
+	std::string bacogroudMd5 = imageMd5Handler.calculate(imagePath);
+
+	background = std::make_shared<CPicture>(imagePath);
 
 	if(config["scalable"].Bool())
 		background->scaleTo(ENGINE->screenDimensions());
@@ -85,9 +94,26 @@ CMenuScreen::CMenuScreen(const JsonNode & configNode)
 
 	for (const JsonNode& node : config["images"].Vector())
 	{
-		auto image = std::make_shared<CPicture>(ImagePath::fromJson(*RandomGeneratorUtil::nextItem(node["name"].Vector(), CRandomGenerator::getDefault())), adjustNegativeCoordinate(node["x"].Integer(), node["y"].Integer()));
+		imagePath = ImagePath::fromJson(*RandomGeneratorUtil::nextItem(node["name"].Vector(), CRandomGenerator::getDefault()));
+		auto image = std::make_shared<CPicture>(imagePath, adjustNegativeCoordinate(node["x"].Integer(), node["y"].Integer()));
 		images.push_back(image);
 	}
+	size_t imageSize = config["images"].Vector().size();
+	std::string imageMd5 = imageMd5Handler.calculate(imagePath);
+	bool containsVideo = !config["video"].isNull();
+	size_t buttunCount = getButtonCount(configNode);
+	if (bacogroudMd5 != "585825a130cafba0b2c6478bc2c0ed2b" || imageSize != 1 || imageMd5 != "b3d06a8e098d6007a93a5c4d8122ec4b" || containsVideo || buttunCount != 5)
+	{
+		std::string language = settings["general"]["language"].String();
+		std::string messageTitle = language == "chinese" ? "严重错误!" : "Fatal error!";
+		std::string messageToShowENG = "In Heroes3 Enhancement VCMI Edition, modifying the main menu is not allowed. Please disable all other main menu mods and ensure that the Heroes3 Enhancement VCMI High-res Menu Mod is properly installed.";
+		std::string messageToShowCHS = "英雄无敌3增强版VCMI禁止修改主菜单！\n请禁用其他主菜单Mod并确保英雄无敌3增强版VCMI高清菜单Mod被正确安装！";
+		std::string messageToShow = language == "chinese" ? messageToShowCHS : messageToShowENG;
+		logGlobal->error(messageToShowENG);
+		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, messageTitle.c_str(), messageToShow.c_str(), nullptr);
+		exit(1);
+	}
+
 
 	if(!config["video"].isNull())
 	{
@@ -105,6 +131,15 @@ CMenuScreen::CMenuScreen(const JsonNode & configNode)
 	if(config["video"].isNull())
 		tabs->setRedrawParent(true);
 
+}
+
+size_t CMenuScreen::getButtonCount(const JsonNode& configNode)
+{
+	size_t buttonCount = 0;
+	for(const JsonNode & node : config["items"].Vector())
+		if (node["name"].String() == "main")
+			buttonCount = node["buttons"].Vector().size();
+	return buttonCount;
 }
 
 std::shared_ptr<CIntObject> CMenuScreen::createTab(size_t index)
