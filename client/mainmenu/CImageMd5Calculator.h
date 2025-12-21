@@ -68,6 +68,10 @@ private:
 
 	ImagePath getRealImagePath(const ImagePath& imagePath);
 	std::string calculateMd5(ui8* data, si64 size);
+	std::vector<std::pair<std::unique_ptr<ui8[]>, si64> > readDefJsonImages(const JsonNode & config);
+	std::pair<std::unique_ptr<ui8[]>, si64> readOneImage(const ImagePath & imagePath);
+
 public:
 	std::string calculate(const ImagePath &imagePath);
+	std::string calculate(const AnimationPath & animationPath);
 };

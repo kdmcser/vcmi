@@ -1,5 +1,6 @@
 #include"CImageMd5Calculator.h"
 #include "../lib/filesystem/Filesystem.h"
+#include "../lib/json/JsonUtils.h"
 
 // MD5 algorithm constants (integer part of sine function)
 static const uint32_t T[64] = {
@@ -182,7 +183,7 @@ void CImageMd5Calculator::transform(uint32_t state[4], const ui8 block[64])
 
     // Round 4
     for (uint32_t i = 48; i < 64; i++) {
-        II(a, b, c, d, x[7 * i % 16], S[i], T[i]);
+        II(a, b, c, d, x[(7 * i) % 16], S[i], T[i]);
         uint32_t temp = d;
         d = c;
         c = b;
@@ -254,4 +255,107 @@ std::string CImageMd5Calculator::calculate(const ImagePath& imagePath)
 	}
 	auto readFile = CResourceHandler::get()->load(realPath)->readAll();
 	return calculateMd5(readFile.first.get(), readFile.second);
+}
+
+std::string CImageMd5Calculator::calculate(const AnimationPath & animationPath)
+{
+	AnimationPath actualPath = boost::starts_with(animationPath.getName(), "SPRITES") ? animationPath : animationPath.addPrefix("SPRITES/");
+	bool existDef = CResourceHandler::get()->existsResource(actualPath);
+	auto jsonResource = actualPath.toType<EResType::JSON>();
+	auto configList = CResourceHandler::get()->getResourcesWithName(jsonResource);
+	bool existJson = configList.size() > 0;
+	if(existDef && existJson)
+	{
+		logGlobal->error("Def and json are all existed in %s!", animationPath.getOriginalName());
+		return "";
+	}
+
+	if (existDef)
+	{
+		auto readFile = CResourceHandler::get()->load(actualPath)->readAll();
+		return calculateMd5(readFile.first.get(), readFile.second);
+	}
+
+	if(existJson)
+	{
+		auto stream = configList[0]->load(jsonResource);
+		std::unique_ptr<ui8[]> textData(new ui8[stream->getSize()]);
+		stream->read(textData.get(), stream->getSize());
+		const JsonNode config(reinterpret_cast<const std::byte *>(textData.get()), stream->getSize(), actualPath.getOriginalName());
+		auto blocks = readDefJsonImages(config);
+		if(blocks.empty())
+			return "";
+
+		size_t totalSize = stream->getSize();
+		for(auto & block : blocks)
+			totalSize += static_cast<size_t>(block.second);
+
+		std::unique_ptr<ui8[]> merged = std::make_unique<ui8[]>(totalSize);
+		std::memcpy(merged.get(), textData.get(), stream->getSize());
+		size_t offset = stream->getSize();
+		for(size_t i = 0; i < blocks.size(); i++)
+		{
+			size_t blockSize = static_cast<size_t>(blocks[i].second);
+			if(offset + blockSize > totalSize)
+				throw std::runtime_error("Copy unexpected data!");
+			std::memcpy(merged.get() + offset, blocks[i].first.get(), blockSize);
+			offset += blockSize;
+		}
+		return calculateMd5(merged.get(), totalSize);
+	}
+	logGlobal->error("Neither def or json are existed in %s!", animationPath.getOriginalName());
+	return "";
+}
+
+std::vector<std::pair<std::unique_ptr<ui8[]>, si64> > CImageMd5Calculator::readDefJsonImages(const JsonNode & config)
+{
+	std::vector<std::pair<std::unique_ptr<ui8[]>, si64> > ret;
+	std::vector<std::pair<std::unique_ptr<ui8[]>, si64> > emptyRet;
+	std::string basepath = config["basepath"].String();
+	for (const JsonNode& group : config["sequences"].Vector())
+	{
+		for (const JsonNode& frame : group["frames"].Vector())
+		{
+			ImagePath imagePath = ImagePath::builtin(basepath + frame.String());
+			auto imageData = readOneImage(imagePath);
+			if(imageData.first.get() == nullptr)
+				return emptyRet;
+			ret.emplace_back(std::move(imageData.first), imageData.second);
+		}
+	}
+	for (const JsonNode& node : config["images"].Vector())
+	{
+		if (!node["defFile"].isNull())
+		{
+			logGlobal->error("Not support setting defFile!");
+			return emptyRet;
+		}
+
+		ImagePath imagePath = ImagePath::builtin(basepath + node["file"].String());
+		auto imageData = readOneImage(imagePath);
+		if(imageData.first.get() == nullptr)
+			return emptyRet;
+		ret.emplace_back(std::move(imageData.first), imageData.second);
+	}
+	return ret;
+}
+
+std::pair<std::unique_ptr<ui8[]>, si64> CImageMd5Calculator::readOneImage(const ImagePath &imagePath)
+{
+	static constexpr std::array unexceptedPaths = {"SPRITES2X/", "SPRITES3X/", "SPRITES4X/"};
+	for(auto & path : unexceptedPaths)
+	{
+		if(CResourceHandler::get()->existsResource(imagePath.addPrefix(path)))
+		{
+			logGlobal->error("Not support scaled image oath %s", imagePath.addPrefix(path).getOriginalName());
+			return std::make_pair<std::unique_ptr<ui8[]>, si64>(nullptr, 0);
+		}
+	}
+	ImagePath realPath = getRealImagePath(imagePath);
+	if(!CResourceHandler::get()->existsResource(realPath))
+	{
+		logGlobal->error("Fail to find image oath %s", imagePath.getOriginalName());
+		return std::make_pair<std::unique_ptr<ui8[]>, si64>(nullptr, 0);
+	}
+	return CResourceHandler::get()->load(realPath)->readAll();
 }

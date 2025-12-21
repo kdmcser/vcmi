@@ -51,7 +51,7 @@ class CMenuScreen : public CWindowObject
 	std::vector<std::shared_ptr<CPicture>> images;
 
 	std::shared_ptr<CIntObject> createTab(size_t index);
-	size_t getButtonCount(const JsonNode & configNode);
+	bool checkButtonChanged(const JsonNode & configNode);
 
 public:
 	std::vector<std::string> menuNameToEntry;
