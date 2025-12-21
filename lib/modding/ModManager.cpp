@@ -183,6 +183,7 @@ void ModsPresetState::createInitialPreset()
 {
 	// TODO: scan mods directory for all its content? Probably unnecessary since this looks like new install, but who knows?
 	modConfig["presets"]["default"]["mods"].Vector().emplace_back("vcmi");
+	modConfig["presets"]["default"]["mods"].Vector().emplace_back("h3e-main-menu");
 }
 
 void ModsPresetState::importInitialPreset()
@@ -347,7 +348,10 @@ void ModsPresetState::saveConfigurationState() const
 void ModsPresetState::createNewPreset(const std::string & presetName)
 {
 	if (modConfig["presets"][presetName].isNull())
+	{
 		modConfig["presets"][presetName]["mods"].Vector().emplace_back("vcmi");
+		modConfig["presets"][presetName]["mods"].Vector().emplace_back("h3e-main-menu");
+	}
 }
 
 void ModsPresetState::deletePreset(const std::string & presetName)
