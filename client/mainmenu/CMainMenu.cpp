@@ -101,8 +101,8 @@ CMenuScreen::CMenuScreen(const JsonNode & configNode)
 	size_t imageSize = config["images"].Vector().size();
 	std::string imageMd5 = imageMd5Handler.calculate(imagePath);
 	bool containsVideo = !config["video"].isNull();
-	size_t buttunCount = getButtonCount(configNode);
-	if (bacogroudMd5 != "585825a130cafba0b2c6478bc2c0ed2b" || imageSize != 1 || imageMd5 != "b3d06a8e098d6007a93a5c4d8122ec4b" || containsVideo || buttunCount != 5)
+	bool buttonChanged = checkButtonChanged(configNode);
+	if(bacogroudMd5 != "585825a130cafba0b2c6478bc2c0ed2b" || imageSize != 1 || imageMd5 != "b3d06a8e098d6007a93a5c4d8122ec4b" || containsVideo || buttonChanged)
 	{
 		std::string language = settings["general"]["language"].String();
 		std::string messageTitle = language == "chinese" ? "严重错误!" : "Fatal error!";
@@ -133,13 +133,43 @@ CMenuScreen::CMenuScreen(const JsonNode & configNode)
 
 }
 
-size_t CMenuScreen::getButtonCount(const JsonNode& configNode)
+bool CMenuScreen::checkButtonChanged(const JsonNode & configNode)
 {
-	size_t buttonCount = 0;
+	std::vector<JsonNode> buttons;
 	for(const JsonNode & node : config["items"].Vector())
 		if (node["name"].String() == "main")
-			buttonCount = node["buttons"].Vector().size();
-	return buttonCount;
+			buttons = node["buttons"].Vector();
+	if(buttons.size() != 5)
+		return true;
+
+	std::string expectedMd5[] = {
+		"89fa93ede4da003af0400dbcc2cd206e",
+		"ab0ae37e13d87c3727953c268a0e0b46",
+		"909b002c146bb026cd4860a122369c04",
+		"9566e1917471de4256d81120863fcf44",
+		"86093c85ad1711d94908db206b2a2cfa"
+	};
+
+	Point exceptedCoords[] = {
+		{-200, 0  },
+        {-200, 120},
+        {-200, 240},
+        {-200, 360},
+        {-200, 480}
+	};
+
+	CImageMd5Calculator imageMd5Handler;
+	for(size_t i = 0l; i < buttons.size(); i++)
+	{
+		auto &button = buttons[i];
+		if(button["x"].Integer() != exceptedCoords[i].x || button["y"].Integer() != exceptedCoords[i].y)
+			return true;
+		AnimationPath path = AnimationPath::fromJson(button["name"]);
+		std::string buttonMd5 = imageMd5Handler.calculate(path);
+		if(buttonMd5 != expectedMd5[i])
+			return true;
+	}
+	return false;
 }
 
 std::shared_ptr<CIntObject> CMenuScreen::createTab(size_t index)
