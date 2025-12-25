@@ -10,32 +10,48 @@
 #pragma once
 
 //VCMI PROJECT CODE CONTRIBUTORS:
+const std::vector<std::vector<std::string>> h3eContributors = {
+	//Task          Name                   Aka                    E-Mail
+	{ "发行",                "",            "凤凰如梦",           ""                             },
+
+    { "程序",                "",            "凤凰如梦",           ""                             },
+	{ "程序",                "",            "寒冰皇冠",           ""                             },
+
+    { "美术",                "",            "吓死蛮牛",           ""                             },
+    { "美术",                "",            "Lucki",              ""                             },
+    { "美术",                "",            "张杰灏",             ""                             },
+	{ "美术",                "",            "白水",               ""                             },
+	{ "美术",                "",            "刘勇",               ""                             },
+
+    { "模组制作",            "",            "Lucki",              ""                             },
+	{ "模组制作",            "",            "红枫居士",           ""                             },
+	{ "模组制作",            "",            "凤凰如梦",           ""                             },
+    { "模组制作",            "",            "紫玥炎霄",           ""                             },
+    { "模组制作",            "",            "不顺",               ""                             },
+    { "模组制作",            "",            "L",                  ""                             },
+    { "模组制作",            "",            "Ash&Amber",          ""                             },
+	{ "模组制作",            "",            "火舞龙霄",           ""                             },
+	{ "模组制作",            "",            "白云飘飘",           ""                             },
+    { "模组制作",            "",            "辉太郎",             ""                             },
+    { "模组制作",            "",            "鹏",                 ""                             },
+    { "模组制作",            "",            "微暖",               ""                             },
+    { "模组制作",            "",            "哆咪、",             ""                             },
+
+	{ "外部模组整合",        "",            "凤凰如梦",           ""                             },
+	{ "外部模组整合",        "",            "哆咪、",             ""                             },
+
+    { "汉化",                "",            "凤凰如梦",           ""                             },
+	{ "汉化",                "",            "紫玥炎霄",           ""                             },
+
+    { "特别感谢",            "",            "Archer",             ""                             },
+    { "特别感谢",            "",            "阿嬳",               ""                             },
+    { "特别感谢",            "",            "春风不过冰雪洲",     ""                             },
+    { "特别感谢",            "",            "ABCDEFH",            ""                             },
+    { "特别感谢",            "",            "英雄无敌爱好者",     ""                             },
+};
+
 const std::vector<std::vector<std::string>> contributors = {
 	//Task          Name                   Aka                    E-Mail
-   { "VCMIEhancement",       "",            "凤凰如梦",           ""                             },
-   { "VCMIEhancement",       "",            "吓死蛮牛",           ""                             },
-   { "VCMIEhancement",       "",            "Lucki",              ""                             },
-   { "VCMIEhancement",       "",            "紫玥炎霄",           ""                             },
-   { "VCMIEhancement",       "",            "火舞龙霄",           ""                             },
-   { "VCMIEhancement",       "",            "不顺",               ""                             },
-   { "VCMIEhancement",       "",            "Ash&Amber",          ""                             },
-   { "VCMIEhancement",       "",            "L",                  ""                             },
-   { "VCMIEhancement",       "",            "红枫居士",           ""                             },
-   { "VCMIEhancement",       "",            "白云飘飘",           ""                             },
-   { "VCMIEhancement",       "",            "辉太郎",             ""                             },
-   { "VCMIEhancement",       "",            "鹏",                 ""                             },
-   { "VCMIEhancement",       "",            "微暖",               ""                             },
-   { "VCMIEhancement",       "",            "哆咪、",             ""                             },
-   { "VCMIEhancement",       "",            "张杰灏",             ""                             },
-   { "VCMIEhancement",       "",            "白水",               ""                             },
-   { "VCMIEhancement",       "",            "刘勇",               ""                             },
-
-   { "SpecialThanks",        "",             "Archer",            ""                             },
-   { "SpecialThanks",        "",             "阿嬳",              ""                             },
-   { "SpecialThanks",        "",             "春风不过冰雪洲",    ""                             },
-   { "SpecialThanks",        "",             "ABCDEFH",           ""                             },
-   { "SpecialThanks",        "",             "英雄无敌爱好者",    ""                             },
-
 	{ "Idea"      , "Mateusz B."         , "Tow dragon"         , "matcio1@gmail.com"            },
 	{ "Idea"      , "Michał Urbańczyk"   , "Tow"                , "impono@gmail.com"             },
 

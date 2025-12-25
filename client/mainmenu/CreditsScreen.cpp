@@ -78,7 +78,19 @@ CreditsScreen::CreditsScreen(Rect rect)
 		{ "core.credits.visitUsOnTheWeb",     "Visit us on the Web"  }
 	});
 
+	std::string h3eContributorsText = "";
+	std::string h3eContributorsTask = "";
+	for(auto & element : h3eContributors)
+	{
+		if(element[0] != h3eContributorsTask)
+			h3eContributorsText += "\r\n\r\n{" + element[0] + ":}\r\n";
+		h3eContributorsText += (element[1] != "" ? element[1] : element[2]) + "\r\n";
+		h3eContributorsTask = element[0];
+	}
+
 	text = "{- " + LIBRARY->generaltexth->translate("vcmi.credits.vcmi") + " -}\r\n" + contributorsText + "\r\n\r\n{" + LIBRARY->generaltexth->translate("vcmi.credits.website") + ":}\r\nhttps://vcmi.eu\r\n\r\n\r\n\r\n\r\n{- " + LIBRARY->generaltexth->translate("vcmi.credits.heroes") + " -}\r\n\r\n\r\n" + text;
+	text = "{- 英雄无敌3增强版VCMI -}\r\n" + h3eContributorsText + "\r\n\r\n\r\n" + text;
+
 	credits = std::make_shared<CMultiLineLabel>(Rect(pos.w - 350, 0, 350, 600), FONT_CREDITS, ETextAlignment::CENTER, Colors::WHITE, text);
 	credits->scrollTextTo(-600); // move all text below the screen
 }
