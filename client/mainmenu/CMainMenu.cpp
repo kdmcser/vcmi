@@ -67,8 +67,6 @@
 
 ISelectionScreenInfo * SEL = nullptr;
 
-
-
 CMenuScreen::CMenuScreen(const JsonNode & configNode)
 	: CWindowObject(BORDERED), config(configNode)
 {
@@ -298,7 +296,7 @@ std::shared_ptr<CButton> CMenuEntry::createButton(CMenuScreen * parent, const Js
 			help = {"", LIBRARY->generaltexth->translate(button["help"].String())};
 	}	
 
-	Point point = adjustNegativeCoordinate(static_cast<int>(button["x"].Float()), static_cast<int>(button["y"].Float()));
+	Point point = adjustNegativeCoordinate(button["x"].Integer(), button["y"].Integer());
 	EShortcut shortcut = ENGINE->shortcuts().findShortcut(button["shortcut"].String());
 
 	if (shortcut == EShortcut::NONE && !button["shortcut"].String().empty())
@@ -451,8 +449,10 @@ void CMainMenu::onScreenResize()
 	pos.w = ENGINE->screenDimensions().x;
 	pos.h = ENGINE->screenDimensions().y;
 
+	auto oldMenu = menu;
 	menu = nullptr;
 	menu = std::make_shared<CMenuScreen>(CMainMenuConfig::get().getConfig()["window"]);
+	ENGINE->windows().tryReplaceWindow(oldMenu, menu);
 
 	backgroundAroundMenu->pos = pos;
 }
