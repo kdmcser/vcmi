@@ -97,15 +97,18 @@ CMenuScreen::CMenuScreen(const JsonNode & configNode)
 		images.push_back(image);
 	}
 	size_t imageSize = config["images"].Vector().size();
+	int imageX = imageSize > 0 ? config["images"].Vector()[0]["x"].Integer() : 0;
+	int imageY = imageSize > 0 ? config["images"].Vector()[0]["y"].Integer() : 0;
 	std::string imageMd5 = imageMd5Handler.calculate(imagePath);
 	bool containsVideo = !config["video"].isNull();
 	bool buttonChanged = checkButtonChanged(configNode);
-	if(bacogroudMd5 != "585825a130cafba0b2c6478bc2c0ed2b" || imageSize != 1 || imageMd5 != "b3d06a8e098d6007a93a5c4d8122ec4b" || containsVideo || buttonChanged)
+	bool imageIsValid = imageSize == 1 && imageMd5 == "b3d06a8e098d6007a93a5c4d8122ec4b" && imageX == 20 && imageY == -60;
+	if(bacogroudMd5 != "585825a130cafba0b2c6478bc2c0ed2b" || !imageIsValid || containsVideo || buttonChanged)
 	{
 		std::string language = settings["general"]["language"].String();
 		std::string messageTitle = language == "chinese" ? "严重错误!" : "Fatal error!";
-		std::string messageToShowENG = "In Heroes3 Enhancement VCMI Edition, modifying the main menu is not allowed. Please disable all other main menu mods and ensure that the Heroes3 Enhancement VCMI High-res Menu Mod is properly installed and enabled.";
-		std::string messageToShowCHS = "英雄无敌3增强版VCMI禁止修改主菜单！\n请禁用其他主菜单Mod并确保英雄无敌3增强版VCMI高清菜单Mod被正确安装并启用！";
+		std::string messageToShowENG = "In Heroes3 Enhancement VCMI Edition, modifying the main menu is not allowed. Please disable all other main menu mods and ensure that the Heroes3 Enhancement VCMI High-res Menu Mod is enabled.";
+		std::string messageToShowCHS = "英雄无敌3增强版VCMI禁止修改主菜单！\n请禁用其他主菜单Mod并确保英雄无敌3增强版VCMI高清菜单Mod已启用！";
 		std::string messageToShow = language == "chinese" ? messageToShowCHS : messageToShowENG;
 		logGlobal->error(messageToShowENG);
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, messageTitle.c_str(), messageToShow.c_str(), nullptr);
