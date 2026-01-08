@@ -42,7 +42,8 @@
             "inherits" : "default-release",
             "hidden": true,
             "cacheVariables": {
-                "CMAKE_INSTALL_PREFIX" : "/usr/local"
+                "CMAKE_INSTALL_PREFIX" : "/usr/local",
+                "ONNXRUNTIME_ROOT": "/opt/onnxruntime"
             }
         },
         {
@@ -480,7 +481,7 @@
             "name": "ios-release-conan",
             "configurePreset": "ios-release-conan",
             "inherits": "default-release",
-            "configuration": "Release",
+            "configuration": "RelWithDebInfo",
             "targets": ["vcmiclient"],
             "nativeToolOptions": [
                 "CODE_SIGNING_ALLOWED_FOR_APPS=NO"

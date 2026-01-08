@@ -486,9 +486,12 @@ void CGSubterraneanGate::initObj(IGameRandomizer & gameRandomizer)
 void CGSubterraneanGate::postInit(IGameInfoCallback * cb) //matches subterranean gates into pairs
 {
 	//split on underground and surface gates
-	std::vector<std::vector<CGSubterraneanGate *>> gatesSplit(cb->gameState().getMap().mapLevels); //surface and underground gates
+	std::vector<std::vector<CGSubterraneanGate *>> gatesSplit(2); //surface and underground gates
 	for(auto gate : cb->gameState().getMap().getObjects<CGSubterraneanGate>())
 	{
+		if (gate->visitablePos().z > 1)
+			continue; // TODO: multilevel support for Subterranean Gates
+
 		gatesSplit[gate->visitablePos().z].push_back(gate);
 	}
 
@@ -624,8 +627,9 @@ ArtifactID CGArtifact::getArtifactType() const
 {
 	if(ID == Obj::SPELL_SCROLL)
 		return ArtifactID::SPELL_SCROLL;
-	else
-		return getObjTypeIndex().getNum();
+
+	assert(ID == Obj::ARTIFACT);
+	return getObjTypeIndex().getNum();
 }
 
 void CGArtifact::pickRandomObject(IGameRandomizer & gameRandomizer)
@@ -665,6 +669,7 @@ void CGArtifact::setArtifactInstance(const CArtifactInstance * instance)
 
 void CGArtifact::initObj(IGameRandomizer & gameRandomizer)
 {
+	assert(ID == Obj::ARTIFACT || ID == Obj::SPELL_SCROLL);
 	blockVisit = true;
 	if(ID == Obj::ARTIFACT)
 	{
@@ -682,7 +687,11 @@ void CGArtifact::initObj(IGameRandomizer & gameRandomizer)
 
 std::string CGArtifact::getObjectName() const
 {
-	return getArtifactType().toEntity(LIBRARY)->getNameTranslated();
+	if(ID == Obj::SPELL_SCROLL || ID == Obj::ARTIFACT)
+		return getArtifactType().toEntity(LIBRARY)->getNameTranslated();
+
+	// random artifact
+	return CGObjectInstance::getObjectName();
 }
 
 std::string CGArtifact::getPopupText(PlayerColor player) const

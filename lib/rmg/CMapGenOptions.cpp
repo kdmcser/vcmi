@@ -133,7 +133,7 @@ si8 CMapGenOptions::getMaxPlayersCount(bool withTemplateLimit) const
 	}
 	else
 	{
-		totalPlayers = humans + cpus;
+		totalPlayers = std::max(humans + cpus, 2);
 	}
 
 	if (withTemplateLimit && mapTemplate)
@@ -719,7 +719,7 @@ std::vector<const CRmgTemplate *> CMapGenOptions::getPossibleTemplates() const
 
 		if(humanOrCpuPlayerCount != CMapGenOptions::RANDOM_SIZE && compOnlyPlayerCount != CMapGenOptions::RANDOM_SIZE)
 		{
-			if (!tmpl->getPlayers().isInRange(humanOrCpuPlayerCount + compOnlyPlayerCount))
+			if (!tmpl->getPlayers().isInRange(std::max(humanOrCpuPlayerCount + compOnlyPlayerCount, 2)))
 				return true;
 
 		}
@@ -828,9 +828,12 @@ void CMapGenOptions::serializeJson(JsonSerializeFormat & handler)
 	bool hasTwoLevelsKey = !handler.getCurrent()["haswoLevels"].isNull();
 	bool hasTwoLevels = levels == 2;
 	if(handler.saving || !hasTwoLevelsKey)
-		handler.serializeInt("levels", levels);
+		handler.serializeInt("levels", levels, 1);
 	else
+	{
 		handler.serializeBool("haswoLevels", hasTwoLevels);
+		levels = hasTwoLevels ? 2 : 1;
+	}
 	handler.serializeInt("humanOrCpuPlayerCount", humanOrCpuPlayerCount);
 	handler.serializeInt("teamCount", teamCount);
 	handler.serializeInt("compOnlyPlayerCount", compOnlyPlayerCount);

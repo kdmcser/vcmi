@@ -612,6 +612,7 @@ set(lib_MAIN_HEADERS
 	mapping/CMapInfo.h
 	mapping/CMapOperation.h
 	mapping/CMapService.h
+	mapping/MapDifficulty.h
 	mapping/MapEditUtils.h
 	mapping/MapIdentifiersH3M.h
 	mapping/MapFeaturesH3M.h
@@ -619,6 +620,7 @@ set(lib_MAIN_HEADERS
 	mapping/MapFormat.h
 	mapping/MapFormatSettings.h
 	mapping/MapReaderH3M.h
+	mapping/MapTilesStorage.h
 	mapping/MapFormatJson.h
 	mapping/ObstacleProxy.h
 	mapping/TerrainTile.h
@@ -852,6 +854,9 @@ if(ENABLE_STATIC_LIBS AND ENABLE_CLIENT)
 		target_link_libraries(vcmi PRIVATE BattleAI)
 	endif()
 
+	if(ENABLE_MMAI)
+		target_link_libraries(vcmi PRIVATE MMAI)
+	endif()
 endif()
 
 # no longer necessary, but might be useful to keep in future

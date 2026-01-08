@@ -13,6 +13,8 @@
 #include "../CStack.h"
 #include "BattleInfo.h"
 #include "CObstacleInstance.h"
+#include "GameLibrary.h"
+#include "IGameSettings.h"
 
 #include "../constants/EntityIdentifiers.h"
 #include "../entities/building/TownFortifications.h"
@@ -123,6 +125,14 @@ TStacks CBattleInfoEssentials::battleGetAllStacks(bool includeTurrets) const
 	});
 }
 
+battle::Units CBattleInfoEssentials::battleGetAllUnits(bool includeTurrets) const
+{
+	return battleGetUnitsIf([=](const battle::Unit * unit)
+	{
+		return !unit->isGhost() && (includeTurrets || !unit->isTurret());
+	});
+}
+
 TStacks CBattleInfoEssentials::battleGetStacksIf(const TStackFilter & predicate) const
 {
 	RETURN_IF_NOT_BATTLE(TStacks());
@@ -222,6 +232,12 @@ BattleSide CBattleInfoEssentials::battleGetTacticsSide() const
 	return getBattle()->getTacticsSide();
 }
 
+int32_t CBattleInfoEssentials::battleGetRound() const
+{
+	RETURN_IF_NOT_BATTLE(-1);
+	return getBattle()->getRound();
+}
+
 const CGHeroInstance * CBattleInfoEssentials::battleGetFightingHero(BattleSide side) const
 {
 	RETURN_IF_NOT_BATTLE(nullptr);
@@ -287,12 +303,17 @@ bool CBattleInfoEssentials::battleCanFlee(const PlayerColor & player) const
 
 	const CGHeroInstance * myHero = battleGetFightingHero(side);
 
-	//current player have no hero
+	//current player has no hero
 	if(!myHero)
 		return false;
 
-	//eg. one of heroes is wearing shakles of war
+	//eg. one of heroes is wearing shackles of war
 	if(myHero->hasBonusOfType(BonusType::BATTLE_NO_FLEEING) && battleHasHero(otherSide(side)))
+		return false;
+
+	//cannot flee after casting spell in X first turns as attacker
+	if(getBattle()->getRound() <= LIBRARY->engineSettings()->getInteger(EGameSettings::COMBAT_NO_SPELL_HIT_AND_RUN_ROUNDS)
+		&& side == BattleSide::ATTACKER &&  battleHasHero(otherSide(side)) && getBattle()->getCastSpells(side) >= 1)
 		return false;
 
 	//we are besieged defender

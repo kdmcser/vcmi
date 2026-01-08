@@ -21,6 +21,8 @@
 #include "../lib/texts/Languages.h"
 #include "../lib/ExceptionsCommon.h"
 
+#include "../vcmiqt/launcherdirs.h"
+
 #include "updatedialog_moc.h"
 #include "main.h"
 #include "helper.h"
@@ -99,14 +101,14 @@ MainWindow::MainWindow(QWidget * parent)
 
 #ifndef VCMI_MOBILE
 	//load window settings
-	QSettings s(Ui::teamName, Ui::appName);
+	QSettings s = CLauncherDirs::getSettings(Ui::appName);
 
-	auto size = s.value("MainWindow/Size").toSize();
+	auto size = s.value("MainWindow/WindowSize").toSize();
 	if(size.isValid())
 	{
 		resize(size);
 	}
-	auto position = s.value("MainWindow/Position").toPoint();
+	auto position = s.value("MainWindow/WindowPosition").toPoint();
 	if(!position.isNull())
 	{
 		move(position);
@@ -154,10 +156,7 @@ void MainWindow::detectPreferredLanguage()
 
 void MainWindow::enterSetup()
 {
-	ui->startGameButton->setEnabled(false);
-	ui->settingsButton->setEnabled(false);
-	ui->aboutButton->setEnabled(false);
-	ui->modslistButton->setEnabled(false);
+	ui->sidePanel->setVisible(false);
 	ui->tabListWidget->setCurrentIndex(TabRows::SETUP);
 }
 
@@ -166,14 +165,11 @@ void MainWindow::exitSetup(bool goToMods)
 	Settings writer = settings.write["launcher"]["setupCompleted"];
 	writer->Bool() = true;
 
-	ui->startGameButton->setEnabled(true);
-	ui->settingsButton->setEnabled(true);
-	ui->aboutButton->setEnabled(true);
-	ui->modslistButton->setEnabled(true);
+	ui->sidePanel->setVisible(true);
 	if (goToMods)
-		ui->tabListWidget->setCurrentIndex(TabRows::MODS);
+		switchToModsTab();
 	else
-		ui->tabListWidget->setCurrentIndex(TabRows::START);
+		switchToStartTab();
 }
 
 void MainWindow::switchToStartTab()
@@ -207,9 +203,9 @@ MainWindow::~MainWindow()
 {
 #ifndef VCMI_MOBILE
 	//save window settings
-	QSettings s(Ui::teamName, Ui::appName);
-	s.setValue("MainWindow/Size", size());
-	s.setValue("MainWindow/Position", pos());
+	QSettings s = CLauncherDirs::getSettings(Ui::appName);
+	s.setValue("MainWindow/WindowSize", size());
+	s.setValue("MainWindow/WindowPosition", pos());
 #endif
 
 	delete ui;

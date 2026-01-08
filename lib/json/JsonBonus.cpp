@@ -152,6 +152,7 @@ static void loadBonusSubtype(BonusSubtypeID & subtype, BonusType type, const Jso
 		case BonusType::SPECIFIC_SPELL_POWER:
 		case BonusType::ENCHANTED:
 		case BonusType::MORE_DAMAGE_FROM_SPELL:
+		case BonusType::ADJACENT_SPELLCASTER:
 		case BonusType::NOT_ACTIVE:
 		{
 			LIBRARY->identifiers()->requestIdentifier( "spell", node, [&subtype](int32_t identifier)
@@ -279,6 +280,10 @@ static void loadBonusAddInfo(CAddInfo & var, BonusType type, const JsonNode & va
 				var.push_back(converted);
 			}
 			break;
+		case BonusType::FORCE_NEUTRAL_ENCOUNTER_STACK_COUNT:
+			for(const auto & sequence : value.Vector())
+				var.push_back(sequence.Integer());
+			break;
 		default:
 			logMod->warn("Bonus type %s does not supports addInfo!", LIBRARY->bth->bonusToString(type) );
 	}
@@ -339,7 +344,7 @@ static void loadBonusSourceInstance(BonusSourceID & sourceInstance, BonusSource 
 		}
 		case BonusSource::TERRAIN_OVERLAY:
 		{
-			LIBRARY->identifiers()->requestIdentifier( "spell", node, [&sourceInstance](int32_t identifier)
+			LIBRARY->identifiers()->requestIdentifier( "battlefield", node, [&sourceInstance](int32_t identifier)
 			{
 				sourceInstance = BattleField(identifier);
 			});
@@ -647,12 +652,12 @@ static std::shared_ptr<const ILimiter> parseCreatureLevelLimiter(const JsonNode 
 	return levelLimiter;
 }
 
-static std::shared_ptr<const ILimiter> parseCreatureTerrainLimiter(const JsonNode & limiter)
+static std::shared_ptr<const ILimiter> parseTerrainLimiter(const JsonNode & limiter)
 {
 	const JsonNode & parameters = limiter["parameters"];
 	const JsonNode & terrainNode = limiter.Struct().count("terrain") ? limiter["terrain"] : parameters[0];
 
-	auto terrainLimiter = std::make_shared<CreatureTerrainLimiter>();
+	auto terrainLimiter = std::make_shared<TerrainLimiter>();
 	if(!terrainNode.isNull())
 	{
 		LIBRARY->identifiers()->requestIdentifier("terrain", terrainNode, [terrainLimiter](si32 terrain)
@@ -697,7 +702,8 @@ std::shared_ptr<const ILimiter> JsonUtils::parseLimiter(const JsonNode & limiter
 		{"FACTION_LIMITER",            parseFactionLimiter          },
 		{"CREATURE_FACTION_LIMITER",   parseFactionLimiter          },
 		{"CREATURE_LEVEL_LIMITER",     parseCreatureLevelLimiter    },
-		{"CREATURE_TERRAIN_LIMITER",   parseCreatureTerrainLimiter  },
+		{"TERRAIN_LIMITER",            parseTerrainLimiter          },
+		{"CREATURE_TERRAIN_LIMITER",   parseTerrainLimiter          },
 		{"UNIT_ON_HEXES",              parseUnitOnHexLimiter        },
 		{"HAS_CHARGES_LIMITER",        parseHasChargesLimiter       },
 	};

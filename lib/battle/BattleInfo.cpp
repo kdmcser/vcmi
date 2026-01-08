@@ -162,12 +162,12 @@ std::unique_ptr<BattleInfo> BattleInfo::setupBattle(IGameInfoCallback *cb, const
 	auto currentBattle = std::make_unique<BattleInfo>(cb, layout);
 
 	for(auto i : { BattleSide::LEFT_SIDE, BattleSide::RIGHT_SIDE})
-		currentBattle->sides[i].init(heroes[i], armies[i]);
+		currentBattle->sides[i].init(heroes[i], armies[i], i == BattleSide::RIGHT_SIDE ? town : nullptr);
 
 	currentBattle->tile = tile;
 	currentBattle->terrainType = terrain;
 	currentBattle->battlefieldType = battlefieldType;
-	currentBattle->round = -2;
+	currentBattle->round = 0;
 	currentBattle->activeStack = -1;
 	currentBattle->replayAllowed = false;
 	if (town)
@@ -384,7 +384,7 @@ std::unique_ptr<BattleInfo> BattleInfo::setupBattle(IGameInfoCallback *cb, const
 	}
 
 	//native terrain bonuses
-	auto nativeTerrain = std::make_shared<CreatureTerrainLimiter>();
+	auto nativeTerrain = std::make_shared<TerrainLimiter>();
 	
 	currentBattle->addNewBonus(std::make_shared<Bonus>(BonusDuration::ONE_BATTLE, BonusType::STACKS_SPEED, BonusSource::TERRAIN_NATIVE, 1,  BonusSourceID())->addLimiter(nativeTerrain));
 	currentBattle->addNewBonus(std::make_shared<Bonus>(BonusDuration::ONE_BATTLE, BonusType::PRIMARY_SKILL, BonusSource::TERRAIN_NATIVE, 1, BonusSourceID(), BonusSubtypeID(PrimarySkill::ATTACK))->addLimiter(nativeTerrain));
@@ -576,6 +576,11 @@ uint8_t BattleInfo::getTacticDist() const
 BattleSide BattleInfo::getTacticsSide() const
 {
 	return tacticsSide;
+}
+
+int32_t BattleInfo::getRound() const
+{
+	return round;
 }
 
 const CGTownInstance * BattleInfo::getDefendedTown() const

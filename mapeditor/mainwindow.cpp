@@ -38,6 +38,8 @@
 #include "../lib/RiverHandler.h"
 #include "../lib/TerrainHandler.h"
 
+#include "../vcmiqt/launcherdirs.h"
+
 #include "maphandler.h"
 #include "graphics.h"
 #include "windownewmap.h"
@@ -74,7 +76,7 @@ QPixmap pixmapFromJson(const QJsonValue &val)
 void MainWindow::loadUserSettings()
 {
 	//load window settings
-	QSettings s(Ui::teamName, Ui::appName);
+	QSettings s = CLauncherDirs::getSettings(Ui::appName);
 
 	auto size = s.value(mainWindowSizeSetting).toSize();
 	if (size.isValid())
@@ -93,7 +95,7 @@ void MainWindow::loadUserSettings()
 
 void MainWindow::saveUserSettings()
 {
-	QSettings s(Ui::teamName, Ui::appName);
+	QSettings s = CLauncherDirs::getSettings(Ui::appName);
 	s.setValue(mainWindowSizeSetting, size());
 	s.setValue(mainWindowPositionSetting, pos());
 	s.setValue(lastDirectorySetting, lastSavingDir);
@@ -285,6 +287,7 @@ MainWindow::MainWindow(QWidget* parent) :
 		// Add the combo box
 		QComboBox* combo = new QComboBox;
 		combo->setFixedHeight(ui->menuView->fontMetrics().height() + 6);
+		combo->setMinimumWidth(120);
 		connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this, combo](int index) {
 			for(auto & box : levelComboBoxes)
 				if (box->currentIndex() != index && combo != box)
@@ -455,7 +458,7 @@ void MainWindow::initializeMap(bool isNew)
 		controller.map()->players[0].canComputerPlay = true;
 		controller.map()->players[0].canHumanPlay = true;
 	}
-	
+	ui->inspectorWidget->setRowCount(0);
 	onPlayersChanged();
 }
 
@@ -496,7 +499,7 @@ bool MainWindow::openMap(const QString & filenameSelect)
 }
 
 void MainWindow::updateRecentMenu(const QString & filenameSelect) {
-	QSettings s(Ui::teamName, Ui::appName);
+	QSettings s = CLauncherDirs::getSettings(Ui::appName);
 	QStringList recentFiles = s.value(recentlyOpenedFilesSetting).toStringList();
 	recentFiles.removeAll(filenameSelect);
 	recentFiles.prepend(filenameSelect);
@@ -520,7 +523,7 @@ void MainWindow::on_actionOpen_triggered()
 
 void MainWindow::on_actionOpenRecent_triggered()
 {
-	QSettings s(Ui::teamName, Ui::appName);
+	QSettings s = CLauncherDirs::getSettings(Ui::appName);
 	QStringList recentFiles = s.value(recentlyOpenedFilesSetting).toStringList();
 
 	class RecentFileDialog : public QDialog
@@ -582,7 +585,7 @@ void MainWindow::on_menuOpenRecent_aboutToShow()
 		}
 	}
 
-	QSettings s(Ui::teamName, Ui::appName);
+	QSettings s = CLauncherDirs::getSettings(Ui::appName);
 	QStringList recentFiles = s.value(recentlyOpenedFilesSetting).toStringList();
 
 	// Dynamically populate menuOpenRecent with one action per file.
@@ -684,7 +687,7 @@ void MainWindow::on_actionCampaignEditor_triggered()
 		return;
 
 	hide();
-	CampaignEditor::showCampaignEditor();
+	CampaignEditor::showCampaignEditor(this);
 }
 
 void MainWindow::on_actionTemplateEditor_triggered()
@@ -694,7 +697,7 @@ void MainWindow::on_actionTemplateEditor_triggered()
 		return;
 
 	hide();
-	TemplateEditor::showTemplateEditor();
+	TemplateEditor::showTemplateEditor(this);
 #endif
 }
 
@@ -1068,8 +1071,8 @@ void MainWindow::on_actionPass_triggered(bool checked)
 
 	if(controller.map())
 	{
-		controller.scene(0)->passabilityView.show(checked);
-		controller.scene(1)->passabilityView.show(checked);
+		for(int level = 0; level < controller.map()->mapLevels; ++level)
+			controller.scene(level)->passabilityView.show(checked);
 	}
 }
 
@@ -1081,8 +1084,8 @@ void MainWindow::on_actionGrid_triggered(bool checked)
 
 	if(controller.map())
 	{
-		controller.scene(0)->gridView.show(checked);
-		controller.scene(1)->gridView.show(checked);
+		for(int level = 0; level < controller.map()->mapLevels; ++level)
+			controller.scene(level)->gridView.show(checked);
 	}
 }
 

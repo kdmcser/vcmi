@@ -128,8 +128,6 @@ private:
 	std::shared_ptr<CButton> buttonDeleteMode;
 	bool deleteMode;
 
-	std::shared_ptr<CButton> buttonBattleOnlyMode;
-
 	bool enableUiEnhancements;
 	std::shared_ptr<CButton> buttonCampaignSet;
 
@@ -142,20 +140,4 @@ private:
 	std::unordered_set<ResourcePath> getFiles(std::string dirURI, EResType resType);
 
 	void handleUnsupportedSavegames(const std::vector<ResourcePath> & files);
-};
-
-class CampaignSetSelector : public CWindowObject
-{
-	std::shared_ptr<FilledTexturePlayerColored> filledBackground;
-	std::vector<std::shared_ptr<CToggleButton>> buttons;
-	std::shared_ptr<CSlider> slider;
-
-	const int LINES = 10;
-
-	std::vector<std::string> texts;
-	std::function<void(int selectedIndex)> cb;
-
-	void update(int to);
-public:
-	CampaignSetSelector(const std::vector<std::string> & texts, const std::function<void(int selectedIndex)> & cb);
 };

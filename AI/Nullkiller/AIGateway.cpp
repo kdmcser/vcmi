@@ -1055,6 +1055,7 @@ void AIGateway::pickBestArtifacts(const CGHeroInstance * h, const CGHeroInstance
 	{
 		bool changeMade = false;
 		std::set<std::pair<ArtifactInstanceID, ArtifactInstanceID> > swappedSet;
+		int swapCount = 0;
 		do
 		{
 			changeMade = false;
@@ -1172,8 +1173,8 @@ void AIGateway::pickBestArtifacts(const CGHeroInstance * h, const CGHeroInstance
 				if(changeMade)
 					break; //start evaluating artifacts from scratch
 			}
-		}
-		while(changeMade);
+			swapCount++;
+		} while(changeMade && swapCount < 100);
 	};
 
 	equipBest(h, other, true);
@@ -1672,8 +1673,8 @@ void AIGateway::requestSent(const CPackForServer * pack, int requestID)
 
 std::string AIGateway::getBattleAIName() const
 {
-	if(settings["server"]["enemyAI"].getType() == JsonNode::JsonType::DATA_STRING)
-		return settings["server"]["enemyAI"].String();
+	if(settings["ai"]["combatEnemyAI"].getType() == JsonNode::JsonType::DATA_STRING)
+		return settings["ai"]["combatEnemyAI"].String();
 	else
 		return "BattleAI";
 }

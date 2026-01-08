@@ -24,6 +24,7 @@
 
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_reduce.h>
+#include <tbb/blocked_range2d.h>
 
 #include <SDL_render.h>
 #include <SDL_surface.h>
@@ -163,6 +164,59 @@ SDL_Surface * CSDL_Ext::horizontalFlip(SDL_Surface * toRot)
 	SDL_UnlockSurface(ret);
 	SDL_UnlockSurface(toRot);
 	return ret;
+}
+
+SDL_Surface * CSDL_Ext::Rotate90(SDL_Surface * src)
+{
+	if (!src)
+		return nullptr;
+
+	const int w = src->w;
+	const int h = src->h;
+
+	SDL_Surface* dst = SDL_CreateRGBSurfaceWithFormat(0, h, w, src->format->BitsPerPixel, src->format->format);
+	if (!dst)
+		return nullptr;
+
+	SDL_LockSurface(src);
+	SDL_LockSurface(dst);
+
+	const Uint32* srcPixels = (Uint32*)src->pixels;
+	Uint32*       dstPixels = (Uint32*)dst->pixels;
+
+	const int srcPitch = src->pitch / 4;
+	const int dstPitch = dst->pitch / 4;
+
+	constexpr int B = 32; // Tile size (32 is nearly always optimal)
+
+	tbb::parallel_for(
+		tbb::blocked_range2d<int>(0, h, B, 0, w, B),
+		[&](const tbb::blocked_range2d<int>& r)
+		{
+			const int y0 = r.rows().begin();
+			const int y1 = r.rows().end();
+			const int x0 = r.cols().begin();
+			const int x1 = r.cols().end();
+
+			for (int y = y0; y < y1; ++y)
+			{
+				const Uint32* srow = srcPixels + y * srcPitch;
+
+				for (int x = x0; x < x1; ++x)
+				{
+					const int dx = h - 1 - y;
+					const int dy = x;
+
+					dstPixels[dx + dy * dstPitch] = srow[x];
+				}
+			}
+		}
+	);
+
+	SDL_UnlockSurface(src);
+	SDL_UnlockSurface(dst);
+
+	return dst;
 }
 
 uint32_t CSDL_Ext::getPixel(SDL_Surface *surface, const int & x, const int & y, bool colorByte)
@@ -408,8 +462,11 @@ static void drawLineX(SDL_Surface * sur, int x1, int y1, int x2, int y2, const S
 		uint8_t b = vstd::lerp(color1.b, color2.b, f);
 		uint8_t a = vstd::lerp(color1.a, color2.a, f);
 
-		uint8_t *p = CSDL_Ext::getPxPtr(sur, x, y);
-		ColorPutter<4>::PutColor(p, r,g,b,a);
+		if (x >= 0 && y >= 0 && x < sur->w && y < sur->h)
+		{
+			uint8_t *p = CSDL_Ext::getPxPtr(sur, x, y);
+			ColorPutter<4>::PutColor(p, r,g,b,a);
+		}
 	}
 }
 
@@ -426,8 +483,11 @@ static void drawLineY(SDL_Surface * sur, int x1, int y1, int x2, int y2, const S
 		uint8_t b = vstd::lerp(color1.b, color2.b, f);
 		uint8_t a = vstd::lerp(color1.a, color2.a, f);
 
-		uint8_t *p = CSDL_Ext::getPxPtr(sur, x, y);
-		ColorPutter<4>::PutColor(p, r,g,b,a);
+		if (x >= 0 && y >= 0 && x < sur->w && y < sur->h)
+		{
+			uint8_t *p = CSDL_Ext::getPxPtr(sur, x, y);
+			ColorPutter<4>::PutColor(p, r,g,b,a);
+		}
 	}
 }
 
@@ -981,4 +1041,37 @@ SDL_Surface * CSDL_Ext::drawShadow(SDL_Surface * sourceSurface, bool doSheer)
 	boxBlur(destSurface);
 
 	return destSurface;
+}
+
+void CSDL_Ext::adjustBrightness(SDL_Surface* surface, float factor)
+{
+    if (!surface || surface->format->BytesPerPixel != 4)
+        return;
+
+    SDL_LockSurface(surface);
+
+    Uint8 r;
+	Uint8 g;
+	Uint8 b;
+	Uint8 a;
+
+    for (int y = 0; y < surface->h; y++)
+    {
+        auto* row = reinterpret_cast<Uint32*>(static_cast<Uint8*>(surface->pixels) + y * surface->pitch);
+
+        for (int x = 0; x < surface->w; x++)
+        {
+            Uint32 pixel = row[x];
+
+            SDL_GetRGBA(pixel, surface->format, &r, &g, &b, &a);
+
+            r = std::min(255, static_cast<int>(r * factor));
+            g = std::min(255, static_cast<int>(g * factor));
+            b = std::min(255, static_cast<int>(b * factor));
+
+            row[x] = SDL_MapRGBA(surface->format, r, g, b, a);
+        }
+    }
+
+    SDL_UnlockSurface(surface);
 }
