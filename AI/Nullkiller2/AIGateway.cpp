@@ -1790,7 +1790,7 @@ void AIGateway::pickBestArtifacts(const std::shared_ptr<CCallback> & cc, const C
 					break; //start evaluating artifacts from scratch
 			}
 			swapCount++;
-		} while(changeMade && swapCount < 100);
+		} while(changeMade && swapCount < 1000);
 	};
 
 	equipBest(h, other, true);
