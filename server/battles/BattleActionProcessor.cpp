@@ -875,8 +875,8 @@ BattleActionProcessor::MovementResult BattleActionProcessor::moveStack(const CBa
 
 		while(movementSuccess)
 		{
-			if (v<tilesToMove)
-				throw std::runtime_error("Movement terminated abnormally");
+			if(v < tilesToMove)
+				break;
 
 			bool gateStateChanging = false;
 			//special handling for opening gate on from starting hex
