@@ -5,6 +5,7 @@
 	"author" : "Dru & kdmcser",
 	"contact" : "http://forum.vcmi.eu/index.php",
 	"modType" : "Interface",
+	"softDepends" : ["simplified-chinese-translation"],
 	"conflicts" :
 	[
 		"h3-themes.ab",
