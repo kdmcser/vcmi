@@ -329,6 +329,7 @@ set(lib_MAIN_SRCS
 	ResourceSet.cpp
 	RiverHandler.cpp
 	RoadHandler.cpp
+	MapLayerHandler.cpp
 	ScriptHandler.cpp
 	TerrainHandler.cpp
 	TurnTimerInfo.cpp
@@ -823,6 +824,7 @@ set(lib_MAIN_HEADERS
 	ResourceSet.h
 	RiverHandler.h
 	RoadHandler.h
+	MapLayerHandler.h
 	ScriptHandler.h
 	ScopeGuard.h
 	StartInfo.h
