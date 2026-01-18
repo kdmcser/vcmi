@@ -57,7 +57,7 @@ on run argv
         set statusbar visible to false
         set toolbar visible to false
         set the bounds to { 400, 100, 900, 423 }
-        set position of item "VCMI.app" to { 133, 140 }
+        set position of item "英雄无敌3增强版VCMI.app" to { 133, 140 }
         set position of item "Applications" to { 378, 140 }
       end tell
       update without registering applications

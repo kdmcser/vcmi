@@ -365,7 +365,7 @@ bfs::path VCMIDirsOSX::userDataPath() const
 	const char* homeDir = getenv("HOME"); // Should be std::getenv?
 	if (homeDir == nullptr)
 		homeDir = ".";
-	return bfs::path(homeDir) / "Library" / "Application Support" / "vcmi";
+	return bfs::path(homeDir) / "Library" / "Application Support" / "vcmi_enhancement";
 }
 bfs::path VCMIDirsOSX::userCachePath() const { return userDataPath(); }
 
