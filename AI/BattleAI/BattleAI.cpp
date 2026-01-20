@@ -163,13 +163,23 @@ void CBattleAI::activeStack(const BattleID & battleID, const CStack * stack )
 		getSimulationTurnsCount(env->game()->getStartInfo()));
 
 	result = evaluator.selectStackAction(stack);
+	auto hero = cb->getBattle(battleID)->battleGetMyHero();
+	if(hero && spellCastedMap.find(hero->id) == spellCastedMap.end())
+		spellCastedMap.insert({hero->id, 0});
+	int maxCasts = hero ? hero->valOfBonuses(BonusType::HERO_SPELL_CASTS_PER_COMBAT_TURN) : 0;
+	int curCasts = hero ? spellCastedMap.at(hero->id): 0;
 
-	if(autobattlePreferences.enableSpellsUsage && evaluator.canCastSpell())
+	if(autobattlePreferences.enableSpellsUsage && evaluator.canCastSpell() && curCasts < maxCasts)
 	{
 		auto spelCasted = evaluator.attemptCastingSpell(stack);
 
 		if(spelCasted)
+		{
+			if(hero)
+				spellCastedMap.insert_or_assign(hero->id, curCasts + 1);
 			return;
+		}
+			
 	}
 
 	logAi->trace("Spellcast attempt completed in %lld", timeElapsed(start));
@@ -246,6 +256,11 @@ void CBattleAI::battleStart(const BattleID & battleID, const CCreatureSet *army1
 {
 	LOG_TRACE(logAi);
 	side = Side;
+}
+
+void CBattleAI::battleNewRound(const BattleID & battleID)
+{
+	spellCastedMap.clear();
 }
 
 void CBattleAI::print(const std::string &text) const

@@ -57,6 +57,7 @@ class CBattleAI : public CBattleGameInterface
 	BattleSide side;
 	std::shared_ptr<CBattleCallback> cb;
 	std::shared_ptr<Environment> env;
+	std::map<ObjectInstanceID, int> spellCastedMap;
 
 	//Previous setting of cb
 	bool wasWaitingForRealize;
@@ -78,6 +79,7 @@ public:
 	BattleAction useCatapult(const BattleID & battleID, const CStack *stack);
 	BattleAction useHealingTent(const BattleID & battleID, const CStack *stack);
 
+	void battleNewRound(const BattleID & battleID);
 	void battleStart(const BattleID & battleID, const CCreatureSet * army1, const CCreatureSet * army2, int3 tile, const CGHeroInstance * hero1, const CGHeroInstance * hero2, BattleSide side, bool replayAllowed) override;
 	//void actionFinished(const BattleAction &action) override;//occurs AFTER every action taken by any stack or by the hero
 	//void actionStarted(const BattleAction &action) override;//occurs BEFORE every action taken by any stack or by the hero

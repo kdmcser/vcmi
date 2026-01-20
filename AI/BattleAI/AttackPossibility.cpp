@@ -410,6 +410,9 @@ AttackPossibility AttackPossibility::evaluate(
 
 			for(auto u : defenderUnits)
 			{
+				if(defenderStates.find(u->unitId()) == defenderStates.end())
+					continue;
+
 				auto defenderState = defenderStates.at(u->unitId());
 
 				int64_t damageDealt;
