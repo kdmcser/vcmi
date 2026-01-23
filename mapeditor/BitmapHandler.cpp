@@ -122,7 +122,17 @@ namespace BitmapHandler
 		}
 		else
 		{ //loading via QImage
-			QImage image(QString::fromStdString(fullpath->make_preferred().string()));
+			QImage image;
+			if(fullpath)
+			{
+				image = QImage(QString::fromStdString(fullpath->make_preferred().string()));
+			}
+			else
+			{
+				QByteArray byteArray(reinterpret_cast<const char *>(readFile.first.get()), readFile.second);
+				image.loadFromData(byteArray);
+			}
+
 			if(!image.isNull())
 			{
 				if(image.bitPlaneCount() == 1)
