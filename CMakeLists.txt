@@ -121,7 +121,7 @@ endif()
 
 if(IOS)
 	set(BUNDLE_IDENTIFIER_PREFIX "" CACHE STRING "Bundle identifier prefix")
-	set(APP_DISPLAY_NAME "VCMI" CACHE STRING "App name on the home screen")
+	set(APP_DISPLAY_NAME "英雄无敌3增强版VCMI" CACHE STRING "App name on the home screen")
 endif()
 
 if(IOS OR ANDROID)
