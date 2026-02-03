@@ -405,15 +405,6 @@ void ApplyGhNetPackVisitor::visitSaveLocalState(SaveLocalState & pack)
 	result = true;
 }
 
-void ApplyGhNetPackVisitor::visitAdvInterfaceReady(AdvInterfaceReady &pack)
-{
-	gh.throwIfWrongPlayer(connection, &pack);
-
-	gh.onAdvInterfaceReady(pack.player);
-
-	result = true;
-}
-
 void ApplyGhNetPackVisitor::visitMakeAction(MakeAction & pack)
 {
 	gh.throwIfWrongPlayer(connection, &pack);

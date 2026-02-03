@@ -191,7 +191,6 @@ public:
 	virtual void visitBattleResultAccepted(BattleResultAccepted & pack) {}
 	virtual void visitBattleStackMoved(BattleLogMessage & pack) {}
 	virtual void visitResponseStatistic(ResponseStatistic & pack) {}
-	virtual void visitAdvInterfaceReady(AdvInterfaceReady & pack) {}
 };
 
 VCMI_LIB_NAMESPACE_END
