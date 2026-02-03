@@ -504,7 +504,7 @@ bool MainWindow::openMap(const QString & filenameSelect)
 
 void MainWindow::openCampaign(const QString & filenameSelect)
 {
-	CampaignEditor::showCampaignEditor(this, filenameSelect);
+	CampaignEditor::showCampaignEditor(this, filenameSelect, controller.getCallback());
 }
 
 void MainWindow::updateRecentMenu(const QString & filenameSelect) {
@@ -696,7 +696,7 @@ void MainWindow::on_actionCampaignEditor_triggered()
 		return;
 
 	hide();
-	CampaignEditor::showCampaignEditor(this);
+	CampaignEditor::showCampaignEditor(this, controller.getCallback());
 }
 
 void MainWindow::on_actionTemplateEditor_triggered()
@@ -1397,7 +1397,7 @@ void MainWindow::on_actionMapLayer_triggered()
 	int currentPos = 0;
 
 	QList<QPair<QString, MapLayerId>> layers;
-	for(auto & layer : LIBRARY->mapLayerHandler->objects)
+	for(const auto & layer : LIBRARY->mapLayerHandler->objects)
 	{
 		if(currentType == layer->getId())
 			currentPos = layers.size();
@@ -1514,7 +1514,7 @@ void MainWindow::on_actionh3m_converter_triggered()
 		{
 			CMapService mapService;
 			auto map = Helper::openMapInternal(m, controller.getCallback());
-			controller.setCallback(std::make_unique<EditorCallback>(map.get()));
+			controller.getCallback()->setMap(map.get());
 			controller.repairMap(map.get());
 			mapService.saveMap(map, (saveDirectory + '/' + QFileInfo(m).completeBaseName() + ".vmap").toStdString());
 		}

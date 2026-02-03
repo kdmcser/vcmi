@@ -28,6 +28,7 @@
 #include "../BattleFieldHandler.h"
 #include "../VCMIDirs.h"
 #include "../GameLibrary.h"
+#include "../bonuses/BonusParameters.h"
 #include "../bonuses/Limiters.h"
 #include "../bonuses/Propagators.h"
 #include "../bonuses/Updaters.h"
@@ -535,6 +536,7 @@ void CGameState::initPlayerStates()
 		p.color=elem.first;
 		p.human = elem.second.isControlledByHuman();
 		p.team = map->players[elem.first.getNum()].team;
+		logGlobal->debug("Player %d is controlled by %s, team %d", elem.first.getNum(), p.human ? "human" : "AI", p.team.getNum());
 		teams[p.team].id = p.team;//init team
 		teams[p.team].players.insert(elem.first);//add player to team
 	}
@@ -1422,6 +1424,12 @@ void CGameState::obtainPlayersStats(SThievesGuildInfo & tgi, int level) const
 	{
 		if(!playerInactive(elem.second.color))
 			tgi.playerColors.push_back(elem.second.color);
+	}
+
+	if (tgi.playerColors.empty())
+	{
+		logGlobal->error("CGameState::obtainPlayersStats: all players are inactive, unable to obtain stats!");
+		return;
 	}
 
 	if(level >= 0) //num of towns & num of heroes

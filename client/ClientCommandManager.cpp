@@ -62,7 +62,7 @@ void ClientCommandManager::handleSaveCommand(std::istringstream & singleWordBuff
 
 	std::string saveFilename;
 	singleWordBuffer >> saveFilename;
-	GAME->interface()->cb->save(saveFilename);
+	GAME->interface()->cb->save(saveFilename, false);
 	printCommandMessage("Game saved as: " + saveFilename);
 }
 
@@ -219,6 +219,7 @@ void ClientCommandManager::handleTranslateGameCommand(bool onlyMissing)
 	}
 
 	printCommandMessage("Translation export complete");
+	printCommandMessage("Extracted files can be found in " + outPath.string() + " directory\n");
 }
 
 void ClientCommandManager::handleTranslateMapsCommand()
@@ -301,6 +302,8 @@ void ClientCommandManager::handleTranslateMapsCommand()
 	}
 
 	printCommandMessage("Translation export complete");
+	printCommandMessage("Extracted files can be found in " + outPath.string() + " directory\n");
+
 }
 
 void ClientCommandManager::handleGetConfigCommand()

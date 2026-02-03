@@ -77,6 +77,7 @@ set(lib_MAIN_SRCS
 	bonuses/BonusList.cpp
 	bonuses/BonusSelector.cpp
 	bonuses/BonusCustomTypes.cpp
+	bonuses/BonusParameters.cpp
 	bonuses/CBonusSystemNode.cpp
 	bonuses/IBonusBearer.cpp
 	bonuses/Limiters.cpp
@@ -244,6 +245,7 @@ set(lib_MAIN_SRCS
 	rmg/modificators/ConnectionsPlacer.cpp
 	rmg/modificators/WaterAdopter.cpp
 	rmg/modificators/MinePlacer.cpp
+	rmg/modificators/ObjectPlacer.cpp
 	rmg/modificators/TownPlacer.cpp
 	rmg/modificators/WaterProxy.cpp
 	rmg/modificators/WaterRoutes.cpp
@@ -487,6 +489,7 @@ set(lib_MAIN_HEADERS
 	bonuses/BonusList.h
 	bonuses/BonusSelector.h
 	bonuses/BonusCustomTypes.h
+	bonuses/BonusParameters.h
 	bonuses/CBonusSystemNode.h
 	bonuses/IBonusBearer.h
 	bonuses/Limiters.h
@@ -716,6 +719,7 @@ set(lib_MAIN_HEADERS
 	rmg/modificators/ConnectionsPlacer.h
 	rmg/modificators/WaterAdopter.h
 	rmg/modificators/MinePlacer.h
+	rmg/modificators/ObjectPlacer.h
 	rmg/modificators/TownPlacer.h
 	rmg/modificators/WaterProxy.h
 	rmg/modificators/WaterRoutes.h

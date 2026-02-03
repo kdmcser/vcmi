@@ -31,6 +31,8 @@
 #include "../mapping/CMap.h"
 #include "../networkPacks/StackLocation.h"
 
+#include "../../lib/spells/CSpellHandler.h"
+
 VCMI_LIB_NAMESPACE_BEGIN
 
 void GameStatePackVisitor::visitSetResources(SetResources & pack)
@@ -121,6 +123,11 @@ void GameStatePackVisitor::visitAddQuest(AddQuest & pack)
 void GameStatePackVisitor::visitChangeFormation(ChangeFormation & pack)
 {
 	gs.getHero(pack.hid)->setFormation(pack.formation);
+}
+
+void GameStatePackVisitor::visitChangeTactics(ChangeTactics & pack)
+{
+	gs.getHero(pack.hid)->tacticFormationEnabled = pack.enabled;
 }
 
 void GameStatePackVisitor::visitChangeTownName(ChangeTownName & pack)
@@ -770,8 +777,8 @@ void GameStatePackVisitor::visitRebalanceStacks(RebalanceStacks & pack)
 			assert(dstType == srcType);
 			const auto srcHero = dynamic_cast<CGHeroInstance*>(srcObj);
 			const auto dstHero = dynamic_cast<CGHeroInstance*>(dstObj);
-			auto srcStack = const_cast<CStackInstance*>(srcObj->getStackPtr(src.slot));
-			auto dstStack = const_cast<CStackInstance*>(dstObj->getStackPtr(dst.slot));
+			auto srcStack = srcObj->getStackPtr(src.slot);
+			auto dstStack = dstObj->getStackPtr(dst.slot);
 			if(srcStack->getArt(ArtifactPosition::CREATURE_SLOT))
 			{
 				if(auto dstArt = dstStack->getArt(ArtifactPosition::CREATURE_SLOT))
@@ -853,7 +860,8 @@ void GameStatePackVisitor::visitPutArtifact(PutArtifact & pack)
 	assert(!art->getParentNodes().empty());
 	auto hero = gs.getHero(pack.al.artHolder);
 	assert(hero);
-	assert(art && art->canBePutAt(hero, pack.al.slot));
+	assert(art);
+	assert(art->canBePutAt(hero, pack.al.slot));
 	assert(ArtifactUtils::checkIfSlotValid(*hero, pack.al.slot));
 	gs.getMap().putArtifactInstance(*hero, art->getId(), pack.al.slot);
 }
@@ -1328,13 +1336,28 @@ void GameStatePackVisitor::visitStartAction(StartAction & pack)
 				st->waiting = true;
 				st->waitedThisTurn = true;
 				break;
+			case EActionType::MONSTER_SPELL:
+			{
+				auto * spell = pack.ba.spell.toSpell();
+				if (spell && spell->canCastWithoutSkip())
+				{
+					//state does not change
+				}
+				else
+				{
+					st->waiting = false;
+					st->defendingAnim = false;
+					st->movedThisRound = true;
+				}
+				st->castSpellThisTurn = true;
+				break;
+			}
 			case EActionType::HERO_SPELL: //no change in current stack state
 				break;
 			default: //any active stack action - attack, catapult, heal, spell...
 				st->waiting = false;
 				st->defendingAnim = false;
 				st->movedThisRound = true;
-				st->castSpellThisTurn = pack.ba.actionType == EActionType::MONSTER_SPELL;
 				break;
 		}
 	}

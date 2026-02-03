@@ -324,50 +324,55 @@ void CMapFormatJson::serializeAllowedFactions(JsonSerializeFormat & handler, std
 		value = temp;
 }
 
-void CMapFormatJson::fixStringsTextIDInJson(JsonNode & node, const std::string & mapPrefix) const
+void CMapFormatJson::fixStringsTextIDInJson(JsonNode & node, const std::string & mapPrefix, bool remove) const
 {
-	if(!node.isStruct())
-		return;
-	
-	// Check if stringsTextID exists without creating it
-	auto & nodeStruct = node.Struct();
-	auto it = nodeStruct.find("stringsTextID");
-	
-	// Process stringsTextID array if present (MetaString structure)
-	if(it != nodeStruct.end() && it->second.isVector())
+	if(node.isStruct())
 	{
-		for(auto & textID : it->second.Vector())
+		auto & nodeStruct = node.Struct();
+		auto it = nodeStruct.find("stringsTextID");
+
+		// Process stringsTextID array if present (MetaString structure)
+		if(it != nodeStruct.end() && it->second.isVector())
 		{
-			if(textID.isString() && !textID.String().empty() 
-				&& textID.String().find("map.") != 0 
-				&& textID.String().find("core.") != 0
-				&& textID.String().find("vcmi.") != 0)
+			for(auto & textID : it->second.Vector())
 			{
-				textID.String() = mapPrefix + textID.String();
+				if(textID.isString() && !textID.String().empty())
+				{
+					if(remove)
+					{
+						if(textID.String().find("map.") == 0)
+							textID.String() = removeMapNamePrefix(textID.String());
+					}
+					else if(textID.String().find("map.") != 0 
+							&& textID.String().find("core.") != 0
+							&& textID.String().find("vcmi.") != 0)
+					{
+						textID.String() = mapPrefix + textID.String();
+					}
+				}
 			}
 		}
+
+		for(auto & child : nodeStruct)
+		{
+			if(child.second.isStruct() || child.second.isVector())
+				fixStringsTextIDInJson(child.second, mapPrefix, remove);
+		}
+		return;
 	}
-	
-	// Recursively search for more stringsTextID arrays in child Struct nodes only
-	for(auto & child : nodeStruct)
+
+	if(node.isVector())
 	{
-		if(child.second.isStruct())
-			fixStringsTextIDInJson(child.second, mapPrefix);
+		for(auto & elem : node.Vector())
+		{
+			if(elem.isStruct() || elem.isVector())
+				fixStringsTextIDInJson(elem, mapPrefix, remove);
+		}
 	}
 }
 
 void CMapFormatJson::serializeHeader(JsonSerializeFormat & handler)
 {
-	if(!handler.saving)
-	{
-		// When loading: Fix TextIDs in JSON to include map name prefix before deserialization
-		std::string actualMapName = TextOperations::convertMapName(mapName);
-		std::string mapPrefix = "map." + actualMapName + ".";
-		
-		JsonNode & headerData = const_cast<JsonNode &>(handler.getCurrent());
-		fixStringsTextIDInJson(headerData, mapPrefix);
-	}
-	
 	handler.serializeStruct("name", mapHeader->name);
 	handler.serializeStruct("description", mapHeader->description);
 	
@@ -911,6 +916,11 @@ void CMapLoaderJson::readHeader(const bool complete)
 
 	JsonDeserializer handler(mapObjectResolver.get(), header);
 
+	// Fix TextIDs in JSON to include map name prefix before deserialization
+	std::string actualMapName = TextOperations::convertMapName(mapName);
+	std::string mapPrefix = "map." + actualMapName + ".";
+	fixStringsTextIDInJson(header, mapPrefix, false);
+
 	mapHeader->version = EMapFormat::VCMI;//todo: new version field
 	
 	//loading mods
@@ -978,7 +988,6 @@ void CMapLoaderJson::readHeader(const bool complete)
 
 	if(complete)
 		readOptions(handler);
-	
 }
 
 void CMapLoaderJson::readTerrainTile(const std::string & src, TerrainTile & tile)
@@ -1391,6 +1400,8 @@ void CMapSaverJson::writeHeader()
 	writeOptions(handler);
 
 	writeTranslations();
+	
+	fixStringsTextIDInJson(header, "", true);
 
 	addToArchive(header, HEADER_FILE_NAME);
 }
@@ -1457,6 +1468,8 @@ void CMapSaverJson::writeObjects()
 	{
 		JsonNode & objNode = data.Vector()[i];
 		CGObjectInstance * obj = map->getObject(ObjectInstanceID(i));
+		if(!obj)
+			continue;
 		JsonSerializer handler(mapObjectResolver.get(), objNode);
 		obj->serializeJson(handler);
 

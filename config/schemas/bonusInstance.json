@@ -52,7 +52,9 @@
 							"bonusType" : { "type" : "string" },
 							"bonusSubtype" : { "type" : "string" },
 							"bonusSourceType" : { "type" : "string" },
-							"bonusSourceID" : { "type" : "string" }
+							"bonusSourceID" : { "type" : "string" },
+							"bonusMinValue" : { "type" : "number" },
+							"bonusMaxValue" : { "type" : "number" }
 						}
 					}
 				},
@@ -195,6 +197,13 @@
 					"enum" : [ "TIMES_HERO_LEVEL", "TIMES_STACK_LEVEL", "DIVIDE_STACK_LEVEL", "BONUS_OWNER_UPDATER", "TIMES_STACK_SIZE", "TIMES_HERO_LEVEL_DIVIDE_STACK_LEVEL" ]
 				},
 				{
+					"type" : "array",
+					"items" : {
+						"$ref" : "#/definitions/updater",
+						"description" : "nested updaters"
+					}
+				},
+				{
 					"description" : "GROWS_WITH_LEVEL updater",
 					"type" : "object",
 					"required" : ["type", "valPer20", "stepSize"],
@@ -246,6 +255,11 @@
 							"type" : "integer",
 							"minimum" : 1,
 							"description" : "Size of each step, in levels"
+						},
+						"stepValue" : {
+							"type" : "integer",
+							"minimum" : 1,
+							"description" : "Bonus value per each step"
 						},
 						"minimum" : {
 							"type" : "integer",
@@ -308,7 +322,7 @@
 			"description" : "subtype"
 		},
 		"sourceID" : {
-			"type" : "number",
+			"type" : "string",
 			"description" : "sourceID"
 		},
 		"sourceType" : {
