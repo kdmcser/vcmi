@@ -9,6 +9,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build (${{ matrix.platform }})
@@ -45,7 +49,7 @@ jobs:
             os: macos-14
             pack: 1
             upload: 1
-            pack_type: Release
+            pack_type: RelWithDebInfo
             extension: ipa
             before_install: macos.sh
             preset: ios-release-conan-ccache
@@ -342,7 +346,7 @@ jobs:
         path: |
           ${{github.workspace}}/out/build/${{matrix.preset}}/${{ env.VCMI_PACKAGE_FILE_NAME }}.aab
 
-    - name: Upload debug symbols
+    - name: Upload MSVC debug symbols
       id: upload_symbols
       if: ${{ startsWith(matrix.platform, 'msvc') }}
       uses: actions/upload-artifact@v6
@@ -351,6 +355,23 @@ jobs:
         compression-level: 9
         path: |
             ${{github.workspace}}/**/*.pdb
+
+    - name: Create iOS AppStore debug symbols
+      if: ${{ matrix.platform == 'ios' }}
+      run: |
+        IOS_APPSTORE_SYMBOLS_DIR='${{ github.workspace }}/Symbols'
+        mkdir "$IOS_APPSTORE_SYMBOLS_DIR"
+        dsyms=$(find '${{ github.workspace }}/out/build/${{ matrix.preset }}' -name '*.dSYM')
+        xcrun symbols -arch all -symbolsPackageDir "$IOS_APPSTORE_SYMBOLS_DIR" $dsyms
+        echo IOS_APPSTORE_SYMBOLS_DIR="$IOS_APPSTORE_SYMBOLS_DIR" >> $GITHUB_ENV
+    - name: Upload iOS AppStore debug symbols
+      if: ${{ matrix.platform == 'ios' }}
+      uses: actions/upload-artifact@v6
+      with:
+        name: ${{ env.VCMI_PACKAGE_FILE_NAME }}-${{ matrix.platform }}-symbols
+        compression-level: 9
+        path: |
+            ${{ env.IOS_APPSTORE_SYMBOLS_DIR }}
 
     - name: Upload build to download.vcmi.eu
       if: ${{ matrix.upload == 1 && github.event.number == '' && env.DEPLOY_RSA != '' }}
@@ -427,10 +448,7 @@ jobs:
             path: .summary/source.json
 
   test:
-    continue-on-error: true
     name: Test (${{ matrix.platform }})
-    env:
-      HEROES_3_DATA_PASSWORD: ${{ secrets.HEROES_3_DATA_PASSWORD }}
     strategy:
       fail-fast: false
       matrix:
@@ -522,18 +540,11 @@ jobs:
         verbose: 2
 
     - name: Prepare Heroes 3 data
-      if: ${{ env.HEROES_3_DATA_PASSWORD != '' }}
       run: |
-        if [[ ${{github.repository_owner}} == vcmi ]]
-        then
-            data_url="https://github.com/vcmi-mods/vcmi-test-data/releases/download/v1.0/h3_assets.zip"
-        else
-            data_url="https://github.com/${{github.repository_owner}}/vcmi-test-data/releases/download/v1.0/h3_assets.zip"
-        fi
-        wget --progress=dot:giga "$data_url" -O h3_assets.zip
-        7za x h3_assets.zip -p$HEROES_3_DATA_PASSWORD
+        data_url="https://github.com/vcmi-mods/vcmi-test-data/releases/download/v2.0/heroes3.7z"
+        wget --progress=dot:giga "$data_url" -O heroes3.7z
         mkdir -p ~/.local/share/vcmi/
-        mv h3_assets/* ~/.local/share/vcmi/
+        7za x -o"$HOME/.local/share/vcmi/" heroes3.7z
 
     - name: Configure
       run: |
@@ -544,9 +555,20 @@ jobs:
         cmake --build --preset ${{matrix.preset}}
 
     - name: Test
-      if: ${{ env.HEROES_3_DATA_PASSWORD != '' }}
       run: |
         ctest --preset ${{matrix.preset}}
+
+    - name: Validate library startup
+      run: |
+        cd "${{github.workspace}}/out/build/${{matrix.preset}}/bin"
+        ./vcmiserver --dummy-run 2> >(tee error.log)
+        if [ ! -s error.log ]; then
+            echo "Validation OK!"
+            exit 0
+        else
+            echo "Validation failed!"
+            exit 1
+        fi
 
   windows-installer:
     needs: build
