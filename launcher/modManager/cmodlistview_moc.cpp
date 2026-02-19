@@ -33,6 +33,7 @@
 #include "../../lib/filesystem/CZipLoader.h"
 #include "../../lib/json/JsonUtils.h"
 #include "../../lib/modding/CModVersion.h"
+#include "../../lib/modding/ModDescription.h"
 #include "../../lib/texts/CGeneralTextHandler.h"
 #include "../../lib/texts/Languages.h"
 
@@ -161,10 +162,10 @@ void CModListView::reload(const QString & modToSelect)
 
 	if (!modToSelect.isEmpty())
 	{
-		QModelIndexList matches = filterModel->match(filterModel->index(0, 0), ModRoles::ModNameRole, modToSelect, 1, Qt::MatchExactly | Qt::MatchRecursive);
+		QModelIndexList matches = modModel->match(modModel->index(0, 0, QModelIndex()), ModRoles::ModNameRole, modToSelect, 1, Qt::MatchExactly | Qt::MatchRecursive);
 
 		if (!matches.isEmpty())
-			ui->allModsView->setCurrentIndex(matches.first());
+			ui->allModsView->setCurrentIndex(filterModel->mapFromSource(matches.first()));
 	}
 }
 
@@ -915,6 +916,8 @@ void CModListView::installFiles(QStringList files)
 
 		if(realFilename.endsWith(".zip", Qt::CaseInsensitive))
 		{
+			try {
+			// TODO: there is some weird crash on Android where this constructor fails to open file
 			ZipArchive archive(qstringToPath(realFilename));
 			auto fileList = archive.listFiles();
 
@@ -940,6 +943,12 @@ void CModListView::installFiles(QStringList files)
 				maps.push_back(filename);
 			else
 				mods.push_back(filename);
+			}
+			catch (const std::runtime_error & e)
+			{
+				QMessageBox::warning(this, tr("Import failed"), tr("Failed to install file %1.\nReason: %2.\nPlease report this issue to developers").arg(filename).arg(QString::fromStdString(e.what())));
+			}
+
 		}
 		else if(realFilename.endsWith(".h3m", Qt::CaseInsensitive) || realFilename.endsWith(".h3c", Qt::CaseInsensitive) || realFilename.endsWith(".vmap", Qt::CaseInsensitive) || realFilename.endsWith(".vcmp", Qt::CaseInsensitive))
 			maps.push_back(filename);
@@ -959,9 +968,15 @@ void CModListView::installFiles(QStringList files)
 				{
 					auto modNameLower = boost::algorithm::to_lower_copy(modName);
 					auto modJsonUrl = modJson["mod"];
+					auto modDescriptionUrl = modJson["descriptionURL"];
 					if(!modJsonUrl.isNull())
 					{
 						downloadFile(QString::fromStdString(modName + ".json"), QString::fromStdString(modJsonUrl.String()), tr("mods repository index"));
+						repositoryFilesEnqueued = true;
+					}
+					if(!modDescriptionUrl.isNull())
+					{
+						downloadFile(QString::fromStdString(modName + ".md"), QString::fromStdString(modDescriptionUrl.String()), tr("mods repository index"));
 						repositoryFilesEnqueued = true;
 					}
 
@@ -978,6 +993,22 @@ void CModListView::installFiles(QStringList files)
 		}
 		else if(realFilename.endsWith(".png", Qt::CaseInsensitive))
 			images.push_back(filename);
+		else if(realFilename.endsWith(".md", Qt::CaseInsensitive))
+		{
+			// This is description of a single mod. Extract name of mod and add it to index
+			auto modName = QFileInfo(filename).baseName().toStdString();
+			auto modNameLower = boost::algorithm::to_lower_copy(modName);
+			QFile file(realFilename);
+			if(file.open(QFile::ReadOnly))
+			{
+				const auto data = file.readAll();
+				std::string modDescriptions(data.data(), data.size());
+				ModDescription::mergeModDescriptions(accumulatedRepositoryData[modNameLower], modDescriptions);
+			}
+			else
+				logGlobal->error("Failed to open file %s. Reason: %s", qUtf8Printable(filename), qUtf8Printable(file.errorString()));
+		}
+
 	}
 
 	if (!accumulatedRepositoryData.isNull() && !repositoryFilesEnqueued)

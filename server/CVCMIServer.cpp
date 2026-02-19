@@ -209,7 +209,6 @@ void CVCMIServer::prepareToRestart()
 		return;
 	}
 
-	* si = * gh->gs->getInitialStartInfo();
 	setState(EServerState::LOBBY);
 	if (si->campState)
 	{
@@ -502,6 +501,7 @@ void CVCMIServer::setPlayerConnectedId(PlayerSettings & pset, PlayerConnectionID
 	else
 		pset.name = LIBRARY->generaltexth->allTexts[468]; //Computer
 
+	logGlobal->debug("Player color %d will be controlled from connection %d", pset.color, static_cast<int>(player));
 	pset.connectedPlayerIDs.clear();
 	if(player != PlayerConnectionID::PLAYER_AI)
 		pset.connectedPlayerIDs.insert(player);
