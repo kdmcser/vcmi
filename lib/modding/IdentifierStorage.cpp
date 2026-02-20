@@ -65,7 +65,7 @@ CIdentifierStorage::CIdentifierStorage()
 	registerObject(ModScope::scopeBuiltin(), "bonusSubtype", "destructionKillAmount", 1);
 	registerObject(ModScope::scopeBuiltin(), "bonusSubtype", "soulStealPermanent", 0);
 	registerObject(ModScope::scopeBuiltin(), "bonusSubtype", "soulStealBattle", 1);
-	registerObject(ModScope::scopeBuiltin(), "bonusSubtype", "movementFlying", 0);
+	registerObject(ModScope::scopeBuiltin(), "bonusSubtype", "movementFlying", -1);
 	registerObject(ModScope::scopeBuiltin(), "bonusSubtype", "movementTeleporting", 1);
 	registerObject(ModScope::scopeBuiltin(), "bonusSubtype", "spellLevel1", 1);
 	registerObject(ModScope::scopeBuiltin(), "bonusSubtype", "spellLevel2", 2);
@@ -81,6 +81,15 @@ CIdentifierStorage::CIdentifierStorage()
 	registerObject(ModScope::scopeBuiltin(), "bonusSubtype", "creatureLevel7", 7);
 	registerObject(ModScope::scopeBuiltin(), "spell", "preset", SpellID::PRESET);
 	registerObject(ModScope::scopeBuiltin(), "spell", "spellbook_preset", SpellID::SPELLBOOK_PRESET);
+	registerObject(ModScope::scopeBuiltin(), "bonusSubtype", "combatEventBeforeAttack", static_cast<int>(CombatEventType::BEFORE_ATTACK));
+	registerObject(ModScope::scopeBuiltin(), "bonusSubtype", "combatEventAfterAttack", static_cast<int>(CombatEventType::AFTER_ATTACK));
+	registerObject(ModScope::scopeBuiltin(), "bonusSubtype", "combatEventBeforeAttacked", static_cast<int>(CombatEventType::BEFORE_ATTACKED));
+	registerObject(ModScope::scopeBuiltin(), "bonusSubtype", "combatEventAfterAttacked", static_cast<int>(CombatEventType::AFTER_ATTACKED));
+	registerObject(ModScope::scopeBuiltin(), "bonusSubtype", "combatEventWait", static_cast<int>(CombatEventType::WAIT));
+	registerObject(ModScope::scopeBuiltin(), "bonusSubtype", "combatEventDefend", static_cast<int>(CombatEventType::DEFEND));
+	registerObject(ModScope::scopeBuiltin(), "bonusSubtype", "combatEventBeforeMove", static_cast<int>(CombatEventType::BEFORE_MOVE));
+	registerObject(ModScope::scopeBuiltin(), "bonusSubtype", "combatEventAfterMove", static_cast<int>(CombatEventType::AFTER_MOVE));
+	registerObject(ModScope::scopeBuiltin(), "bonusSubtype", "combatEventCast", static_cast<int>(CombatEventType::UNIT_SPELLCAST));
 }
 
 void CIdentifierStorage::checkIdentifier(const std::string & ID)
@@ -143,8 +152,8 @@ CIdentifierStorage::ObjectCallback CIdentifierStorage::ObjectCallback::fromNameA
 		logMod->debug("Target scope for identifier '%s' is redundant! Identifier already defined in mod '%s'", fullName, scope);
 
 	ObjectCallback result;
-	result.localScope = scope;
-	result.remoteScope = scopeAndFullName.first;
+	result.localScope = boost::to_lower_copy(scope);
+	result.remoteScope = boost::to_lower_copy(scopeAndFullName.first);
 	result.type = type;
 	result.name = typeAndName.second;
 	result.callback = callback;
@@ -298,6 +307,8 @@ void CIdentifierStorage::showIdentifierResolutionErrorDetails(const ObjectCallba
 				{
 					logMod->error("Identifier '%s' exists in mod %s", options.name, testOption.scope);
 					logMod->error("Please add mod '%s' as dependency of mod '%s' to access this identifier", testOption.scope, options.localScope);
+					if (options.bypassDependenciesCheck)
+						logMod->error("Or, to avoid this dependency, request this object as %s:%s", testOption.scope, options.name);
 					continue;
 				}
 
@@ -453,11 +464,11 @@ bool CIdentifierStorage::resolveIdentifier(const ObjectCallback & request) const
 		return true;
 	}
 
-	if (request.bypassDependenciesCheck)
+	if (request.bypassDependenciesCheck && !request.remoteScope.empty())
 	{
 		if (!vstd::contains(LIBRARY->modh->getActiveMods(), request.remoteScope))
 		{
-			logMod->debug("Mod '%s' requested identifier '%s' from not loaded mod '%s'. Ignoring.", request.localScope, request.remoteScope, request.name);
+			logMod->debug("Mod '%s' requested identifier '%s' from not loaded mod '%s'. Ignoring.", request.localScope, request.name, request.remoteScope);
 			return true; // mod was not loaded - ignore
 		}
 	}

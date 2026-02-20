@@ -43,6 +43,9 @@
 		"townPortal",
 		"modID:spellFromMod"
 	],
+	
+	// Similar to bannedSpells, list of normally banned spells that are enabled on this map
+	"enabledSpells" : [ ],
 
 	/// List of artifacts that are banned on this map. 
 	/// Identifier without modID specifier MUST exist in base game or in one of dependencies
@@ -51,6 +54,9 @@
 		"armageddonsBlade",
 		"modID:artifactFromMod"
 	],
+	
+	// Similar to bannedArtifacts, list of normally banned artifacts that are enabled on this map
+	"enabledArtifacts" : [ ],
 
 	/// List of secondary skills that are banned on this map. 
 	/// Identifier without modID specifier MUST exist in base game or in one of dependencies
@@ -60,13 +66,19 @@
 		"modID:secondarySkillFromMod"
 	],
 
+	// Similar to bannedSkills, list of normally banned skills that are enabled on this map
+	"enabledSkills" : [ ],
+
 	/// List of heroes that are banned on this map. 
 	/// Identifier without modID specifier MUST exist in base game or in one of dependencies
 	/// Identifier with explicit modID specifier will be silently skipped if corresponding mod is not loaded
 	"bannedHeroes": [
 		"lordHaart",
 		"modID:heroFromMod"
-	]
+	],
+	
+	// Similar to bannedHeroes, list of normally banned heroes that are enabled on this map
+	"enabledHeroes" : [ ],
 
 	/// List of named zones, see below for format description
 	"zones" :
@@ -160,7 +172,7 @@
 	
 	// Mines will have same configuration as in linked zone
 	"minesLikeZone" : 1,
-	
+
 	// Treasures will have same configuration as in linked zone
 	"treasureLikeZone" : 1,
 	
@@ -264,7 +276,20 @@
 					"zoneLimit" : 2
 				}
 			}
-		]
+		],
+
+		// Required objects that will be added to this zone guarded according to rmg.value of the individual objects
+		"requiredObjects" : {
+			"refugeeCamp" : 5,
+			// If there are several versions (e.g. standard and cannonYard) a random selection is chosen
+			"warMachineFactory" : 5,
+			// Versions can be specified with optional guard information
+			"creatureGeneratorCommon" : { "unicornGlade" : { "count" : 3, "guard" : 10000 } },
+			// Artifacts can be specified
+			"artifact" : { "headOfLegion" : 1, "armsOfLegion" : 1, "torsoOfLegion" : 1, "loinsOfLegion" : 1, "legsOfLegion" : 1 },
+			// Mod objects can be specified
+			"hota.mapobjects:townGate" : { "count" : 1, "guard" : 100000 }
+		},
 	}
 }
 ```

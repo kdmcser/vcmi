@@ -34,16 +34,17 @@ class CBaseForServerApply;
 class CBaseForGHApply;
 class GlobalLobbyProcessor;
 
-class CVCMIServer : public LobbyInfo, public INetworkServerListener, public INetworkTimerListener, public IGameServer
+class CVCMIServer : public LobbyInfo, public INetworkServerListener, public INetworkTimerListener, public IServerDiscoveryAnnouncer, public IGameServer
 {
-	std::unique_ptr<GlobalLobbyProcessor> lobbyProcessor;
-
 	std::chrono::steady_clock::time_point gameplayStartTime;
 	std::chrono::steady_clock::time_point lastTimerUpdateTime;
 
 	std::unique_ptr<INetworkHandler> networkHandler;
 	/// Network server instance that receives and processes incoming connections on active socket
 	std::unique_ptr<INetworkServer> networkServer;
+
+	/// Handles connection with global lobby. Must be constructed and destroyed after network handler
+	std::unique_ptr<GlobalLobbyProcessor> lobbyProcessor;
 
 	EServerState state = EServerState::LOBBY;
 
@@ -54,9 +55,16 @@ class CVCMIServer : public LobbyInfo, public INetworkServerListener, public INet
 	uint16_t port;
 	bool runByClient;
 
+	std::shared_ptr<IServerDiscoveryListener> discoveryListener;
 
 	bool loadSavedGame(CGameHandler & handler, const StartInfo & info);
 public:
+	uint16_t getPort() const override
+	{
+		return port;
+	}
+
+	bool isInLobby() const override;
 
 	// IGameServer impl
 	void setState(EServerState value) override;
@@ -136,4 +144,6 @@ public:
 	PlayerConnectionID getIdOfFirstUnallocatedPlayer() const;
 
 	void multiplayerWelcomeMessage();
+	void startDiscoveryListener();
+	void stopDiscoveryListener();
 };

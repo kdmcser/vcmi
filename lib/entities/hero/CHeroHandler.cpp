@@ -263,10 +263,9 @@ void CHeroHandler::loadHeroSpecialty(CHero * hero, const JsonNode & node) const
 		const JsonNode & skillNode = specialtyNode["secondary"];
 		int stepSize = specialtyNode["stepSize"].Integer();
 
-		LIBRARY->identifiers()->requestIdentifier("secondarySkill", skillNode, [this, hero, prepSpec, stepSize](si32 creature)
+		LIBRARY->identifiers()->requestIdentifier("secondarySkill", skillNode, [this, hero, stepSize](si32 skill)
 		{
-			for (const auto & bonus : createSecondarySkillSpecialty(SecondarySkill(creature), stepSize))
-				hero->specialty.push_back(prepSpec(bonus));
+			skillSpecialtiesToGenerate.push_back({hero->ID, SecondarySkill(skill), stepSize});
 		});
 	}
 
@@ -371,10 +370,7 @@ void CHeroHandler::loadObject(std::string scope, std::string name, const JsonNod
 
 	objects.emplace_back(object);
 
-	registerObject(scope, "hero", name, object->getIndex());
-
-	for(const auto & compatID : data["compatibilityIdentifiers"].Vector())
-		registerObject(scope, "hero", compatID.String(), object->getIndex());
+	registerObject(scope, "hero", name, data, object->getIndex());
 }
 
 void CHeroHandler::loadObject(std::string scope, std::string name, const JsonNode & data, size_t index)
@@ -385,9 +381,7 @@ void CHeroHandler::loadObject(std::string scope, std::string name, const JsonNod
 	assert(objects[index] == nullptr); // ensure that this id was not loaded before
 	objects[index] = object;
 
-	registerObject(scope, "hero", name, object->getIndex());
-	for(const auto & compatID : data["compatibilityIdentifiers"].Vector())
-		registerObject(scope, "hero", compatID.String(), object->getIndex());
+	registerObject(scope, "hero", name, data, object->getIndex());
 }
 
 ui32 CHeroHandler::level (TExpType experience) const
@@ -425,6 +419,28 @@ std::set<HeroTypeID> CHeroHandler::getDefaultAllowed() const
 			result.insert(hero->getId());
 
 	return result;
+}
+
+void CHeroHandler::afterLoadFinalization()
+{
+	auto prepSpec = [](HeroTypeID hero, std::shared_ptr<Bonus> bonus)
+	{
+		bonus->duration = BonusDuration::PERMANENT;
+		bonus->source = BonusSource::HERO_SPECIAL;
+		bonus->sid = BonusSourceID(hero);
+		return bonus;
+	};
+
+	// Workaround for loading order issue
+	// To load secondary skill specialty, bonus ID's must be loaded first
+	// However, identifier request only guarantee that requested object itself is loaded
+	// Meaning, it is possible for skill ID to be resolved before bonus ID is resolved,
+	// leading to createSecondarySkillSpecialty creating copy of incomplete bonus
+	for (const auto & specialty : skillSpecialtiesToGenerate)
+	{
+		for (const auto & bonus : createSecondarySkillSpecialty(specialty.skill, specialty.stepSize))
+			objects.at(specialty.hero.getNum())->specialty.push_back(prepSpec(specialty.hero, bonus));
+	}
 }
 
 VCMI_LIB_NAMESPACE_END

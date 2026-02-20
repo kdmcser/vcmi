@@ -502,10 +502,26 @@ void CLevelWindow::createSkillBox()
 
 void CLevelWindow::close()
 {
-	//FIXME: call callback if there was nothing to select?
-	if (box && box->selectedIndex() != -1)
+	int idx = -1;
+
+	if(box)
+		idx = box->selectedIndex();
+
+	// If there are skills available, we must not close without producing a valid choice
+	// For a single available option, auto-pick it
+	if(!skills.empty())
 	{
-		auto it = std::find(skills.begin(), skills.end(), sortedSkills[(box->selectedIndex() + skillViewOffset) % skills.size()]);
+		if(idx == -1)
+		{
+			if(skills.size() == 1)
+				idx = 0;
+			else
+				return; // require explicit selection
+		}
+
+		const auto & chosen = sortedSkills[(idx + skillViewOffset) % skills.size()];
+		auto it = std::find(skills.begin(), skills.end(), chosen);
+
 		cb(std::distance(skills.begin(), it));
 	}
 
@@ -969,7 +985,11 @@ CUniversityWindow::CItem::CItem(CUniversityWindow * _parent, int _ID, int X, int
 			bool canLearn = parent->hero->canLearnSkill(ID);
 
 			if(!skillKnown && canLearn)
-				ENGINE->windows().createAndPushWindow<CUnivConfirmWindow>(parent, ID, GAME->interface()->cb->getResourceAmount(EGameResID::GOLD) >= 2000);
+			{
+				int goldAmount = GAME->interface()->cb->getResourceAmount(EGameResID::GOLD);
+				int goldNeeded = GAME->interface()->cb->getSettings().getInteger(EGameSettings::MARKETS_UNIVERSITY_GOLD_COST);
+				ENGINE->windows().createAndPushWindow<CUnivConfirmWindow>(parent, ID, goldAmount >= goldNeeded);
+			}
 		});
 	update();
 }
@@ -1064,11 +1084,12 @@ CUnivConfirmWindow::CUnivConfirmWindow(CUniversityWindow * owner_, SecondarySkil
 {
 	OBJECT_CONSTRUCTION;
 
+	int goldNeeded = GAME->interface()->cb->getSettings().getInteger(EGameSettings::MARKETS_UNIVERSITY_GOLD_COST);
 	std::string text = LIBRARY->generaltexth->allTexts[608];
 	boost::replace_first(text, "%s", LIBRARY->generaltexth->levels[0]);
 	boost::replace_first(text, "%s", SKILL.toEntity(LIBRARY)->getNameTranslated());
 
-	boost::replace_first(text, "%d", "2000");
+	boost::replace_first(text, "%d", std::to_string(goldNeeded));
 
 	clerkSpeech = std::make_shared<CTextBox>(text, Rect(24, 129, 413, 70), 0, FONT_SMALL, ETextAlignment::CENTER, Colors::WHITE);
 
@@ -1085,7 +1106,7 @@ CUnivConfirmWindow::CUnivConfirmWindow(CUniversityWindow * owner_, SecondarySkil
 	text = LIBRARY->generaltexth->zelp[633].second;
 	boost::replace_first(text, "%s", LIBRARY->generaltexth->levels[0]);
 	boost::replace_first(text, "%s", SKILL.toEntity(LIBRARY)->getNameTranslated());
-	boost::replace_first(text, "%d", "2000");
+	boost::replace_first(text, "%d", std::to_string(goldNeeded));
 
 	confirm = std::make_shared<CButton>(Point(148, 299), AnimationPath::builtin("IBY6432.DEF"), CButton::tooltip(hoverText, text), [this, SKILL](){makeDeal(SKILL);}, EShortcut::GLOBAL_ACCEPT);
 	confirm->block(!available);
@@ -1598,11 +1619,11 @@ CObjectListWindow::CObjectListWindow(const std::vector<int> & _items, std::share
 
 	items.reserve(_items.size());
 
-	for(int id : _items)
+	for(size_t i = 0; i < _items.size(); i++)
 	{
-		std::string objectName = GAME->interface()->cb->getObjInstance(ObjectInstanceID(id))->getObjectName();
+		std::string objectName = GAME->interface()->cb->getObjInstance(ObjectInstanceID(_items[i]))->getObjectName();
 		trimTextIfTooWide(objectName, false);
-		items.emplace_back(id, objectName);
+		items.emplace_back(static_cast<int>(i), objectName);
 	}
 	itemsVisible = items;
 

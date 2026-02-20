@@ -39,6 +39,10 @@ CBonusTypeHandler::CBonusTypeHandler()
 {
 	//register predefined bonus types
 
+	// MOD COMPATIBILITY FOR 1.6
+	registerObject(ModScope::scopeBuiltin(), "bonus", "FEAR", JsonNode(), 0);
+	registerObject(ModScope::scopeBuiltin(), "bonus", "FEARLESS", JsonNode(), 0);
+
 #define BONUS_NAME(x) { #x },
 	builtinBonusNames = {
 		BONUS_LIST
@@ -49,7 +53,7 @@ CBonusTypeHandler::CBonusTypeHandler()
 		bonusTypes.push_back(std::make_shared<CBonusType>());
 
 	for (int i = 0; i < builtinBonusNames.size(); ++i)
-		registerObject(ModScope::scopeBuiltin(), "bonus", builtinBonusNames[i], i);
+		registerObject(ModScope::scopeBuiltin(), "bonus", builtinBonusNames[i], JsonNode(), i);
 }
 
 CBonusTypeHandler::~CBonusTypeHandler() = default;
@@ -125,7 +129,7 @@ void CBonusTypeHandler::loadObject(std::string scope, std::string name, const Js
 	else
 	{
 		// new bonus
-		registerObject(scope, "bonus", name, bonusTypes.size());
+		registerObject(scope, "bonus", name, data, bonusTypes.size());
 		bonusTypes.push_back(std::make_shared<CBonusType>());
 		loadItem(data, *bonusTypes.back(), name);
 		logBonus->trace("New bonus type %s", name);
