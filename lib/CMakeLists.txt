@@ -33,6 +33,7 @@ set(lib_SRCS
 	logging/VisualLogger.cpp
 
 	network/NetworkConnection.cpp
+	network/NetworkDiscovery.cpp
 	network/NetworkHandler.cpp
 	network/NetworkServer.cpp
 
@@ -397,6 +398,7 @@ set(lib_HEADERS
 
 	network/NetworkConnection.h
 	network/NetworkDefines.h
+	network/NetworkDiscovery.h
 	network/NetworkHandler.h
 	network/NetworkInterface.h
 	network/NetworkServer.h
