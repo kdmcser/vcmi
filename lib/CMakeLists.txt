@@ -22,6 +22,7 @@ set(lib_SRCS
 	filesystem/MinizipExtensions.cpp
 	filesystem/ResourcePath.cpp
 
+	json/JsonFormatException.cpp
 	json/JsonNode.cpp
 	json/JsonParser.cpp
 	json/JsonUtils.cpp
@@ -45,6 +46,7 @@ set(lib_SRCS
 	CConfigHandler.cpp
 	CConsoleHandler.cpp
 	CThreadHelper.cpp
+	ExceptionsCommon.cpp
 	VCMIDirs.cpp
 )
 
@@ -103,6 +105,7 @@ set(lib_MAIN_SRCS
 	campaign/CampaignRegionsHandler.cpp
 
 	constants/EntityIdentifiers.cpp
+	constants/IdentifierBase.cpp
 
 	entities/artifact/ArtifactUtils.cpp
 	entities/artifact/ArtSlotInfo.cpp
@@ -198,6 +201,7 @@ set(lib_MAIN_SRCS
 	modding/ContentTypeHandler.cpp
 	modding/IdentifierStorage.cpp
 	modding/ModDescription.cpp
+	modding/ModIncompatibility.cpp
 	modding/ModManager.cpp
 	modding/ModUtility.cpp
 	modding/ModVerificationInfo.cpp
@@ -285,7 +289,9 @@ set(lib_MAIN_SRCS
 	spells/adventure/AdventureSpellMechanics.cpp
 	spells/adventure/DimensionDoorEffect.cpp
 	spells/adventure/RemoveObjectEffect.cpp
+	spells/adventure/ReinforcementsEffect.cpp
 	spells/adventure/SummonBoatEffect.cpp
+	spells/adventure/TownRelatedAdventureSpellEffect.cpp
 	spells/adventure/TownPortalEffect.cpp
 	spells/adventure/ViewWorldEffect.cpp
 
@@ -318,6 +324,7 @@ set(lib_MAIN_SRCS
 	CAndroidVMHelper.cpp
 	CBonusTypeHandler.cpp
 	CCreatureHandler.cpp
+	ConditionalWait.cpp
 	CPlayerState.cpp
 	CRandomGenerator.cpp
 	CScriptingModule.cpp
@@ -768,6 +775,7 @@ set(lib_MAIN_HEADERS
 	spells/adventure/AdventureSpellEffect.h
 	spells/adventure/DimensionDoorEffect.h
 	spells/adventure/RemoveObjectEffect.h
+	spells/adventure/ReinforcementsEffect.h
 	spells/adventure/SummonBoatEffect.h
 	spells/adventure/TownPortalEffect.h
 	spells/adventure/ViewWorldEffect.h
@@ -861,13 +869,17 @@ endif()
 
 set_target_properties(vcmi PROPERTIES COMPILE_DEFINITIONS "VCMI_DLL=1")
 target_link_libraries(vcmi PUBLIC
-	minizip::minizip ZLIB::ZLIB TBB::tbb
+	minizip::minizip ZLIB::ZLIB
 	${SYSTEM_LIBS} Boost::boost Boost::filesystem Boost::program_options Boost::locale Boost::date_time
 )
 
 if (LUAJIT_FOUND)
 	target_link_libraries(vcmi PUBLIC luajit::luajit)
     target_compile_definitions(vcmi PRIVATE HAVE_LUAJIT)
+endif()
+
+if (NOT ENABLE_MINIMAL_LIB)
+	target_link_libraries(vcmi PUBLIC TBB::tbb)
 endif()
 
 if(ENABLE_STATIC_LIBS AND ENABLE_CLIENT)
