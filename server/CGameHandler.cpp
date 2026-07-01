@@ -47,7 +47,6 @@
 #include "../lib/entities/faction/CTownHandler.h"
 #include "../lib/entities/hero/CHeroHandler.h"
 
-#include "../lib/filesystem/FileInfo.h"
 #include "../lib/filesystem/Filesystem.h"
 
 #include "../lib/gameState/CGameState.h"
@@ -434,7 +433,7 @@ void CGameHandler::changeSecSkill(const CGHeroInstance * hero, SecondarySkill wh
 
 }
 
-void CGameHandler::handleClientDisconnection(GameConnectionID connectionID)
+void CGameHandler::handleClientDisconnection(GameConnectionID connectionID, const std::vector<PlayerConnectionID> & disconnectedPlayerIds)
 {
 	if(gameServer().getState() == EServerState::SHUTDOWN || !gameState().getStartInfo())
 	{
@@ -455,6 +454,28 @@ void CGameHandler::handleClientDisconnection(GameConnectionID connectionID)
 			disconnectedPlayers.push_back(player.first);
 		else
 			remainingPlayers.push_back(player.first);
+	}
+
+	if(disconnectedPlayers.empty() && !disconnectedPlayerIds.empty())
+	{
+		for(const auto & player : gameState().players)
+		{
+			if (gameInfo().getPlayerState(player.first)->status != EPlayerStatus::INGAME)
+				continue;
+
+			const auto playerSettings = gameInfo().getPlayerSettings(player.first);
+			if(!playerSettings)
+				continue;
+
+			for(const auto disconnectedPlayerId : disconnectedPlayerIds)
+			{
+				if(vstd::contains(playerSettings->connectedPlayerIDs, disconnectedPlayerId))
+				{
+					disconnectedPlayers.push_back(player.first);
+					break;
+				}
+			}
+		}
 	}
 
 	for (const auto & inGamePlayer : remainingPlayers)
@@ -672,8 +693,11 @@ void CGameHandler::onNewTurn()
 {
 	logGlobal->trace("Turn %d", gameState().day+1);
 
+	int daysPerWeek = LIBRARY->engineSettings()->getInteger(EGameSettings::GENERAL_DAYS_PER_WEEK);
+	int daysPerMonth = LIBRARY->engineSettings()->getInteger(EGameSettings::GENERAL_WEEKS_PER_MONTH) * daysPerWeek;
+
 	bool firstTurn = !gameInfo().getDate(Date::DAY);
-	bool newMonth = gameInfo().getDate(Date::DAY_OF_MONTH) == 28;
+	bool newMonth = gameInfo().getDate(Date::DAY_OF_MONTH) == daysPerMonth;
 
 	if (firstTurn)
 	{
@@ -1087,7 +1111,7 @@ bool CGameHandler::moveHero(ObjectInstanceID hid, int3 dst, EMovementMode moveme
 
 		turnTimerHandler->setEndTurnAllowed(h->getOwner(), !movingOntoWater && !movingOntoObstacle);
 		doMove(TryMoveHero::SUCCESS, lookForGuards, visitDest, LEAVING_TILE);
-		statistics->accumulatedValues[asker].movementPointsUsed += tmh.movePoints;
+		statistics->getPlayerAccumulator(asker).movementPointsUsed += tmh.movePoints;
 		return true;
 	}
 }
@@ -1131,7 +1155,8 @@ void CGameHandler::setOwner(const CGObjectInstance * obj, const PlayerColor owne
 	const CGTownInstance * town = dynamic_cast<const CGTownInstance *>(obj);
 	if (town) //town captured
 	{
-		statistics->accumulatedValues[owner].lastCapturedTownDay = gameState().getDate(Date::DAY);
+		if(owner.isValidPlayer())
+			statistics->getPlayerAccumulator(owner).lastCapturedTownDay = gameState().getDate(Date::DAY);
 
 		if (owner.isValidPlayer() && town->hasBuilt(BuildingSubID::PORTAL_OF_SUMMONING))
 			setPortalDwelling(town, true, false);
@@ -1615,18 +1640,8 @@ bool CGameHandler::responseStatistic(PlayerColor player)
 	rs.statistic = *statistics;
 	rs.player = player;
 
-	// Keep only team statistics, no enemy
 	const TeamState * team = gameState().getPlayerTeam(player);
-
-	for(auto it = rs.statistic.accumulatedValues.begin(); it != rs.statistic.accumulatedValues.end();) {
-		if (std::find(team->players.begin(), team->players.end(), it->first) == team->players.end())
-			it = rs.statistic.accumulatedValues.erase(it);
-		else
-			++it;
-	}
-	rs.statistic.data.erase(std::remove_if(rs.statistic.data.begin(), rs.statistic.data.end(), [&team](const StatisticDataSetEntry& entry) {
-        return std::find(team->players.begin(), team->players.end(), entry.player) == team->players.end();
-    }), rs.statistic.data.end());
+	rs.statistic.filterByTeam(team);
 
 	sendAndApply(rs);
 
@@ -1636,9 +1651,8 @@ bool CGameHandler::responseStatistic(PlayerColor player)
 void CGameHandler::save(const std::string & filename, PlayerColor playerToNotifyOnSuccess)
 {
 	logGlobal->info("Saving to %s", filename);
-	const auto stem	= FileInfo::GetPathStem(filename);
-	const auto savefname = stem.to_string() + ".vsgm1";
-	ResourcePath savePath(stem.to_string(), EResType::SAVEGAME);
+	ResourcePath savePath(filename, EResType::SAVEGAME);
+	const auto savefname = savePath.getOriginalName() + ".vsgm1";
 	CResourceHandler::get("local")->createResource(savefname);
 
 	std::string filenameWithoutPath;
@@ -1681,12 +1695,9 @@ void CGameHandler::save(const std::string & filename, PlayerColor playerToNotify
 void CGameHandler::load(const StartInfo &info)
 {
 	logGlobal->info("Loading from %s", info.mapname);
-	// No need to use the stem because info.mapname doesn't come with the file extension included
-	// const auto stem	= FileInfo::GetPathStem(info.mapname);
 
 	reinitScripting();
 
-	// CLoadFile lf(*CResourceHandler::get()->getResourceName(ResourcePath(stem.to_string(), EResType::SAVEGAME)), gs.get());
 	CLoadFile lf(*CResourceHandler::get()->getResourceName(ResourcePath(info.mapname, EResType::SAVEGAME)), gs.get());
 	gs = std::make_shared<CGameState>();
 	randomizer = std::make_unique<GameRandomizer>(*gs);
@@ -2244,8 +2255,14 @@ bool CGameHandler::buildStructure(ObjectInstanceID tid, BuildingID requestedID, 
 	//Take cost
 	if(!force)
 	{
-		giveResources(t->tempOwner, -requestedBuilding->resources);
-		statistics->accumulatedValues[t->tempOwner].spentResourcesForBuildings += requestedBuilding->resources;
+		const PlayerColor ownerBeforePay = t->tempOwner;
+		giveResources(ownerBeforePay, -requestedBuilding->resources);
+
+		// Only record statistics if the player is still a valid, in-game player.
+		// If they were eliminated during the resource deduction (rare but possible via custom
+		// map triggers), we skip the statistics update because the PlayerState no longer exists.
+		if(ownerBeforePay.isValidPlayer() && t->tempOwner == ownerBeforePay)
+			statistics->getPlayerAccumulator(ownerBeforePay).spentResourcesForBuildings += requestedBuilding->resources;
 	}
 
 	//We know what has been built, apply changes. Do this as final step to properly update town window
@@ -2448,7 +2465,7 @@ bool CGameHandler::recruitCreatures(ObjectInstanceID objid, ObjectInstanceID dst
 	//recruit
 	TResources cost = (c->getFullRecruitCost() * cram);
 	giveResources(army->tempOwner, -cost);
-	statistics->accumulatedValues[army->tempOwner].spentResourcesForArmy += cost;
+	statistics->getPlayerAccumulator(army->tempOwner).spentResourcesForArmy += cost;
 
 	SetAvailableCreatures sac;
 	sac.tid = objid;
@@ -2511,7 +2528,7 @@ bool CGameHandler::upgradeCreature(ObjectInstanceID objid, SlotID pos, CreatureI
 
 	//take resources
 	giveResources(player, -totalCost);
-	statistics->accumulatedValues[player].spentResourcesForArmy += totalCost;
+	statistics->getPlayerAccumulator(player).spentResourcesForArmy += totalCost;
 
 	//upgrade creature
 	changeStackType(StackLocation(obj->id, pos), upgID.toCreature());
@@ -3232,8 +3249,8 @@ bool CGameHandler::tradeResources(const IMarket *market, ui32 amountToSell, Play
 	giveResource(player, toSell, -b1 * amountToBuy);
 	giveResource(player, toBuy, b2 * amountToBuy);
 
-	statistics->accumulatedValues[player].tradeVolume[toSell] += -b1 * amountToBuy;
-	statistics->accumulatedValues[player].tradeVolume[toBuy] += b2 * amountToBuy;
+	statistics->getPlayerAccumulator(player).tradeVolume[toSell] += -b1 * amountToBuy;
+	statistics->getPlayerAccumulator(player).tradeVolume[toBuy] += b2 * amountToBuy;
 
 	return true;
 }
@@ -3421,7 +3438,7 @@ bool CGameHandler::complain(const std::string &problem)
 	return true;
 }
 
-void CGameHandler::showGarrisonDialog(ObjectInstanceID upobj, ObjectInstanceID hid, bool removableUnits)
+void CGameHandler::showGarrisonDialog(ObjectInstanceID upobj, ObjectInstanceID hid, bool removableUnits, const MetaString & customTitle)
 {
 	const auto * upperArmy = dynamic_cast<const CArmedInstance*>(gameInfo().getObj(upobj));
 	const auto * lowerArmy = dynamic_cast<const CArmedInstance*>(gameInfo().getObj(hid));
@@ -3436,6 +3453,7 @@ void CGameHandler::showGarrisonDialog(ObjectInstanceID upobj, ObjectInstanceID h
 	gd.hid = hid;
 	gd.objid = upobj;
 	gd.removableUnits = removableUnits;
+	gd.customTitle = customTitle;
 	gd.queryID = garrisonQuery->queryID;
 	sendAndApply(gd);
 }
@@ -3460,6 +3478,18 @@ bool CGameHandler::isAllowedExchange(ObjectInstanceID id1, ObjectInstanceID id2)
 {
 	if (id1 == id2)
 		return true;
+
+	for(const auto & query : queries->allQueries())
+	{
+		const auto * garrisonQuery = dynamic_cast<const CGarrisonDialogQuery *>(query.get());
+		if(garrisonQuery == nullptr)
+			continue;
+
+		const bool matchesForward = garrisonQuery->exchangingArmies[0]->id == id1 && garrisonQuery->exchangingArmies[1]->id == id2;
+		const bool matchesBackward = garrisonQuery->exchangingArmies[0]->id == id2 && garrisonQuery->exchangingArmies[1]->id == id1;
+		if(matchesForward || matchesBackward)
+			return true;
+	}
 
 	const CGObjectInstance *o1 = gameInfo().getObj(id1);
 	const CGObjectInstance *o2 = gameInfo().getObj(id2);
@@ -4013,7 +4043,7 @@ void CGameHandler::tryJoiningArmy(const CArmedInstance *src, const CArmedInstanc
 				}
 			}
 		}
-		showGarrisonDialog(src->id, dst->id, true); //show garrison window and optionally remove ourselves from map when player ends
+		showGarrisonDialog(src->id, dst->id, true, MetaString()); //show garrison window and optionally remove ourselves from map when player ends
 	}
 	else //merge
 	{

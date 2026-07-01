@@ -11,6 +11,7 @@ set(editor_SRCS
 		mapview.cpp
 		objectbrowser.cpp
 		mapsettings/abstractsettings.cpp
+		mapsettings/heroessettings.cpp
 		mapsettings/mapsettings.cpp
 		mapsettings/generalsettings.cpp
 		mapsettings/modsettings.cpp
@@ -80,6 +81,7 @@ set(editor_HEADERS
 		mapsettings/abstractsettings.h
 		mapsettings/mapsettings.h
 		mapsettings/generalsettings.h
+		mapsettings/heroessettings.h
 		mapsettings/modsettings.h
 		mapsettings/timedevent.h
 		mapsettings/victoryconditions.h
@@ -141,6 +143,7 @@ set(editor_FORMS
 		generatorprogress.ui
 		mapsettings/mapsettings.ui
 		mapsettings/generalsettings.ui
+		mapsettings/heroessettings.ui
 		mapsettings/modsettings.ui
 		mapsettings/timedevent.ui
 		mapsettings/victoryconditions.ui
@@ -193,7 +196,6 @@ set(editor_TS
 	"${translationsDir}/chinese.ts"
 	"${translationsDir}/czech.ts"
 	"${translationsDir}/dutch.ts"
-	"${translationsDir}/english.ts"
 	"${translationsDir}/filipino.ts"
 	"${translationsDir}/finnish.ts"
 	"${translationsDir}/french.ts"
@@ -241,7 +243,11 @@ ${rccQmFiles}
 endif()
 
 if(WIN32)
-	set(editor_ICON mapeditor.rc)
+	set(VCMI_FILE_DESCRIPTION "VCMI Map Editor")
+	set(VCMI_ORIGINAL_FILENAME "VCMI_mapeditor.exe")
+	set(VCMI_ICON_RESOURCE "IDI_ICON1 ICON \"${CMAKE_CURRENT_SOURCE_DIR}/mapeditor.ico\"")
+	set(editor_ICON "${CMAKE_CURRENT_BINARY_DIR}/VCMI_mapeditor_versioninfo.rc")
+	configure_file("${CMAKE_SOURCE_DIR}/win/WindowsFileInfo.rc.in" "${editor_ICON}" @ONLY)
 endif()
 
 assign_source_group(${editor_SRCS} ${editor_HEADERS} ${editor_RESOURCES} ${editor_TS} ${editor_ICON})
