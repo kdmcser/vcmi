@@ -288,12 +288,14 @@ QString FirstLaunchView::getHeroesInstallDir()
 {
 #ifdef VCMI_WINDOWS
 	QVector<QPair<QString, QString>> regKeys = {
-		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\GOG.com\\Games\\1207658787",											 "path"	   }, // Gog on x86 system
-		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\GOG.com\\Games\\1207658787",							     "path"	   }, // Gog on x64 system
-		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\New World Computing\\Heroes of Might and Magic® III\\1.0",			     "AppPath" }, // H3 Complete on x86 system
-		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\New World Computing\\Heroes of Might and Magic® III\\1.0", "AppPath" }, // H3 Complete on x64 system
-		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\New World Computing\\Heroes of Might and Magic III\\1.0",			     "AppPath" }, // some localized H3 on x86 system
-		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\New World Computing\\Heroes of Might and Magic III\\1.0",  "AppPath" }, // some localized H3 on x64 system
+		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\GOG.com\\Games\\1207658787",											 "path"	      }, // Gog on x86 system
+		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\GOG.com\\Games\\1207658787",							     "path"	      }, // Gog on x64 system
+		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\New World Computing\\Heroes of Might and Magic® III\\1.0",			     "AppPath"    }, // H3 Complete on x86 system
+		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\New World Computing\\Heroes of Might and Magic® III\\1.0", "AppPath"    }, // H3 Complete on x64 system
+		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\New World Computing\\Heroes of Might and Magic III\\1.0",			     "AppPath"    }, // some localized H3 on x86 system
+		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\New World Computing\\Heroes of Might and Magic III\\1.0",  "AppPath"    }, // some localized H3 on x64 system
+		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\Ubisoft\\Launcher\\Installs\\353",                                      "InstallDir" }, // Ubisoft H3 on x86 system
+		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Ubisoft\\Launcher\\Installs\\353",                         "InstallDir" }, // Ubisoft H3 on x64 system
 	};
 
 	for(auto & regKey : regKeys)
@@ -310,7 +312,6 @@ static QString defaultStartDirForOpen()
 {
 #if defined(VCMI_MOBILE)
 	const QStandardPaths::StandardLocation mobilePrefs[] = {
-		QStandardPaths::DocumentsLocation,
 		QStandardPaths::HomeLocation
 	};
 	for(auto location : mobilePrefs)
@@ -340,9 +341,9 @@ static QString defaultStartDirForOpen()
 
 QString FirstLaunchView::checkFileMagic(const QString &filename, const QString &filter, const QByteArray &magic, const QString &ext, bool &openFailed) const
 {
-    QFile file(filename);
-    if(!file.open(QIODevice::ReadOnly))
-    {
+	QFile file(filename);
+	if(!file.open(QIODevice::ReadOnly))
+	{
 		if(openFailed)
 		{
 			return tr("Failed to open file: %1").arg(file.errorString());
@@ -354,43 +355,46 @@ QString FirstLaunchView::checkFileMagic(const QString &filename, const QString &
 			openFailed = true;
 			return {};
 		}
-    }
+	}
 
-    QFileInfo fileInfo(filename);
-    quint64 fileSize = fileInfo.size();
+	QFileInfo fileInfo(filename);
+	quint64 fileSize = fileInfo.size();
 
-    logGlobal->info("Checking %s with size: %llu", filename.toStdString(), fileSize);
+	QString realFilename = Helper::getRealPath(filename);
+
+	logGlobal->info("Checking %s with size: %llu", realFilename.toStdString(), fileSize);
 
 #if defined(VCMI_MOBILE)
-    if(fileInfo.suffix().compare(ext, Qt::CaseInsensitive) != 0)
-        return tr("You need to select a %1 file!", "param is file extension").arg(ext);
+	if(!realFilename.endsWith(ext, Qt::CaseInsensitive))
+		return tr("You need to select a %1 file!", "param is file extension").arg(ext);
 #endif
 
-    if(fileInfo.suffix().compare("exe", Qt::CaseInsensitive) == 0){
-        if(fileSize > 1500000) // 1.5MB
-        {
-            logGlobal->info("Unknown installer selected: %s", filename.toStdString());
-            return tr("Unknown installer selected.\nYou need to select the offline GOG installer.");
-        }
+	if(realFilename.endsWith(".exe", Qt::CaseInsensitive))
+	{
+		if(fileSize > 1500000) // 1.5MB
+		{
+			logGlobal->info("Unknown installer selected: %s", filename.toStdString());
+			return tr("Unknown installer selected.\nYou need to select the offline GOG installer.");
+		}
 
-        const QByteArray data = file.peek(fileSize);
+		const QByteArray data = file.peek(fileSize);
 
-        constexpr std::u16string_view galaxyID = u"GOG Galaxy";
-        const auto galaxyIDBytes = reinterpret_cast<const char*>(galaxyID.data());
-        const auto magicId = QByteArray::fromRawData(galaxyIDBytes, galaxyID.size() * sizeof(decltype(galaxyID)::value_type));
+		constexpr std::u16string_view galaxyID = u"GOG Galaxy";
+		const auto galaxyIDBytes = reinterpret_cast<const char*>(galaxyID.data());
+		const auto magicId = QByteArray::fromRawData(galaxyIDBytes, galaxyID.size() * sizeof(decltype(galaxyID)::value_type));
 
-        if(data.contains(magicId))
-        {
-            logGlobal->info("GOG Galaxy detected! Aborting...");
-            return tr("You selected a GOG Galaxy installer. This file does not contain the game. Please download the offline backup game installer instead.");
-        }
-    }
+		if(data.contains(magicId))
+		{
+			logGlobal->info("GOG Galaxy detected! Aborting...");
+			return tr("You selected a GOG Galaxy installer. This file does not contain the game. Please download the offline backup game installer instead.");
+		}
+	}
 
-    const QByteArray magicFile = file.peek(magic.length());
-    if(!magicFile.startsWith(magic))
-        return tr("You need to select a %1 file!", "param is file extension").arg(filter);
+	const QByteArray magicFile = file.peek(magic.length());
+	if(!magicFile.startsWith(magic))
+		return tr("You need to select a %1 file!", "param is file extension").arg(filter);
 
-    return {};
+	return {};
 }
 
 void FirstLaunchView::extractGogData()
@@ -408,7 +412,7 @@ void FirstLaunchView::extractGogData()
 	};
 
 	needPostCopyCheckExe = false;
-    needPostCopyCheckBin = false;
+	needPostCopyCheckBin = false;
 
 	QString filterExe = tr("GOG installer") + " (*.exe)";
 	QString titleExe  = tr("Select the offline GOG installer (.exe)");
@@ -440,7 +444,7 @@ void FirstLaunchView::extractGogData()
 		file.close();
 	}
 
-    QString fileBin = haveCandidate ? fileBinCandidate : fileSelection(titleBin, filterBin, exeInfo.absolutePath());
+	QString fileBin = haveCandidate ? fileBinCandidate : fileSelection(titleBin, filterBin, exeInfo.absolutePath());
 	if(fileBin.isEmpty())
 		return;
 

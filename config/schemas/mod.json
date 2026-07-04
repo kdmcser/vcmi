@@ -19,7 +19,6 @@
 		"localizable" : {
 			"type" : "object",
 			"additionalProperties" : false,
-			"required" : [ "name" ],
 			"properties" : {
 				"name" : {
 					"type" : "string",
@@ -180,7 +179,7 @@
 		"language" : {
 			"type" : "string",
 			"description" : "Base language of the mod, before applying localizations. By default vcmi assumes English",
-			"enum" : [ "belarusian", "bulgarian", "czech", "chinese", "english", "finnish", "french", "german", "greek", "hungarian", "italian", "japanese", "korean", "norwegian", "polish", "portuguese", "romanian", "russian", "spanish", "swedish", "turkish", "ukrainian", "vietnamese" ]
+			"enum" : [ "belarusian", "bulgarian", "czech", "chinese", "dutch", "english", "filipino", "finnish", "french", "german", "greek", "hungarian", "italian", "japanese", "korean", "latvian", "norwegian", "polish", "portuguese", "romanian", "russian", "serbian", "spanish", "swedish", "turkish", "ukrainian", "vietnamese" ]
 		},
 		"belarusian" : {
 			"$ref" : "#/definitions/localizable"
@@ -194,7 +193,13 @@
 		"chinese" : {
 			"$ref" : "#/definitions/localizable"
 		},
+		"dutch" : {
+			"$ref" : "#/definitions/localizable"
+		},
 		"english" : {
+			"$ref" : "#/definitions/localizable"
+		},
+		"filipino" : {
 			"$ref" : "#/definitions/localizable"
 		},
 		"finnish" : {
@@ -221,6 +226,9 @@
 		"korean" : {
 			"$ref" : "#/definitions/localizable"
 		},
+		"latvian" : {
+			"$ref" : "#/definitions/localizable"
+		},
 		"norwegian" : {
 			"$ref" : "#/definitions/localizable"
 		},
@@ -234,6 +242,9 @@
 			"$ref" : "#/definitions/localizable"
 		},
 		"russian" : {
+			"$ref" : "#/definitions/localizable"
+		},
+		"serbian" : {
 			"$ref" : "#/definitions/localizable"
 		},
 		"spanish" : {

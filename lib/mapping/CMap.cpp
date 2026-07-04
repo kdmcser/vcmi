@@ -193,7 +193,16 @@ CMap::CMap(IGameInfoCallback * cb)
 	gameSettings->loadBase(LIBRARY->settingsHandler->getFullConfig());
 }
 
-CMap::~CMap() = default;
+CMap::~CMap()
+{
+	// Workaround for destruction order - parts are not "aware" of their composite artifact
+	// As result, destruction of part of a composite artifact leads to a hanging pointer in combined artifact
+	// Force-detach everything before executing actual deletion
+	for (const auto & artifact : artInstances)
+		if (artifact)
+			for (const auto & part : artifact->getPartsInfo())
+				artifact->detachFromSource(*part.getArtifact());
+}
 
 void CMap::hideObject(CGObjectInstance * obj)
 {
@@ -853,12 +862,15 @@ CArtifactInstance * CMap::createScroll(const SpellID & spellId)
 
 CArtifactInstance * CMap::createArtifactComponent(const ArtifactID & artId)
 {
-	auto newArtifact = artId.hasValue() ?
-		std::make_shared<CArtifactInstance>(cb, artId.toArtifact()):
-		std::make_shared<CArtifactInstance>(cb);
+	auto art = artId.toArtifact();
+	auto newArtifact = std::make_shared<CArtifactInstance>(cb, art);
 
 	newArtifact->setId(ArtifactInstanceID(artInstances.size()));
 	artInstances.push_back(newArtifact);
+
+	for (const auto & bonus : art->instanceBonuses)
+		newArtifact->addNewBonus(std::make_shared<Bonus>(*bonus, newArtifact->getId()));
+
 	return newArtifact.get();
 }
 
@@ -896,9 +908,6 @@ CArtifactInstance * CMap::createArtifact(const ArtifactID & artID, const SpellID
 		artInst->addNewBonus(bonus);
 		artInst->addCharges(art->getDefaultStartCharges());
 	}
-
-	for (const auto & bonus : art->instanceBonuses)
-		artInst->addNewBonus(std::make_shared<Bonus>(*bonus, artInst->getId()));
 
 	return artInst;
 }
@@ -968,12 +977,16 @@ std::vector<HeroTypeID> CMap::getHeroesInPool() const
 
 CGObjectInstance * CMap::getObject(ObjectInstanceID obj)
 {
-	return objects.at(obj).get();
+	if (static_cast<size_t>(obj.getNum()) < objects.size())
+		return objects.at(obj).get();
+	return nullptr;
 }
 
 const CGObjectInstance * CMap::getObject(ObjectInstanceID obj) const
 {
-	return objects.at(obj).get();
+	if (static_cast<size_t>(obj.getNum()) < objects.size())
+		return objects.at(obj).get();
+	return nullptr;
 }
 
 void CMap::saveCompatibilityStoreAllocatedArtifactID()

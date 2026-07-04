@@ -326,6 +326,26 @@ void CMapFormatJson::serializeAllowedFactions(JsonSerializeFormat & handler, std
 
 void CMapFormatJson::fixStringsTextIDInJson(JsonNode & node, const std::string & mapPrefix, bool remove) const
 {
+	auto fixTextIDString = [&](JsonNode & field)
+	{
+		if (!field.isString())
+			return;
+		if (field.String().empty())
+			return;
+
+		if (remove)
+		{
+			if (field.String().find("map.") == 0)
+				field.String() = removeMapNamePrefix(field.String());
+		}
+		else if (field.String().find("map.") != 0
+				 && field.String().find("core.") != 0
+				 && field.String().find("vcmi.") != 0)
+		{
+			field.String() = mapPrefix + field.String();
+		}
+	};
+
 	if(node.isStruct())
 	{
 		auto & nodeStruct = node.Struct();
@@ -335,22 +355,7 @@ void CMapFormatJson::fixStringsTextIDInJson(JsonNode & node, const std::string &
 		if(it != nodeStruct.end() && it->second.isVector())
 		{
 			for(auto & textID : it->second.Vector())
-			{
-				if(textID.isString() && !textID.String().empty())
-				{
-					if(remove)
-					{
-						if(textID.String().find("map.") == 0)
-							textID.String() = removeMapNamePrefix(textID.String());
-					}
-					else if(textID.String().find("map.") != 0 
-							&& textID.String().find("core.") != 0
-							&& textID.String().find("vcmi.") != 0)
-					{
-						textID.String() = mapPrefix + textID.String();
-					}
-				}
-			}
+				fixTextIDString(textID);
 		}
 
 		for(auto & child : nodeStruct)
@@ -365,6 +370,23 @@ void CMapFormatJson::fixStringsTextIDInJson(JsonNode & node, const std::string &
 	{
 		for(auto & elem : node.Vector())
 		{
+			// If the element is a struct which contains an `options` struct,
+			// fix hero's and town's `name`, `biography` fields. These doesn't use MetaString.
+			if (elem.isStruct())
+			{
+				auto & elemStruct = elem.Struct();
+				auto itOptions = elemStruct.find("options");
+				if (itOptions != elemStruct.end() && itOptions->second.isStruct())
+				{
+					for(auto & param : {"name", "biography"})
+					{
+						auto itParam = itOptions->second.Struct().find(param);
+						if (itParam != itOptions->second.Struct().end())
+							fixTextIDString(itParam->second);
+					}
+				}
+			}
+
 			if(elem.isStruct() || elem.isVector())
 				fixStringsTextIDInJson(elem, mapPrefix, remove);
 		}
@@ -742,40 +764,8 @@ void CMapFormatJson::serializeTimedEvents(JsonSerializeFormat & handler)
 
 void CMapFormatJson::serializePredefinedHeroes(JsonSerializeFormat & handler)
 {
-	if(handler.saving)
-	{
-		auto heroPool = map->getHeroesInPool();
-		if(!heroPool.empty())
-		{
-			auto predefinedHeroes = handler.enterStruct("predefinedHeroes");
-
-			for(auto & heroID : heroPool)
-			{
-				auto heroPtr = map->tryGetFromHeroPool(heroID);
-				auto predefinedHero = handler.enterStruct(heroPtr->getHeroTypeName());
-
-				heroPtr->serializeJsonDefinition(handler);
-			}
-		}
-	}
-	else
-	{
-		auto predefinedHeroes = handler.enterStruct("predefinedHeroes");
-
-		const JsonNode & data = handler.getCurrent();
-
-		for(const auto & p : data.Struct())
-		{
-			auto predefinedHero = handler.enterStruct(p.first);
-
-			auto hero = std::make_shared<CGHeroInstance>(map->cb);
-			hero->ID = Obj::HERO;
-			hero->setHeroTypeName(p.first);
-			hero->serializeJsonDefinition(handler);
-
-			map->addToHeroPool(hero);
-		}
-	}
+    // An option to create custom map heroes like in SoD - currently not ready in the editor.
+    // There was an implementation that caused bugs, look at file history if you need it.
 }
 
 void CMapFormatJson::serializeOptions(JsonSerializeFormat & handler)
@@ -797,7 +787,6 @@ void CMapFormatJson::serializeOptions(JsonSerializeFormat & handler)
 
 void CMapFormatJson::readOptions(JsonDeserializer & handler)
 {
-	readDisposedHeroes(handler);
 	serializeOptions(handler);
 }
 
@@ -994,6 +983,8 @@ void CMapLoaderJson::readHeader(const bool complete)
 	//TODO: check mods
 
 	mapHeader->battleOnly = header["battleOnly"].Bool();
+
+	readDisposedHeroes(handler);
 
 	if(complete)
 		readOptions(handler);

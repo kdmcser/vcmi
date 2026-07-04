@@ -693,7 +693,7 @@ void AIGateway::showTeleportDialog(const CGHeroInstance * hero, TeleportChannelI
 	});
 }
 
-void AIGateway::showGarrisonDialog(const CArmedInstance * up, const CGHeroInstance * down, bool removableUnits, QueryID queryID)
+void AIGateway::showGarrisonDialog(const CArmedInstance * up, const CGHeroInstance * down, bool removableUnits, QueryID queryID, const MetaString & customTitle)
 {
 	LOG_TRACE_PARAMS(logAi, "removableUnits '%i', queryID '%i'", removableUnits % queryID);
 	std::string s1 = up->nodeName();
@@ -766,16 +766,16 @@ bool AIGateway::makePossibleUpgrades(const CArmedInstance * obj)
 
 void AIGateway::makeTurn()
 {
-	auto day = cc->getDate(Date::DAY);
-	logAi->info("Player %d (%s) starting turn, day %d", playerID, playerID.toString(), day);
-
-	std::shared_lock gsLock(CGameState::mutex);
-	cheatMapReveal(nullkiller);
-	memorizeVisitableObjs(nullkiller->memory, nullkiller->dangerHitMap, playerID, cc);
-	memorizeRevisitableObjs(nullkiller->memory, playerID, cc);
-
 	try
 	{
+		auto day = cc->getDate(Date::DAY);
+		logAi->info("Player %d (%s) starting turn, day %d", playerID, playerID.toString(), day);
+
+		std::shared_lock gsLock(CGameState::mutex);
+		cheatMapReveal(nullkiller);
+		memorizeVisitableObjs(nullkiller->memory, nullkiller->dangerHitMap, playerID, cc);
+		memorizeRevisitableObjs(nullkiller->memory, playerID, cc);
+
 		const auto start = std::chrono::high_resolution_clock::now();
 		nullkiller->makeTurn();
 		const auto timeElapsedMs = timeElapsed(start);
@@ -789,24 +789,20 @@ void AIGateway::makeTurn()
 			if (h->movementPointsRemaining())
 				logAi->warn("Hero %s has %d MP left", h->getNameTranslated(), h->movementPointsRemaining());
 		}
-	}
-	catch (const TerminationRequestedException &)
-	{
-		logAi->debug("Making turn thread has been interrupted while nullkiller->makeTurn(). We'll end without calling endTurn.");
-		return;
-	}
-	catch (const std::exception & e)
-	{
-		logAi->error("Making turn thread has caught an exception: %s", e.what());
-	}
 
-	try
-	{
 		endTurn();
 	}
+	catch (const InterruptionRequestedException &)
+	{
+		logAi->debug("Making turn thread has been interrupted. We'll end without calling endTurn.");
+	}
 	catch (const TerminationRequestedException &)
 	{
-		logAi->debug("Making turn thread has been interrupted endTurn().");
+		logAi->debug("Making turn thread has been terminated. We'll end without calling endTurn");
+	}
+	catch (...)
+	{
+		logAi->error("Unknown exception in makeTurn. Ending turn without calling endTurn.");
 	}
 }
 
@@ -1361,14 +1357,8 @@ void AIGateway::finish()
 
 	if (asyncTasks)
 	{
-		try {
-			asyncTasks->wait();
-			asyncTasks.reset();
-		}
-		catch (const TerminationRequestedException &)
-		{
-			// ignore, tbb caught this exception from task and propagated it to our thread
-		}
+		asyncTasks->wait();
+		asyncTasks.reset();
 	}
 }
 
@@ -1377,11 +1367,18 @@ void AIGateway::executeActionAsync(const std::string & description, const std::f
 	if (!asyncTasks)
 		throw std::runtime_error("Attempt to execute task on shut down AI state!");
 
-	asyncTasks->run([description, whatToDo]()
+	asyncTasks->run([description, whatToDo]() noexcept
 	{
 		ScopedThreadName guard("NK2AI::AIGateway::" + description);
 		std::shared_lock gsLock(CGameState::mutex);
-		whatToDo();
+		try
+		{
+			whatToDo();
+		}
+		catch (const TerminationRequestedException &)
+		{
+			logAi->debug("%s thread has been terminated. We'll end it immediately", description);
+		}
 	});
 }
 
