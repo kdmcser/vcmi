@@ -51,6 +51,86 @@ const ModDescription & CModHandler::getModInfo(const TModID & modId) const
 	return modManager->getModDescription(modId);
 }
 
+std::vector<std::string> CModHandler::getModMapCaches(const TModID & modId) const
+{
+	std::vector<std::string> result;
+	const auto & modInfo = getModInfo(modId);
+	const JsonNode & cacheFileList = modInfo.getLocalValue("mapCaches");
+
+	if (!cacheFileList.isNull() && cacheFileList.isVector())
+	{
+		for (const auto & cacheFileNode : cacheFileList.Vector())
+			result.push_back(cacheFileNode.String());
+	}
+	return result;
+}
+
+void CModHandler::validateMapCaches()
+{
+	for (const TModID & modName : getActiveMods())
+	{
+		auto cacheFiles = getModMapCaches(modName);
+		if (cacheFiles.empty())
+			continue;
+
+		for (const auto & cacheFile : cacheFiles)
+		{
+			ResourcePath cacheResPath(cacheFile, EResType::JSON);
+			if (!CResourceHandler::get(modName)->existsResource(cacheResPath))
+			{
+				logMod->warn("Map cache file '%s' declared in mod '%s' was not found!", cacheFile, modName);
+			}
+			else
+			{
+				auto stream = CResourceHandler::get(modName)->load(cacheResPath);
+				auto rawData = stream->readAll();
+				JsonNode cacheData(reinterpret_cast<std::byte *>(rawData.first.get()), rawData.second, cacheFile);
+				JsonUtils::validate(cacheData, "vcmi:mapCache", modName + "/" + cacheFile);
+			}
+		}
+	}
+}
+
+std::vector<std::string> CModHandler::getModCampaignCaches(const TModID & modId) const
+{
+	std::vector<std::string> result;
+	const auto & modInfo = getModInfo(modId);
+	const JsonNode & cacheFileList = modInfo.getLocalValue("campaignCaches");
+
+	if (!cacheFileList.isNull() && cacheFileList.isVector())
+	{
+		for (const auto & cacheFileNode : cacheFileList.Vector())
+			result.push_back(cacheFileNode.String());
+	}
+	return result;
+}
+
+void CModHandler::validateCampaignCaches()
+{
+	for (const TModID & modName : getActiveMods())
+	{
+		auto cacheFiles = getModCampaignCaches(modName);
+		if (cacheFiles.empty())
+			continue;
+
+		for (const auto & cacheFile : cacheFiles)
+		{
+			ResourcePath cacheResPath(cacheFile, EResType::JSON);
+			if (!CResourceHandler::get(modName)->existsResource(cacheResPath))
+			{
+				logMod->warn("Campaign cache file '%s' declared in mod '%s' was not found!", cacheFile, modName);
+			}
+			else
+			{
+				auto stream = CResourceHandler::get(modName)->load(cacheResPath);
+				auto rawData = stream->readAll();
+				JsonNode cacheData(reinterpret_cast<std::byte *>(rawData.first.get()), rawData.second, cacheFile);
+				JsonUtils::validate(cacheData, "vcmi:campaignCache", modName + "/" + cacheFile);
+			}
+		}
+	}
+}
+
 static JsonNode genDefaultFS()
 {
 	// default FS config for mods: directory "Content" that acts as H3 root directory
@@ -317,6 +397,9 @@ void CModHandler::load()
 #endif
 
 	content->loadCustom();
+
+	validateMapCaches();
+	validateCampaignCaches();
 
 	for(const TModID & modName : activeMods)
 		loadTranslation(modName);
