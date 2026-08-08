@@ -43,6 +43,7 @@
 #include "../lib/modding/CModHandler.h"
 #include "../lib/modding/ContentTypeHandler.h"
 #include "../lib/modding/ModUtility.h"
+#include <boost/algorithm/string/replace.hpp>
 #include "../lib/serializer/GameConnection.h"
 #include "../lib/VCMIDirs.h"
 #include "../lib/logging/VisualLogger.h"
@@ -388,7 +389,7 @@ void ClientCommandManager::handleCacheMapsCommand()
 	for (auto & modEntry : modCacheData)
 	{
 		std::string filename = modEntry.first;
-		boost::range::replace(filename, '.', '_');
+		boost::algorithm::replace_all(filename, ".", "_");
 
 		// Write to user extracted directory
 		const boost::filesystem::path filePath = outPath / (filename + ".json");
@@ -397,8 +398,8 @@ void ClientCommandManager::handleCacheMapsCommand()
 		outFile.close();
 	}
 
-	printCommandMessage("Map cache generation complete");
-	printCommandMessage("Processed " + std::to_string(processedCount) + " maps, " + std::to_string(failedCount) + " failed");
+	printCommandMessage("Map cache generation complete.\n");
+	printCommandMessage("Processed " + std::to_string(processedCount) + " maps, " + std::to_string(failedCount) + " failed.\n");
 	printCommandMessage("Cache files can be found in " + outPath.string() + " directory\n");
 }
 
@@ -439,7 +440,7 @@ void ClientCommandManager::handleCacheCampaignsCommand()
 			entry["creationDateTime"].Integer() = static_cast<int64_t>(campaign->getCreationDateTime());
 			entry["numberOfScenarios"].Integer() = campaign->scenariosCount();
 			for (auto scenarioID : campaign->allScenarios())
-				entry["scenarios"].Vector().push_back(CampaignHandler::writeScenarioToJson(campaign->scenario(scenarioID)));
+				entry["scenarios"].Vector().push_back(CampaignHandler::writeScenarioToJson(campaign->scenario(scenarioID), campaign->getEncoding()));
 
 			modCacheData[modId].Vector().push_back(entry);
 			processedCount++;
@@ -458,7 +459,7 @@ void ClientCommandManager::handleCacheCampaignsCommand()
 	for (auto & modEntry : modCacheData)
 	{
 		std::string filename = modEntry.first;
-		boost::range::replace(filename, '.', '_');
+		boost::algorithm::replace_all(filename, ".", "_");
 
 		const boost::filesystem::path filePath = outPath / (filename + ".json");
 		std::ofstream outFile(filePath.c_str());
@@ -466,8 +467,8 @@ void ClientCommandManager::handleCacheCampaignsCommand()
 		outFile.close();
 	}
 
-	printCommandMessage("Campaign cache generation complete");
-	printCommandMessage("Processed " + std::to_string(processedCount) + " campaigns, " + std::to_string(failedCount) + " failed");
+	printCommandMessage("Campaign cache generation complete.\n");
+	printCommandMessage("Processed " + std::to_string(processedCount) + " campaigns, " + std::to_string(failedCount) + " failed.\n");
 	printCommandMessage("Cache files can be found in " + outPath.string() + " directory\n");
 }
 

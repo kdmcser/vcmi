@@ -48,7 +48,7 @@ public:
 
 	//writer for VCMI campaigns (*.vcmp)
 	static JsonNode writeHeaderToJson(CampaignHeader & header);
-	static JsonNode writeScenarioToJson(const CampaignScenario & scenario);
+	static JsonNode writeScenarioToJson(const CampaignScenario & scenario, const std::string & encoding = {});
 };
 
 VCMI_LIB_NAMESPACE_END
