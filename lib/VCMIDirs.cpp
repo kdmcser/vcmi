@@ -115,10 +115,10 @@ VCMIDirsWIN32::VCMIDirsWIN32()
 	GetModuleFileNameW(nullptr, currentPath, MAX_PATH);
 	auto configPath = std::filesystem::path(currentPath).parent_path() / "config" / "dirs.json";
 
-	if (!std::filesystem::exists(configPath))
+	if(!std::filesystem::exists(configPath))
 		return;
 
-	std::ifstream in(configPath, std::ios::binary);
+	std::ifstream in(configPath.wstring(), std::ios::binary);
 	if (!in)
 		return;
 

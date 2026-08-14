@@ -2051,7 +2051,7 @@ Do you want to do that now ?</source>
     <message>
         <location filename="../inspector/inspector.cpp" line="504"/>
         <source>InstanceName</source>
-        <translation>实力名称</translation>
+        <translation>实例名称</translation>
     </message>
     <message>
         <location filename="../inspector/inspector.cpp" line="509"/>
@@ -3877,7 +3877,7 @@ Add it to the map&apos;s required mods in Map-&gt;General settings.</source>
     <message>
         <location filename="../templateeditor/templateeditor.cpp" line="293"/>
         <source>ID: %1</source>
-        <translation>标识符：%1</translation>
+        <translation>ID：%1</translation>
     </message>
     <message>
         <location filename="../templateeditor/templateeditor.cpp" line="295"/>
@@ -4499,7 +4499,7 @@ Guard: %3</source>
     <message>
         <location filename="../mapsettings/translations.ui" line="70"/>
         <source>String ID</source>
-        <translation>字符串标识符</translation>
+        <translation>字符串ID</translation>
     </message>
     <message>
         <location filename="../mapsettings/translations.ui" line="75"/>
