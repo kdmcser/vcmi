@@ -14,6 +14,8 @@
 
 VCMI_LIB_NAMESPACE_BEGIN
 
+class BinaryDeserializer;
+
 class DLL_LINKAGE CampaignHandler
 {
 	static std::string readLocalizedString(CampaignHeader & target, CBinaryReader & reader, const std::string & filename, const std::string & modName, const std::string & encoding, const std::string & identifier);
@@ -39,7 +41,7 @@ class DLL_LINKAGE CampaignHandler
 	static constexpr auto VCMP_HEADER_FILE_NAME = "header.json";
 public:
 	static std::unique_ptr<Campaign> getHeader( const std::string & name); //name - name of appropriate file
-	static std::unique_ptr<Campaign> getHeaderFromCache( const JsonNode & data);
+	static std::unique_ptr<Campaign> getHeaderFromCache(BinaryDeserializer & h, const std::string & modName);
 
 	static std::shared_ptr<CampaignState> getCampaign(const std::string & name); //name - name of appropriate file
 
