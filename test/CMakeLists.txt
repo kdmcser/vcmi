@@ -40,6 +40,7 @@ set(test_SRCS
 
 		json/JsonTests.cpp
 
+		map/CMapCacheTest.cpp
 		map/CMapEditManagerTest.cpp
 		map/CMapFormatTest.cpp
 		map/MapComparer.cpp
