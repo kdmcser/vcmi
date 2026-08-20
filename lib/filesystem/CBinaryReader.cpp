@@ -88,7 +88,8 @@ INSTANTIATE(si64, readInt64)
 std::string CBinaryReader::readBaseString()
 {
 	unsigned int len = readUInt32();
-	assert(len <= 500000); //not too long
+	if (len > 500000) //not too long, larger value means corrupted data
+		throw std::runtime_error("String length " + std::to_string(len) + " is too large, file is likely corrupted");
 	if (len > 0)
 	{
 		std::string ret;
