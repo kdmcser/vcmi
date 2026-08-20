@@ -831,6 +831,7 @@ set(lib_MAIN_HEADERS
 	IGameSettings.h
 	IHandlerBase.h
 	int3.h
+	Lazy.h
 	LoadProgress.h
 	LogicalExpression.h
 	ObstacleHandler.h

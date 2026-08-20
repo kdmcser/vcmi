@@ -21,6 +21,7 @@
 VCMI_LIB_NAMESPACE_BEGIN
 
 struct StartInfo;
+struct CampaignListEntry;
 class CGHeroInstance;
 class CBinaryReader;
 class CInputStream;
@@ -239,6 +240,25 @@ public:
 	{
 		h & static_cast<CampaignHeader&>(*this);
 		h & scenarios;
+	}
+
+	/// Extracts the lightweight data required to display the campaign list.
+	CampaignListEntry makeListEntry() const;
+};
+
+/// Lightweight campaign metadata used only to render the campaign list.
+struct DLL_LINKAGE CampaignListEntry
+{
+	MetaString name;
+	int scenariosCount = 0;
+	TextContainerRegistrable textContainer;
+
+	template <typename Handler>
+	void serialize(Handler & h)
+	{
+		h & name;
+		h & scenariosCount;
+		h & textContainer;
 	}
 };
 

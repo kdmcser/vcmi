@@ -370,8 +370,9 @@ void ClientCommandManager::handleCacheMapsCommand()
 		serializer & static_cast<uint32_t>(modEntry.second.size());
 		for (auto & entry : modEntry.second)
 		{
+			MapListEntry listEntry = entry.header->makeListEntry();
 			serializer & entry.fileURI;
-			serializer & *entry.header;
+			serializer & listEntry;
 		}
 
 		const boost::filesystem::path filePath = outPath / (filename + ".bin");
@@ -441,8 +442,9 @@ void ClientCommandManager::handleCacheCampaignsCommand()
 		serializer & static_cast<uint32_t>(modEntry.second.size());
 		for (auto & entry : modEntry.second)
 		{
+			CampaignListEntry listEntry = entry.campaign->makeListEntry();
 			serializer & entry.fileURI;
-			serializer & *entry.campaign;
+			serializer & listEntry;
 		}
 
 		const boost::filesystem::path filePath = outPath / (filename + ".bin");
