@@ -16,6 +16,17 @@
 				}
 			]
 		},
+		"binaryFileListOrObject" : {
+			"oneOf" : [
+				{
+					"type" : "array",
+					"items" : { "type" : "string" }
+				},
+				{
+					"type" : "object"
+				}
+			]
+		},
 		"localizable" : {
 			"type" : "object",
 			"additionalProperties" : false,
@@ -352,11 +363,11 @@
 		},
 		"mapCaches" : {
 			"description" : "List of files with cached map meta information to speed up map loading",
-			"$ref" : "#/definitions/fileListOrObject"
+			"$ref" : "#/definitions/binaryFileListOrObject"
 		},
 		"campaignCaches" : {
 			"description" : "List of files with cached campaign meta information to speed up campaign loading",
-			"$ref" : "#/definitions/fileListOrObject"
+			"$ref" : "#/definitions/binaryFileListOrObject"
 		}
 	}
 }
