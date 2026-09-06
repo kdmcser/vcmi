@@ -225,6 +225,8 @@ public:
 	CObjectListWindow(const std::vector<int> &_items, std::shared_ptr<CIntObject> titleWidget_, std::string _title, std::string _descr, std::function<void(int)> Callback, size_t initialSelection = 0, std::vector<std::shared_ptr<IImage>> images = {}, bool searchBoxEnabled = false, bool blue = false);
 	CObjectListWindow(const std::vector<std::string> &_items, std::shared_ptr<CIntObject> titleWidget_, std::string _title, std::string _descr, std::function<void(int)> Callback, size_t initialSelection = 0, std::vector<std::shared_ptr<IImage>> images = {}, bool searchBoxEnabled = false, bool blue = false);
 	CObjectListWindow(const std::vector<std::string> &_items, std::shared_ptr<CIntObject> titleWidget_, std::string _title, std::string _descr, std::function<void(int)> Callback, size_t initialSelection, std::function<std::shared_ptr<IImage>(size_t)> imageLoader, bool searchBoxEnabled = false, bool blue = false);
+	/// Creates a lazy loader that loads and caches small hero portraits (PortraitsSmall) on demand.
+	static std::function<std::shared_ptr<IImage>(size_t)> makeLazyHeroPortraitLoader(std::vector<int32_t> iconIndices);
 
 	std::shared_ptr<CIntObject> genItem(size_t index);
 	void elementSelected();//call callback and close this window

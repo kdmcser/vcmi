@@ -688,6 +688,29 @@ CTavernWindow::CTavernWindow(const CGObjectInstance * TavernObj, const std::func
 	addInvite();
 }
 
+std::function<std::shared_ptr<IImage>(size_t)> CObjectListWindow::makeLazyHeroPortraitLoader(std::vector<int32_t> iconIndices)
+{
+	auto imageCache = std::make_shared<std::map<int32_t, std::shared_ptr<IImage>>>();
+	return [imageCache, iconIndices = std::move(iconIndices)](size_t index) -> std::shared_ptr<IImage>
+	{
+		if(index >= iconIndices.size())
+			return nullptr;
+
+		const int32_t iconIndex = iconIndices[index];
+		if(iconIndex < 0)
+			return nullptr;
+
+		auto it = imageCache->find(static_cast<int32_t>(index));
+		if(it != imageCache->end())
+			return it->second;
+
+		auto image = ENGINE->renderHandler().loadImage(AnimationPath::builtin("PortraitsSmall"), iconIndex, 0, EImageBlitMode::OPAQUE);
+		image->scaleTo(Point(35, 23), EScalingAlgorithm::NEAREST);
+		(*imageCache)[static_cast<int32_t>(index)] = image;
+		return image;
+	};
+}
+
 void CTavernWindow::chooseHeroToInvite(CGHeroInstance* selectedHero, const std::map<HeroTypeID, CGHeroInstance*> & inviteableHeroes, const std::function<void(CGHeroInstance*)> & onChoose)
 {
 	auto comp = [](const HeroTypeID& a, const HeroTypeID& b)
@@ -725,21 +748,7 @@ void CTavernWindow::chooseHeroToInvite(CGHeroInstance* selectedHero, const std::
 	}
 
 	// Load portraits lazily: only visible list items are created, so avoid decoding all of them upfront.
-	auto imageCache = std::make_shared<std::map<int32_t, std::shared_ptr<IImage>>>();
-	auto imageLoader = [imageCache, heroIconIndices](size_t index) -> std::shared_ptr<IImage>
-	{
-		if(index >= heroIconIndices.size())
-			return nullptr;
-
-		auto it = imageCache->find(static_cast<int32_t>(index));
-		if(it != imageCache->end())
-			return it->second;
-
-		auto image = ENGINE->renderHandler().loadImage(AnimationPath::builtin("PortraitsSmall"), heroIconIndices[index], 0, EImageBlitMode::OPAQUE);
-		image->scaleTo(Point(35, 23), EScalingAlgorithm::NEAREST);
-		(*imageCache)[static_cast<int32_t>(index)] = image;
-		return image;
-	};
+	auto imageLoader = CObjectListWindow::makeLazyHeroPortraitLoader(std::move(heroIconIndices));
 
 	auto window = std::make_shared<CObjectListWindow>(texts, nullptr, LIBRARY->generaltexth->translate("vcmi.lobby.battleOnlyModeHeroSelect"), LIBRARY->generaltexth->translate("vcmi.lobby.battleOnlyModeHeroSelect"), [onChoose, heroes](int index){
 		onChoose(heroes.at(index));
@@ -1766,27 +1775,10 @@ CObjectListWindow::CObjectListWindow(const std::vector<int> & _items, std::share
 }
 
 CObjectListWindow::CObjectListWindow(const std::vector<std::string> & _items, std::shared_ptr<CIntObject> titleWidget_, std::string _title, std::string _descr, std::function<void(int)> Callback, size_t initialSelection, std::vector<std::shared_ptr<IImage>> images, bool searchBoxEnabled, bool blue)
-	: CWindowObject(PLAYER_COLORED, ImagePath::builtin(blue ? "TownPortalBackgroundBlue" : "TPGATE")),
-	onSelect(Callback),
-	selected(initialSelection),
-	images(images)
+	: CObjectListWindow(_items, titleWidget_, _title, _descr, Callback, initialSelection,
+		[images](size_t index) { return index < images.size() ? images[index] : std::shared_ptr<IImage>(); },
+		searchBoxEnabled, blue)
 {
-	OBJECT_CONSTRUCTION;
-
-	addUsedEvents(KEYBOARD);
-
-	items.reserve(_items.size());
-
-	for(size_t i = 0; i < _items.size(); i++)
-	{
-		std::string objectName = _items[i];
-		trimTextIfTooWide(objectName, true);
-		items.emplace_back(static_cast<int>(i), objectName);
-	}
-	itemsVisible = items;
-
-	init(titleWidget_, _title, _descr, searchBoxEnabled, blue);
-	list->scrollTo(std::min(static_cast<int>(initialSelection + 4), static_cast<int>(items.size() - 1))); // 4 is for centering (list have 9 elements)
 }
 
 CObjectListWindow::CObjectListWindow(const std::vector<std::string> & _items, std::shared_ptr<CIntObject> titleWidget_, std::string _title, std::string _descr, std::function<void(int)> Callback, size_t initialSelection, std::function<std::shared_ptr<IImage>(size_t)> imageLoader, bool searchBoxEnabled, bool blue)
