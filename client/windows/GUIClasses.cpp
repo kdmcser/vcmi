@@ -1859,11 +1859,11 @@ CObjectListWindow::CObjectListWindow(const std::vector<std::string> & _items, st
 {
 }
 
-CObjectListWindow::CObjectListWindow(const std::vector<std::string> & _items, std::shared_ptr<CIntObject> titleWidget_, std::string _title, std::string _descr, std::function<void(int)> Callback, size_t initialSelection, std::function<std::shared_ptr<IImage>(size_t)> imageLoader, bool searchBoxEnabled, bool blue)
+CObjectListWindow::CObjectListWindow(const std::vector<std::string> & _items, std::shared_ptr<CIntObject> titleWidget_, std::string _title, std::string _descr, std::function<void(int)> Callback, size_t initialSelection, const std::function<std::shared_ptr<IImage>(size_t)> & _imageLoader, bool searchBoxEnabled, bool blue)
 	: CWindowObject(PLAYER_COLORED, ImagePath::builtin(blue ? "TownPortalBackgroundBlue" : "TPGATE")),
 	onSelect(Callback),
 	selected(initialSelection),
-	imageLoader(imageLoader)
+	imageLoader(_imageLoader)
 {
 	OBJECT_CONSTRUCTION;
 
