@@ -1853,27 +1853,10 @@ CObjectListWindow::CObjectListWindow(const std::vector<int> & _items, std::share
 }
 
 CObjectListWindow::CObjectListWindow(const std::vector<std::string> & _items, std::shared_ptr<CIntObject> titleWidget_, std::string _title, std::string _descr, std::function<void(int)> Callback, size_t initialSelection, std::vector<std::shared_ptr<IImage>> images, bool searchBoxEnabled, bool blue)
-	: CWindowObject(PLAYER_COLORED, ImagePath::builtin(blue ? "TownPortalBackgroundBlue" : "TPGATE")),
-	onSelect(Callback),
-	selected(initialSelection),
-	images(images)
+	: CObjectListWindow(_items, titleWidget_, _title, _descr, Callback, initialSelection,
+		[images](size_t index) { return index < images.size() ? images[index] : std::shared_ptr<IImage>(); },
+		searchBoxEnabled, blue)
 {
-	OBJECT_CONSTRUCTION;
-
-	addUsedEvents(KEYBOARD);
-
-	items.reserve(_items.size());
-
-	for(size_t i = 0; i < _items.size(); i++)
-	{
-		std::string objectName = _items[i];
-		trimTextIfTooWide(objectName, true);
-		items.emplace_back(static_cast<int>(i), objectName);
-	}
-	itemsVisible = items;
-
-	init(titleWidget_, _title, _descr, searchBoxEnabled, blue);
-	list->scrollTo(std::min(static_cast<int>(initialSelection + 4), static_cast<int>(items.size() - 1))); // 4 is for centering (list have 9 elements)
 }
 
 CObjectListWindow::CObjectListWindow(const std::vector<std::string> & _items, std::shared_ptr<CIntObject> titleWidget_, std::string _title, std::string _descr, std::function<void(int)> Callback, size_t initialSelection, std::function<std::shared_ptr<IImage>(size_t)> imageLoader, bool searchBoxEnabled, bool blue)
