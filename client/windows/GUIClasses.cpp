@@ -1747,7 +1747,7 @@ CObjectListWindow::CObjectListWindow(const std::vector<int> & _items, std::share
 	: CWindowObject(PLAYER_COLORED, ImagePath::builtin(blue ? "TownPortalBackgroundBlue" : "TPGATE")),
 	onSelect(Callback),
 	selected(initialSelection),
-	images(images)
+	imageLoader([images](size_t index) { return index < images.size() ? images[index] : std::shared_ptr<IImage>(); })
 {
 	OBJECT_CONSTRUCTION;
 
