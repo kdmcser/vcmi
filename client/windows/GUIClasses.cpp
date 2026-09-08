@@ -1692,15 +1692,8 @@ CObjectListWindow::CItem::CItem(CObjectListWindow * _parent, size_t _id, std::st
 	int imgIndex = (it != parent->items.end()) ? std::distance(parent->items.begin(), it) : -1;
 
 	std::shared_ptr<IImage> image;
-	if(parent->imageLoader)
-	{
-		if(imgIndex >= 0)
-			image = parent->imageLoader(imgIndex);
-	}
-	else if(imgIndex >= 0 && imgIndex < parent->images.size())
-	{
-		image = parent->images[imgIndex];
-	}
+	if(parent->imageLoader && imgIndex >= 0)
+		image = parent->imageLoader(imgIndex);
 
 	if(image)
 		icon = std::make_shared<CPicture>(image, Point(1,1));
