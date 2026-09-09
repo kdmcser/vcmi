@@ -1008,6 +1008,11 @@ void SelectionTab::parseMaps(const std::unordered_set<ResourcePath> & files)
 						deserializer & fileURI;
 						ResourcePath mapRes(fileURI, EResType::MAP);
 
+						// Always consume the serialized MapListEntry to keep the stream aligned,
+						// even if this entry is rejected below.
+						auto mapInfo = std::make_shared<ElementInfo>();
+						mapInfo->initFromCache(fileURI, deserializer);
+
 						// Reject foreign or nonexistent resources: a cache entry is valid only
 						// when its declaring mod is the actual resource owner.
 						if (LIBRARY->modh->findResourceOrigin(mapRes) != modID)
@@ -1017,8 +1022,6 @@ void SelectionTab::parseMaps(const std::unordered_set<ResourcePath> & files)
 						if (!remainingFiles.contains(mapRes))
 							continue;
 
-						auto mapInfo = std::make_shared<ElementInfo>();
-						mapInfo->initFromCache(fileURI, deserializer);
 						mapInfo->name = mapInfo->getNameForList();
 
 						if (isMapSupported(*mapInfo))
