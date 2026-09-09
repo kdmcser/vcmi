@@ -50,7 +50,8 @@ si64 CBufferedStream::tell()
 
 si64 CBufferedStream::skip(si64 delta)
 {
-	return seek(position + delta) - delta;
+	si64 origin = position;
+	return seek(origin + delta) - origin;
 }
 
 si64 CBufferedStream::getSize()
