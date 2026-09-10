@@ -13,6 +13,8 @@
 #include <algorithm>
 #include <cstring>
 
+VCMI_LIB_NAMESPACE_BEGIN
+
 CBinaryCacheWriter::CBinaryCacheWriter(const char * magic)
 	: serializer(this)
 {
@@ -63,3 +65,5 @@ int CBinaryCacheReader::read(std::byte * data, unsigned size)
 	position += size;
 	return size;
 }
+
+VCMI_LIB_NAMESPACE_END

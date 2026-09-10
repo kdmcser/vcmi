@@ -14,6 +14,8 @@
 
 #include <vector>
 
+VCMI_LIB_NAMESPACE_BEGIN
+
 /// Magic values used to identify binary metadata cache files.
 namespace BinaryCache
 {
@@ -63,3 +65,5 @@ public:
 		return deserializer;
 	}
 };
+
+VCMI_LIB_NAMESPACE_END
