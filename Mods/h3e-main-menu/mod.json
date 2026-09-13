@@ -33,7 +33,10 @@
 		"hota.mainmenu",
 		"hota.mainmenu.mainMenuLegacy",
 		"tides-of-war.tow-main-menu",
-        "hi-rez-menu"
+        "hi-rez-menu",
+        "tears-of-ashan.toa-ashan-menu",
+        "naga-town.mainmenu",
+        "mainmenu"
 	],
 	"changelog" :
 	{
