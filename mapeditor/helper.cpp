@@ -32,7 +32,7 @@ ResourcePath addFilesystemAndGetResource(const QString & filenameSelect, EResTyp
 {
 	QFileInfo fi(filenameSelect);
 	std::string fname = fi.fileName().toStdString();
-	std::string fdir = fi.dir().path().toStdString();
+	auto fdir = qstringToPath(fi.dir().path());
 	
 	ResourcePath resId("MAPEDITOR/" + fname, type);
 	
@@ -105,7 +105,7 @@ void Helper::saveCampaign(std::shared_ptr<CampaignState> campaignState, const QS
 	auto jsonCampaign = CampaignHandler::writeHeaderToJson(*campaignState);
 	
 	auto io = std::make_shared<CDefaultIOApi>();
-	auto saver = std::make_shared<CZipSaver>(io, filename.toStdString());
+	auto saver = std::make_shared<CZipSaver>(io, qstringToPath(filename));
 	for(auto & scenario : campaignState->allScenarios())
 	{
 		EditorCallback cb(nullptr);
