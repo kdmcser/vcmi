@@ -583,6 +583,9 @@ bool MapController::canPlaceGrail(const CGObjectInstance * grailObj, QString & e
 	int objCounter = 0;
 	for(auto o : _map->objects)
 	{
+		if(!o)
+			continue;
+
 		if(o->ID == grailObj->ID && o->subID == grailObj->subID)
 		{
 			++objCounter;

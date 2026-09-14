@@ -213,7 +213,7 @@ void QuestWidget::obtainData()
 		}
 	}
 	
-	if(quest.killTarget != ObjectInstanceID::NONE && quest.killTarget < controller.map()->objects.size())
+	if(quest.killTarget != ObjectInstanceID::NONE && quest.killTarget < controller.map()->objects.size() && controller.map()->objects[quest.killTarget])
 		ui->lKillTarget->setText(QString::fromStdString(controller.map()->objects[quest.killTarget]->instanceName));
 	else
 		quest.killTarget = ObjectInstanceID::NONE;

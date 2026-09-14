@@ -1558,6 +1558,9 @@ void MainWindow::on_actionLock_triggered()
 		{
 			for(auto obj : controller.map()->objects)
 			{
+				if(!obj)
+					continue;
+
 				controller.scene(mapLevel)->selectionObjectsView.setLockObject(obj.get(), true);
 				controller.scene(mapLevel)->objectsView.setLockObject(obj.get(), true);
 			}
