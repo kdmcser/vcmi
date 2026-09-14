@@ -267,8 +267,8 @@ void VictoryConditions::update()
 				assert(victoryTypeWidget);
 				cond.objectType = BuildingID(victoryTypeWidget->currentData().toInt());
 				int townIdx = victorySelectWidget->currentData().toInt();
-				if(townIdx > -1)
-					cond.position = controller->map()->objects[townIdx]->pos;
+				if(auto * town = controller->map()->getObject(ObjectInstanceID(townIdx)))
+					cond.position = town->pos;
 				specialVictory.effect.toOtherMessage.appendTextID("core.genrltxt.283");
 				specialVictory.onFulfill.appendTextID("core.genrltxt.282");
 				specialVictory.trigger = EventExpression(cond);
@@ -280,7 +280,8 @@ void VictoryConditions::update()
 				assert(victoryTypeWidget);
 				cond.objectType = Obj(Obj::TOWN);
 				int townIdx = victoryTypeWidget->currentData().toInt();
-				cond.position = controller->map()->objects[townIdx]->pos;
+				if(auto * town = controller->map()->getObject(ObjectInstanceID(townIdx)))
+					cond.position = town->pos;
 				specialVictory.effect.toOtherMessage.appendTextID("core.genrltxt.250");
 				specialVictory.onFulfill.appendTextID("core.genrltxt.249");
 				specialVictory.trigger = EventExpression(cond);
@@ -292,7 +293,8 @@ void VictoryConditions::update()
 				assert(victoryTypeWidget);
 				cond.objectType = Obj(Obj::HERO);
 				int heroIdx = victoryTypeWidget->currentData().toInt();
-				cond.position = controller->map()->objects[heroIdx]->pos;
+				if(auto * hero = controller->map()->getObject(ObjectInstanceID(heroIdx)))
+					cond.position = hero->pos;
 				specialVictory.effect.toOtherMessage.appendTextID("core.genrltxt.253");
 				specialVictory.onFulfill.appendTextID("core.genrltxt.252");
 				specialVictory.trigger = EventExpression(cond);
@@ -304,8 +306,8 @@ void VictoryConditions::update()
 				assert(victoryTypeWidget);
 				cond.objectType = ArtifactID(victoryTypeWidget->currentData().toInt());
 				int townIdx = victorySelectWidget->currentData().toInt();
-				if(townIdx > -1)
-					cond.position = controller->map()->objects[townIdx]->pos;
+				if(auto * town = controller->map()->getObject(ObjectInstanceID(townIdx)))
+					cond.position = town->pos;
 				specialVictory.effect.toOtherMessage.appendTextID("core.genrltxt.293");
 				specialVictory.onFulfill.appendTextID("core.genrltxt.292");
 				specialVictory.trigger = EventExpression(cond);
@@ -317,7 +319,8 @@ void VictoryConditions::update()
 				assert(victoryTypeWidget);
 				cond.objectType = Obj(Obj::MONSTER);
 				int monsterIdx = victoryTypeWidget->currentData().toInt();
-				cond.position = controller->map()->objects[monsterIdx]->pos;
+				if(auto * monster = controller->map()->getObject(ObjectInstanceID(monsterIdx)))
+					cond.position = monster->pos;
 				specialVictory.effect.toOtherMessage.appendTextID("core.genrltxt.287");
 				specialVictory.onFulfill.appendTextID("core.genrltxt.286");
 				specialVictory.trigger = EventExpression(cond);

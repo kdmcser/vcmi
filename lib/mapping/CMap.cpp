@@ -598,35 +598,10 @@ std::shared_ptr<CGObjectInstance> CMap::removeObject(ObjectInstanceID oldObject)
 	instanceNames.erase(obj->instanceName);
 	obj->afterRemoveFromMap(this);
 
-	//update indices
-
-	auto iter = std::next(objects.begin(), obj->id.getNum());
-	iter = objects.erase(iter);
-
-	for(int i = obj->id.getNum(); iter != objects.end(); ++i, ++iter)
-		(*iter)->id = ObjectInstanceID(i);
-
-	for (auto & town : towns)
-		if (town.getNum() >= obj->id)
-			town = ObjectInstanceID(town.getNum()-1);
-
-	for (auto & hero : heroesOnMap)
-		if (hero.getNum() >= obj->id)
-			hero = ObjectInstanceID(hero.getNum()-1);
-
-	for(auto & tile : terrain)
-	{
-		for (auto & objectID : tile.blockingObjects)
-			if (objectID.getNum() >= obj->id)
-				objectID = ObjectInstanceID(objectID.getNum()-1);
-
-		for (auto & objectID : tile.visitableObjects)
-			if (objectID.getNum() >= obj->id)
-				objectID = ObjectInstanceID(objectID.getNum()-1);
-	}
-
-	//TODO: Clean artifact instances (mostly worn by hero?) and quests related to this object
-	//This causes crash with undo/redo in editor
+	// Keep a hole instead of erasing and renumbering the following objects.
+	// Object instance ids must stay stable so that undo/redo in the map editor
+	// can put the removed object back into its original slot.
+	objects.at(oldObject.getNum()) = nullptr;
 
 	return obj;
 }
@@ -797,6 +772,13 @@ void CMap::reindexObjects()
 
 	auto oldIndex = objects;
 
+	// Remove empty slots (holes) left by removeObject so that the object list
+	// is compact again after reindexing.
+	objects.clear();
+	for (const auto & obj : oldIndex)
+		if (obj)
+			objects.push_back(obj);
+
 	std::sort(objects.begin(), objects.end(), [](const auto & lhs, const auto & rhs)
 	{
 		// Obstacles first, then visitable, at the end - removable
@@ -824,19 +806,29 @@ void CMap::reindexObjects()
 	for (size_t i = 0; i < objects.size(); ++i)
 		objects[i]->id = ObjectInstanceID(i);
 
+	// Remap references that were stored as old indices to the new indices.
+	// A reference pointing to an empty slot should not exist, but guard against it.
+	auto remap = [&oldIndex](ObjectInstanceID id) -> ObjectInstanceID
+	{
+		if (id.getNum() < 0 || id.getNum() >= static_cast<int>(oldIndex.size()))
+			return id;
+		const auto & obj = oldIndex[id.getNum()];
+		return obj ? obj->id : id;
+	};
+
 	for (auto & town : towns)
-		town = oldIndex.at(town.getNum())->id;
+		town = remap(town);
 
 	for (auto & hero : heroesOnMap)
-		hero = oldIndex.at(hero.getNum())->id;
+		hero = remap(hero);
 
 	for(auto & tile : terrain)
 	{
 		for (auto & objectID : tile.blockingObjects)
-			objectID = oldIndex.at(objectID.getNum())->id;
+			objectID = remap(objectID);
 
 		for (auto & objectID : tile.visitableObjects)
-			objectID = oldIndex.at(objectID.getNum())->id;
+			objectID = remap(objectID);
 	}
 }
 

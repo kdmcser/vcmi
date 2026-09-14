@@ -160,9 +160,16 @@ void PlayerParams::on_mainTown_currentIndexChanged(int index)
 	else
 	{
 		ui->generateHero->setEnabled(true);
-		auto town = controller.map()->objects.at(ui->mainTown->currentData().toInt());
-		playerInfo.hasMainTown = true;
-		playerInfo.posOfMainTown = town->pos;
+		if(auto * town = controller.map()->getObject(ObjectInstanceID(ui->mainTown->currentData().toInt())))
+		{
+			playerInfo.hasMainTown = true;
+			playerInfo.posOfMainTown = town->pos;
+		}
+		else
+		{
+			playerInfo.hasMainTown = false;
+			playerInfo.posOfMainTown = int3(-1, -1, -1);
+		}
 	}
 }
 

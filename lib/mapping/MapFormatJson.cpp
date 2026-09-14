@@ -758,8 +758,37 @@ void CMapFormatJson::serializeTimedEvents(JsonSerializeFormat & handler)
 {
 	auto events = handler.enterArray("events");
 	std::vector<CMapEvent> temp(map->events.begin(), map->events.end());
-	events.serializeStruct(temp);
-	map->events.assign(temp.begin(), temp.end());
+
+	if (handler.saving)
+	{
+		// writeObjects() writes only non-empty objects, compacting the list.
+		// Remap object references from in-memory ids to the compact file ids,
+		// so that saved maps contain no traces of empty slots (holes).
+		std::vector<si32> oldToNew(map->objects.size(), -1);
+		si32 newId = 0;
+		for (size_t i = 0; i < map->objects.size(); ++i)
+			if (map->objects[i])
+				oldToNew[i] = newId++;
+
+		for (auto & event : temp)
+		{
+			for (auto & objectID : event.deletedObjectsInstances)
+			{
+				si32 id = objectID.getNum();
+				if (id >= 0 && id < static_cast<si32>(oldToNew.size()) && oldToNew[id] >= 0)
+					objectID = ObjectInstanceID(oldToNew[id]);
+			}
+		}
+
+		// Only the serialized copy is remapped. The in-memory map keeps its
+		// original ids (with holes), so do not write the compact ids back.
+		events.serializeStruct(temp);
+	}
+	else
+	{
+		events.serializeStruct(temp);
+		map->events.assign(temp.begin(), temp.end());
+	}
 }
 
 void CMapFormatJson::serializePredefinedHeroes(JsonSerializeFormat & handler)
@@ -1473,23 +1502,25 @@ void CMapSaverJson::writeObjects()
 {
 	logGlobal->trace("Saving objects");
 	JsonNode data;
-	int standardObjectCount = map->getObjects().size();
-	bool grailExists = map->grailPos.isValid();
-	data.Vector().resize(standardObjectCount + grailExists);
+	data.Vector().clear();
 
-	for (int i = 0; i < standardObjectCount; i++)
+	// Object instance ids may contain empty slots (holes) after removing objects.
+	// Skip them so that the saved file stays compact and identical to the format
+	// used before holes were kept in memory.
+	for (const auto & obj : map->objects)
 	{
-		JsonNode & objNode = data.Vector()[i];
-		CGObjectInstance * obj = map->getObject(ObjectInstanceID(i));
-		if(!obj)
+		if (!obj)
 			continue;
+
+		data.Vector().emplace_back();
+		JsonNode & objNode = data.Vector().back();
 		JsonSerializer handler(mapObjectResolver.get(), objNode);
 		obj->serializeJson(handler);
 
-		data[i].setModScope(ModScope::scopeGame());
+		objNode.setModScope(ModScope::scopeGame());
 	}
 
-	if(grailExists)
+	if(map->grailPos.isValid())
 	{
 		JsonNode grail;
 		grail["type"].String() = "grail";
@@ -1503,7 +1534,7 @@ void CMapSaverJson::writeObjects()
 
 		grail.setModScope(ModScope::scopeGame());
 
-		data[data.Vector().size() - 1] = grail;
+		data.Vector().push_back(grail);
 	}
 
 	//cleanup empty options

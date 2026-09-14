@@ -161,7 +161,8 @@ void LoseConditions::update()
 				cond.objectType = Obj(Obj::TOWN);
 				assert(loseTypeWidget);
 				int townIdx = loseTypeWidget->currentData().toInt();
-				cond.position = controller->map()->objects[townIdx]->pos;
+				if(auto * town = controller->map()->getObject(ObjectInstanceID(townIdx)))
+					cond.position = town->pos;
 				noneOf.expressions.push_back(cond);
 				specialDefeat.onFulfill.appendTextID("core.genrltxt.251");
 				specialDefeat.trigger = EventExpression(noneOf);
@@ -176,7 +177,8 @@ void LoseConditions::update()
 				cond.objectType = Obj(Obj::HERO);
 				assert(loseTypeWidget);
 				int townIdx = loseTypeWidget->currentData().toInt();
-				cond.position = controller->map()->objects[townIdx]->pos;
+				if(auto * hero = controller->map()->getObject(ObjectInstanceID(townIdx)))
+					cond.position = hero->pos;
 				noneOf.expressions.push_back(cond);
 				specialDefeat.onFulfill.appendTextID("core.genrltxt.253");
 				specialDefeat.trigger = EventExpression(noneOf);
