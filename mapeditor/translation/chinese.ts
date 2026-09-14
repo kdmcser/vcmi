@@ -1839,7 +1839,7 @@ Do you want to do that now ?</source>
     <message>
         <location filename="../playerparams.cpp" line="108"/>
         <source>Player ID: %1</source>
-        <translation>玩家标识符: %1</translation>
+        <translation>玩家ID: %1</translation>
     </message>
 </context>
 <context>
@@ -2041,12 +2041,12 @@ Do you want to do that now ?</source>
     <message>
         <location filename="../inspector/inspector.cpp" line="502"/>
         <source>ID</source>
-        <translation>标识符</translation>
+        <translation>ID</translation>
     </message>
     <message>
         <location filename="../inspector/inspector.cpp" line="503"/>
         <source>SubID</source>
-        <translation>子标识符</translation>
+        <translation>子ID</translation>
     </message>
     <message>
         <location filename="../inspector/inspector.cpp" line="504"/>
@@ -3600,7 +3600,7 @@ Add it to the map&apos;s required mods in Map-&gt;General settings.</source>
     <message>
         <location filename="../templateeditor/templateeditor.ui" line="673"/>
         <source>ID</source>
-        <translation>标识符</translation>
+        <translation>ID</translation>
     </message>
     <message>
         <location filename="../templateeditor/templateeditor.ui" line="689"/>
