@@ -50,6 +50,14 @@ void BattleEffectsController::displayEffect(EBattleEffect effect, const AudioPat
 
 	AnimationPath customAnim = AnimationPath::builtinTODO(graphics->battleACToDef[effectID][0]);
 
+	if(!destTile.isValid())
+	{
+		// some stacks have no battlefield position at all - e.g. castle towers, where CASTLE_*_TOWER
+		// hex values are not valid BattleHex. Animation created without destination can never finish,
+		// which would leave this effect in the list of current animations for the rest of the battle
+		return;
+	}
+
 	ENGINE->sound().playSound( soundFile );
 
 	owner.stacksController->addNewAnim(new EffectAnimation(owner, customAnim, destTile, 0, transparencyFactor));
