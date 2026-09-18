@@ -35,6 +35,11 @@ public:
 
 	virtual bool isPopupWindow() const = 0;
 	virtual void onScreenResize() = 0;
+
+	/// Called once when this window is removed from the window stack, no matter whether
+	/// it was removed by close() or directly by WindowHandler
+	virtual void onRemoved() {}
+
 	virtual ~IShowActivatable() = default;
 };
 

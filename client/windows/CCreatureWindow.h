@@ -191,6 +191,9 @@ class CStackWindow : public CWindowObject
 	std::shared_ptr<CCommanderSkillIcon> selectedIcon;
 	si32 selectedSkill;
 
+	// invoked (once) when commander level-up dialog is removed from window stack
+	std::function<void()> levelUpCloseCallback;
+
 	void setSelection(si32 newSkill, std::shared_ptr<CCommanderSkillIcon> newIcon);
 	std::shared_ptr<CIntObject> switchTab(size_t index);
 
@@ -201,6 +204,7 @@ class CStackWindow : public CWindowObject
 
 	void init();
 	void close() override;
+	void onRemoved() override;
 	void showStackExperienceDetailsWindow();
 
 	std::string getCommanderSkillDescription(int skillIndex, int skillLevel);
@@ -219,6 +223,9 @@ public:
 	// for commanders & commander level-up dialog
 	CStackWindow(const CCommanderInstance * commander, bool popup);
 	CStackWindow(const CCommanderInstance * commander, std::vector<ui32> &skills, std::function<void(ui32)> callback);
+
+	// sets callback that will be invoked once this level-up dialog is removed from window stack
+	void setLevelUpCloseCallback(std::function<void()> callback);
 
 	void keyPressed(EShortcut key) override;
 	~CStackWindow();

@@ -868,6 +868,21 @@ void CStackWindow::close()
 	CWindowObject::close();
 }
 
+void CStackWindow::setLevelUpCloseCallback(std::function<void()> callback)
+{
+	levelUpCloseCallback = std::move(callback);
+}
+
+void CStackWindow::onRemoved()
+{
+	if(!levelUpCloseCallback)
+		return;
+
+	auto callback = std::move(levelUpCloseCallback);
+	levelUpCloseCallback = nullptr;
+	callback();
+}
+
 void CStackWindow::init()
 {
 	OBJECT_CONSTRUCTION;

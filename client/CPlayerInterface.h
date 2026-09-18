@@ -78,6 +78,7 @@ public: // TODO: make private
 
 	//minor interfaces
 	ConditionalWait * showingDialog; //indicates if dialog box is displayed
+	ConditionalWait * levelUpDialogGate; //keeps commander level-up dialogs sequential until each one is closed
 
 	bool makingTurn; //if player is already making his turn
 
@@ -246,5 +247,6 @@ private:
 	void requestReturningToMainMenu(bool won);
 	void acceptTurn(QueryID queryID, bool hotseatWait); //used during hot seat after your turn message is close
 	void initializeHeroTownList();
+	void waitWhileLevelUpDialog();
 	int getLastIndex(std::string namePrefix);
 };

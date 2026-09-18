@@ -30,6 +30,8 @@ void WindowHandler::popWindow(std::shared_ptr<IShowActivatable> top)
 		windowsStack.back()->activate();
 
 	totalRedraw();
+
+	top->onRemoved();
 }
 
 void WindowHandler::pushWindow(std::shared_ptr<IShowActivatable> newInt)
@@ -82,8 +84,13 @@ void WindowHandler::popWindows(int howMany)
 
 	assert(windowsStack.size() >= howMany);
 	windowsStack.back()->deactivate();
+
+	std::vector<std::shared_ptr<IShowActivatable>> removed;
+	removed.reserve(howMany);
+
 	for(int i = 0; i < howMany; i++)
 	{
+		removed.push_back(windowsStack.back());
 		disposed.push_back(windowsStack.back());
 		windowsStack.pop_back();
 	}
@@ -94,6 +101,9 @@ void WindowHandler::popWindows(int howMany)
 		totalRedraw();
 	}
 	ENGINE->fakeMouseMove();
+
+	for(const auto & window : removed)
+		window->onRemoved();
 }
 
 std::shared_ptr<IShowActivatable> WindowHandler::topWindowImpl() const
@@ -169,9 +179,14 @@ size_t WindowHandler::count() const
 
 void WindowHandler::clear()
 {
-	if(!windowsStack.empty())
-		windowsStack.back()->deactivate();
+	auto removed = std::move(windowsStack);
+
+	if(!removed.empty())
+		removed.back()->deactivate();
 
 	windowsStack.clear();
 	disposed.clear();
+
+	for(const auto & window : removed)
+		window->onRemoved();
 }

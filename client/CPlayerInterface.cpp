@@ -142,6 +142,7 @@ CPlayerInterface::CPlayerInterface(PlayerColor Player):
 	castleInt = nullptr;
 	makingTurn = false;
 	showingDialog = new ConditionalWait();
+	levelUpDialogGate = new ConditionalWait();
 	cingconsole = new CInGameConsole();
 	autosaveCount = 0;
 	isAutoFightOn = false;
@@ -154,6 +155,7 @@ CPlayerInterface::~CPlayerInterface()
 {
 	logGlobal->trace("\tHuman player interface for player %s being destructed", playerID.toString());
 	delete showingDialog;
+	delete levelUpDialogGate;
 	delete cingconsole;
 	if (GAME->interface() == this)
 		GAME->setInterfaceInstance(nullptr);
@@ -541,15 +543,30 @@ void CPlayerInterface::heroGotLevel(const CGHeroInstance *hero, PrimarySkill psk
 void CPlayerInterface::commanderGotLevel (const CCommanderInstance * commander, std::vector<ui32> skills, QueryID queryID)
 {
 	EVENT_HANDLER_CALLED_BY_CLIENT;
+	waitWhileLevelUpDialog();
 	waitWhileDialog();
 	ENGINE->sound().playSound(soundBase::heroNewLevel);
-	ENGINE->windows().createAndPushWindow<CStackWindow>(commander, skills, [this, queryID](ui32 selection)
+
+	auto levelUpWindow = std::make_shared<CStackWindow>(commander, skills, [this, queryID](ui32 selection)
 	{
 		if(queryID < 0)
 			return;
 
 		cb->selectionMade(selection, queryID);
 	});
+
+	// Server sends one level-up packet per gained level, so several of these dialogs may arrive at
+	// once. Keep the chain blocked until this dialog is closed, so that the following level-up
+	// packets are applied one by one and each dialog shows the state of its own level.
+	// A dedicated gate is used instead of showingDialog, since the latter can be released early
+	// by dialogs opened from inside the level-up window, such as skill descriptions.
+	levelUpDialogGate->setBusy();
+	levelUpWindow->setLevelUpCloseCallback([this]()
+	{
+		levelUpDialogGate->setFree();
+	});
+
+	ENGINE->windows().pushWindow(levelUpWindow);
 }
 
 void CPlayerInterface::heroInGarrisonChange(const CGTownInstance *town)
@@ -1410,6 +1427,18 @@ void CPlayerInterface::waitWhileDialog()
 	showingDialog->waitWhileBusy();
 }
 
+void CPlayerInterface::waitWhileLevelUpDialog()
+{
+	if (ENGINE->amIGuiThread())
+	{
+		logGlobal->warn("Cannot wait for dialogs in gui thread (deadlock risk)!");
+		return;
+	}
+
+	auto unlockInterface = vstd::makeUnlockGuard(ENGINE->interfaceMutex);
+	levelUpDialogGate->waitWhileBusy();
+}
+
 void CPlayerInterface::showShipyardDialog(const IShipyard *obj)
 {
 	EVENT_HANDLER_CALLED_BY_CLIENT;
@@ -1525,6 +1554,7 @@ void CPlayerInterface::update()
 void CPlayerInterface::endNetwork()
 {
 	showingDialog->requestTermination();
+	levelUpDialogGate->requestTermination();
 }
 
 int CPlayerInterface::getLastIndex( std::string namePrefix)
