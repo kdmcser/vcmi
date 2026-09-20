@@ -41,6 +41,7 @@ struct DLL_LINKAGE Bonus : public std::enable_shared_from_this<Bonus>, public Se
 	BonusValueType valType = BonusValueType::ADDITIVE_VALUE; // 1 byte
 	BonusSource source = BonusSource::OTHER; //source type" uses BonusSource values - what gave that bonus - 1 byte
 	BonusSource targetSourceType = BonusSource::OTHER;//Bonuses of what origin this amplifies, uses BonusSource values. Needed for PERCENT_TO_TARGET_TYPE. - 1 byte
+	BonusSourceID targetSourceID;//Narrows targetSourceType to a single source object. Empty value means no restriction
 	BonusLimitEffect effectRange = BonusLimitEffect::NO_LIMIT; // 1 byte
 	BonusType type = BonusType::NONE; //uses BonusType values - says to what is this bonus - 2 bytes
 
@@ -99,6 +100,11 @@ struct DLL_LINKAGE Bonus : public std::enable_shared_from_this<Bonus>, public Se
 		h & updater;
 		h & propagationUpdater;
 		h & targetSourceType;
+
+		if (h.hasFeature(Handler::Version::BONUS_TARGET_SOURCE_ID))
+			h & targetSourceID;
+		else
+			targetSourceID = BonusSourceID();
 	}
 
 	void convertAddInfo(const std::vector<int> & oldAddInfo);
