@@ -33,12 +33,6 @@ namespace Selector
 		return ssourceType;
 	}
 
-	DLL_LINKAGE const CSelectFieldEqual<BonusSource> & targetSourceType()
-	{
-		static const CSelectFieldEqual<BonusSource> ssourceType(&Bonus::targetSourceType);
-		return ssourceType;
-	}
-
 	DLL_LINKAGE const CSelectFieldEqual<BonusLimitEffect> & effectRange()
 	{
 		static const CSelectFieldEqual<BonusLimitEffect> seffectRange(&Bonus::effectRange);
