@@ -29,6 +29,7 @@
 #include "../constants/StringConstants.h"
 #include "../CPlayerState.h"
 #include "../CSkillHandler.h"
+#include "../gameState/CGameState.h"
 #include "../mapping/CMap.h"
 #include "../mapObjects/CGHeroInstance.h"
 #include "../modding/ModScope.h"
@@ -36,6 +37,7 @@
 #include "../networkPacks/PacksForClient.h"
 #include "../spells/CSpellHandler.h"
 
+#include <boost/format.hpp>
 #include <vstd/RNG.h>
 
 VCMI_LIB_NAMESPACE_BEGIN
@@ -247,6 +249,20 @@ void CQuest::addTextReplacements(const IGameInfoCallback * cb, MetaString & text
 	
 	if(lastDay >= 0)
 		text.replaceNumber(lastDay - cb->getDate(Date::DAY));
+	
+	if(mission.daysPassed > 0)
+	{
+		// HotA "reach date" quest (timed quest gate): text contains a string placeholder (%s)
+		// that must be filled with the date on which the object becomes accessible.
+		// Reuse the same date format as adventure map date bar, with translated labels
+		std::string pattern = "%s: %d, %s: %d, %s: %d";
+		auto formatted = boost::format(pattern)
+			% LIBRARY->generaltexth->translate("core.genrltxt.62") % CGameState::getDate(mission.daysPassed, Date::MONTH)
+			% LIBRARY->generaltexth->translate("core.genrltxt.63") % CGameState::getDate(mission.daysPassed, Date::WEEK)
+			% LIBRARY->generaltexth->translate("core.genrltxt.64") % CGameState::getDate(mission.daysPassed, Date::DAY_OF_WEEK);
+
+		text.replaceRawString(boost::str(formatted));
+	}
 }
 
 void CQuest::getVisitText(const IGameInfoCallback * cb, MetaString &iwText, std::vector<Component> &components, bool firstVisit, const CGHeroInstance * h) const
