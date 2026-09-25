@@ -169,12 +169,27 @@ bool EncryptedZipReader::openEntry(std::uint64_t centralDirectoryOffset)
 			return false;
 		}
 
-		ZipAes::aesCtrInit(aesCtr, aesStrength, keyMaterial.encryptionKey);
-		ZipAes::hmacSha1Init(aesHmac, keyMaterial.authenticationKey, ZipAes::keyLength(aesStrength));
+		remainingCipher = compressedSize - overhead;
+
+		// 认证码在数据末尾，而数据一旦交出去就收不回来，所以趁密钥还在手上
+		// 先把密文整体扫一遍验证掉；通过之后才允许读给调用方。
+		const std::uint64_t cipherOffset = dataOffset
+		                                 + static_cast<std::uint64_t>(saltSize)
+		                                 + ZipAes::verifyValueLength;
+
+		const bool authenticated = precheckAuthentication(
+		    keyMaterial.authenticationKey, ZipAes::keyLength(aesStrength), cipherOffset);
+
+		if(authenticated)
+		{
+			ZipAes::aesCtrInit(aesCtr, aesStrength, keyMaterial.encryptionKey);
+			ZipAes::hmacSha1Init(aesHmac, keyMaterial.authenticationKey, ZipAes::keyLength(aesStrength));
+		}
 
 		ZipAes::secureErase(&keyMaterial, sizeof(keyMaterial));
 
-		remainingCipher = compressedSize - overhead;
+		if(!authenticated)
+			return false;
 	}
 	else
 	{
@@ -402,36 +417,48 @@ si64 EncryptedZipReader::read(ui8 * data, si64 size)
 	return produced;
 }
 
-void EncryptedZipReader::finishEntry()
+bool EncryptedZipReader::precheckAuthentication(const std::uint8_t * authenticationKey,
+                                                std::size_t keyLength, std::uint64_t cipherOffset)
 {
-	// 只有 AES 有认证码，且它在数据末尾；调用方没读完时可能取不到，
-	// 那就放弃这次校验（认证码是防篡改用的，不是防提取的手段）。
-	if(cipher == Cipher::Aes)
+	ZipAes::HmacSha1Context hmac;
+	ZipAes::hmacSha1Init(hmac, authenticationKey, keyLength);
+
+	std::vector<ui8> buffer(chunkSize);
+	std::uint64_t left = remainingCipher;
+
+	while(left > 0)
 	{
-		std::uint8_t storedAuthCode[ZipAes::authCodeLength];
-		std::uint8_t computedAuthCode[20];
+		const std::uint64_t take = std::min<std::uint64_t>(left, static_cast<std::uint64_t>(buffer.size()));
 
-		if(readExact(storedAuthCode, ZipAes::authCodeLength))
-		{
-			ZipAes::hmacSha1Final(aesHmac, computedAuthCode);
-			authenticationValid =
-			    std::memcmp(storedAuthCode, computedAuthCode, ZipAes::authCodeLength) == 0;
-			authenticationChecked = true;
+		if(!readExact(buffer.data(), static_cast<std::size_t>(take)))
+			return false;
 
-			ZipAes::secureErase(computedAuthCode, sizeof(computedAuthCode));
-		}
+		ZipAes::hmacSha1Update(hmac, buffer.data(), static_cast<std::size_t>(take));
+		left -= take;
 	}
 
-	finished = true;
+	std::uint8_t storedAuthCode[ZipAes::authCodeLength];
+	if(!readExact(storedAuthCode, ZipAes::authCodeLength))
+		return false;
+
+	std::uint8_t computedAuthCode[20];
+	ZipAes::hmacSha1Final(hmac, computedAuthCode);
+
+	const bool valid = std::memcmp(storedAuthCode, computedAuthCode, ZipAes::authCodeLength) == 0;
+
+	ZipAes::secureErase(&hmac, sizeof(hmac));
+	ZipAes::secureErase(computedAuthCode, sizeof(computedAuthCode));
+	ZipAes::secureErase(buffer.data(), buffer.size());
+
+	// 回到密文开头：正式读取时从头再解密一遍
+	return valid && seek(cipherOffset);
 }
 
-void EncryptedZipReader::finishEntryIfComplete()
+void EncryptedZipReader::finishEntry()
 {
-	// 密文没读完就不碰认证码：位置不对，也谈不上校验
-	if(finished || failed || remainingCipher != 0)
-		return;
-
-	finishEntry();
+	// 认证码在打开条目时就校验过了（见 precheckAuthentication），
+	// 走到这里只是标记这条数据已经读完
+	finished = true;
 }
 
 }

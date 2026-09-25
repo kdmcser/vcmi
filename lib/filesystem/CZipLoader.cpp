@@ -44,16 +44,7 @@ CZipStream::CZipStream(const std::shared_ptr<CIOApi> & api, const boost::filesys
 
 CZipStream::~CZipStream()
 {
-	if(encryptedReader)
-	{
-		// 认证码在条目数据末尾，只有整个条目读完才能校验，所以只能在这里做。
-		// 校验不通过说明密文被改过（AES-CTR 可被定向翻转）或已损坏。
-		// 到这一步数据已经交给调用方了，没法再回退成读取错误，只能记下来。
-		encryptedReader->finishEntryIfComplete();
-		if(encryptedReader->isAuthenticationFailed())
-			logGlobal->error("Encrypted archive entry failed authentication check, data may have been tampered with");
-	}
-
+	// 加密条目的认证码在打开时就已经校验过了，不通过的话压根读不出数据
 	unzCloseCurrentFile(file);
 	unzClose(file);
 }
