@@ -10,7 +10,7 @@
 #pragma once
 
 #include "StdInc.h"
-#include "ZipAesCrypto.h"
+#include "../ZipAesCrypto.h"
 #include "ZipCrypto.h"
 
 #include <vector>
