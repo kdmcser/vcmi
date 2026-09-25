@@ -37,6 +37,16 @@ CZipStream::CZipStream(const std::shared_ptr<CIOApi> & api, const boost::filesys
 		if(unzGetFilePos64(file, &entryPosition) == UNZ_OK)
 			encryptedReader = std::make_unique<ModPassword::EncryptedZipReader>(
 			    zlibApi, archive.string(), entryPosition.pos_in_zip_directory);
+
+		// 打不开（密码不对、密文被改过、包损坏）就在这里明确报出来。放过去的话，
+		// 调用方拿到的是一个读不出任何数据的流，而 CBufferedStream 又处理不了
+		// read() 返回 -1，最后会在 buffer.resize 上炸掉。
+		if(encryptedReader == nullptr || encryptedReader->isFailed())
+		{
+			unzCloseCurrentFile(file);
+			unzClose(file);
+			throw std::runtime_error("Failed to open encrypted entry in '" + archive.string() + "'");
+		}
 	}
 	else 
 		unzOpenCurrentFile(file);
