@@ -89,7 +89,17 @@ uint32_t ModsState::computeChecksum(const TModID & modName) const
 
 	for (const ResourcePath & file : files)
 	{
-		ui32 fileChecksum = filesystem->load(file)->calculateCRC32();
+		ui32 fileChecksum = 0;
+		try
+		{
+			fileChecksum = filesystem->load(file)->calculateCRC32();
+		}
+		catch (const std::exception & e)
+		{
+			// 校验和是尽力而为的：某个文件读不出来（例如加密条目打不开）
+			// 不该让整个加载流程失败，按 0 计入即可
+			logGlobal->error("Failed to checksum '%s': %s", file.getName(), e.what());
+		}
 		modChecksum.process_bytes(static_cast<const void *>(&fileChecksum), sizeof(fileChecksum));
 	}
 	return modChecksum.checksum();

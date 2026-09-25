@@ -68,17 +68,20 @@ std::uint32_t readLittleEndian32(const std::uint8_t * data)
 
 }
 
-EncryptedZipReader::EncryptedZipReader(const zlib_filefunc64_def & fileApi, const std::string & archivePath,
+EncryptedZipReader::EncryptedZipReader(const zlib_filefunc64_def & fileApi, const void * archivePath,
                                        std::uint64_t centralDirectoryOffset)
 	: fileApi(fileApi)
 {
-	stream = fileApi.zopen64_file(fileApi.opaque, archivePath.c_str(), ZLIB_FILEFUNC_MODE_READ);
+	// 路径按 fileApi 的约定原样透传：Windows 下实现期望宽字符路径，
+	// 这里绝不能拿 std::string::c_str() 去顶
+	stream = fileApi.zopen64_file(fileApi.opaque, archivePath, ZLIB_FILEFUNC_MODE_READ);
 	if(stream == nullptr)
 	{
 		failed = true;
 		return;
 	}
 
+	// 打不开的具体原因由调用方（CZipLoader）连条目名和包名一起记下来
 	if(!openEntry(centralDirectoryOffset))
 		failed = true;
 }

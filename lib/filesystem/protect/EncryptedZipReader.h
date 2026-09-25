@@ -43,7 +43,13 @@ class EncryptedZipReader
 {
 public:
 	/// centralDirectoryOffset 取自 unzGetFilePos64() 返回的 pos_in_zip_directory
-	EncryptedZipReader(const zlib_filefunc64_def & fileApi, const std::string & archivePath,
+	///
+	/// archivePath 必须按 fileApi 约定的类型原样传入，这里不做转换：
+	/// Windows 下 zopen64_file 的实现（MinizipExtensions.cpp）会把文件名当成
+	/// 宽字符串用 _wfopen 打开，所以调用方要传 boost::filesystem::path::c_str()；
+	/// 其他平台是普通 char 路径。传 std::string::c_str() 会被当成宽字符串解释，
+	/// 路径全乱、必然打不开。
+	EncryptedZipReader(const zlib_filefunc64_def & fileApi, const void * archivePath,
 	                   std::uint64_t centralDirectoryOffset);
 	~EncryptedZipReader();
 
