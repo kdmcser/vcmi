@@ -519,6 +519,7 @@ if(Boost_MAJOR_VERSION EQUAL 1 AND Boost_MINOR_VERSION LESS 69)
 endif()
 
 find_package(ZLIB REQUIRED)
+find_package(OpenSSL REQUIRED)
 # Conan compatibility
 if(TARGET zlib::zlib)
 	add_library(ZLIB::ZLIB ALIAS zlib::zlib)

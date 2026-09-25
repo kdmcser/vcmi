@@ -1,5 +1,4 @@
 find_package(LuaJIT)
-find_package(OpenSSL REQUIRED)
 
 if (LUAJIT_FOUND)
 	message(STATUS "LuaJIT found: ${LUAJIT_LIBRARIES}")
