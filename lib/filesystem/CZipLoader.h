@@ -15,12 +15,16 @@
 #include "CCompressedStream.h"
 
 #include "MinizipExtensions.h"
+#include "protect/EncryptedZipReader.h"
 
 VCMI_LIB_NAMESPACE_BEGIN
 
 class DLL_LINKAGE CZipStream : public CBufferedStream
 {
 	unzFile file;
+
+	/// Both encrypted entry types (ZipCrypto and AES) are decrypted by it, so the plaintext password never has to be handed to minizip
+	std::unique_ptr<ModPassword::EncryptedZipReader> encryptedReader;
 
 public:
 	/**

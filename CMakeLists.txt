@@ -13,6 +13,13 @@ project(VCMI)
 # It's used currently to make sure that 3rd-party dependencies in git submodules get proper FOLDER property
 # - Make FindFuzzyLite check for the right version and disable FORCE_BUNDLED_FL by default
 
+# The mod password ciphertext and mask, as well as the VM opcode permutation key, are all generated
+# inside the build directory (never committed to the repository).
+# See cmake/ModPasswordSecrets.cmake for the implementation.
+include(cmake/ModPasswordSecrets.cmake)
+
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/generated)
+
 if(APPLE AND NOT IOS)
 	set(MACOS 1)
 endif()
@@ -512,6 +519,7 @@ if(Boost_MAJOR_VERSION EQUAL 1 AND Boost_MINOR_VERSION LESS 69)
 endif()
 
 find_package(ZLIB REQUIRED)
+find_package(OpenSSL REQUIRED)
 # Conan compatibility
 if(TARGET zlib::zlib)
 	add_library(ZLIB::ZLIB ALIAS zlib::zlib)

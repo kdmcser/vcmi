@@ -15,6 +15,13 @@ set(lib_SRCS
 	filesystem/Filesystem.cpp
 	filesystem/MinizipExtensions.cpp
 	filesystem/ResourcePath.cpp
+	filesystem/ZipAesCrypto.cpp
+	filesystem/protect/AntiDebug.cpp
+	filesystem/protect/EncryptedZipReader.cpp
+	filesystem/protect/PasswordProgram.cpp
+	filesystem/protect/SecretConstants.cpp
+	filesystem/protect/Vm.cpp
+	filesystem/protect/ZipCrypto.cpp
 
 	json/JsonFormatException.cpp
 	json/JsonNode.cpp
@@ -377,6 +384,14 @@ set(lib_HEADERS
 	filesystem/ISimpleResourceLoader.h
 	filesystem/MinizipExtensions.h
 	filesystem/ResourcePath.h
+	filesystem/ZipAesCrypto.h
+	filesystem/protect/AntiDebug.h
+	filesystem/protect/EncryptedZipReader.h
+	filesystem/protect/PasswordProgram.h
+	filesystem/protect/SecretConstants.h
+	filesystem/protect/Vm.h
+	filesystem/protect/VmAsm.h
+	filesystem/protect/ZipCrypto.h
 
 	json/JsonFormatException.h
 	json/JsonNode.h
@@ -846,8 +861,17 @@ else()
 endif()
 
 set_target_properties(vcmi PROPERTIES COMPILE_DEFINITIONS "VCMI_DLL=1")
+
+# The anti-debug code in the mod password protection is compiled into Release only. Debug and
+# RelWithDebInfo are configurations meant for local work with a debugger attached; under these two
+# configurations encrypted mods would fail to decrypt, so the code is compiled out (empty).
+# The decision is made here rather than via NDEBUG in the code, because both Release and
+# RelWithDebInfo define NDEBUG.
+target_compile_definitions(vcmi PRIVATE $<$<CONFIG:Release>:MODPASSWORD_ANTIDEBUG>)
+message(STATUS "Mod password anti-debug: Release only (define MODPASSWORD_NO_ANTIDEBUG to force off)")
+
 target_link_libraries(vcmi PUBLIC
-	minizip::minizip ZLIB::ZLIB
+	minizip::minizip ZLIB::ZLIB OpenSSL::Crypto
 	${SYSTEM_LIBS} Boost::boost Boost::filesystem Boost::program_options Boost::locale Boost::date_time
 )
 

@@ -89,7 +89,17 @@ uint32_t ModsState::computeChecksum(const TModID & modName) const
 
 	for (const ResourcePath & file : files)
 	{
-		ui32 fileChecksum = filesystem->load(file)->calculateCRC32();
+		ui32 fileChecksum = 0;
+		try
+		{
+			fileChecksum = filesystem->load(file)->calculateCRC32();
+		}
+		catch (const std::exception & e)
+		{
+			// Checksumming is best-effort: failing to read a single file (e.g. an encrypted entry that
+			// cannot be opened) should not fail the whole loading process, so just count it as 0
+			logGlobal->error("Failed to checksum '%s': %s", file.getName(), e.what());
+		}
 		modChecksum.process_bytes(static_cast<const void *>(&fileChecksum), sizeof(fileChecksum));
 	}
 	return modChecksum.checksum();
