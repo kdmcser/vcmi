@@ -58,6 +58,14 @@ public:
 	/// AES 的认证码是否通过校验（ZipCrypto 没有认证码，恒为 false）
 	bool isAuthenticationValid() const { return authenticationValid; }
 
+	/// 调用方读完条目后调用：数据已全部读完时，把末尾的认证码校验掉。
+	/// 认证码在数据末尾，没读完就无从校验，这种情况直接放弃（不是失败）。
+	void finishEntryIfComplete();
+
+	/// 认证码是否「已校验且未通过」——说明密文被改过或损坏。
+	/// 没读完的条目、以及没有认证码的 ZipCrypto 条目恒为 false
+	bool isAuthenticationFailed() const { return authenticationChecked && !authenticationValid; }
+
 private:
 	enum class Cipher
 	{
@@ -82,6 +90,10 @@ private:
 	bool failed = false;
 	bool finished = false;
 	bool authenticationValid = false;
+
+	/// 认证码是否真的被读过并比对过。false 表示无法校验（没读完 / 无认证码），
+	/// 这时 authenticationValid 的值没有意义
+	bool authenticationChecked = false;
 
 	Cipher cipher = Cipher::Aes;
 

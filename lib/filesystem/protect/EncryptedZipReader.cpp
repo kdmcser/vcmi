@@ -410,12 +410,22 @@ void EncryptedZipReader::finishEntry()
 			ZipAes::hmacSha1Final(aesHmac, computedAuthCode);
 			authenticationValid =
 			    std::memcmp(storedAuthCode, computedAuthCode, ZipAes::authCodeLength) == 0;
+			authenticationChecked = true;
 
 			ZipAes::secureErase(computedAuthCode, sizeof(computedAuthCode));
 		}
 	}
 
 	finished = true;
+}
+
+void EncryptedZipReader::finishEntryIfComplete()
+{
+	// 密文没读完就不碰认证码：位置不对，也谈不上校验
+	if(finished || failed || remainingCipher != 0)
+		return;
+
+	finishEntry();
 }
 
 }
