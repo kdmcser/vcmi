@@ -9,6 +9,7 @@
  */
 #include "StdInc.h"
 #include "CZipLoader.h"
+#include "../ExceptionsCommon.h"
 #include "../ScopeGuard.h"
 #include "../texts/TextOperations.h"
 
@@ -21,31 +22,48 @@ CZipStream::CZipStream(const std::shared_ptr<CIOApi> & api, const boost::filesys
 	zlibApi = api->getApiStructure();
 
 	file = unzOpen2_64(archive.c_str(), &zlibApi);
-	unzGoToFilePos64(file, &filepos);
-	unz_file_info64 file_info;
-	char filename_inzip[256];
-	unzGetCurrentFileInfo64(file, &file_info,
-		filename_inzip, sizeof(filename_inzip),
-		nullptr, 0,
-		nullptr, 0
-	);
+	if(file == nullptr)
+	{
+		logGlobal->error("Failed to open zip archive %s", archive.string());
+		throw DataLoadingException("Failed to open zip archive '" + archive.string() + "'");
+	}
+
+	// 这两个调用失败时 file_info 一个字节都不会被写入。原来的代码没看返回值，
+	// 后面 getSize() / calculateCRC32() 读的就是栈上的垃圾值，
+	// 调用方再拿它去 resize 一个缓冲区，就会直接炸掉。这里必须当硬错误处理。
+	unz_file_info64 file_info{};
+	char filename_inzip[256]{};
+	if(unzGoToFilePos64(file, &filepos) != UNZ_OK
+	   || unzGetCurrentFileInfo64(file, &file_info, filename_inzip, sizeof(filename_inzip),
+	                              nullptr, 0, nullptr, 0) != UNZ_OK)
+	{
+		logGlobal->error("Failed to locate entry in zip archive %s", archive.string());
+		unzClose(file);
+		throw DataLoadingException("Failed to locate entry in zip archive '" + archive.string() + "'");
+	}
+
 	if ((file_info.flag & 1) != 0)
 	{
 		// 加密条目（ZipCrypto 与 AES）统一交给受保护的读取器：
 		// 交给 minizip 就得把密码明文递进去，那正是攻击者想要的。
+		// 路径要传 archive.c_str()：Windows 下它是宽字符，跟 IO 实现的约定一致；
+		// 传 std::string::c_str() 会被当成宽字符串解释，路径全乱、必然打不开。
 		unz64_file_pos entryPosition;
 		if(unzGetFilePos64(file, &entryPosition) == UNZ_OK)
 			encryptedReader = std::make_unique<ModPassword::EncryptedZipReader>(
-			    zlibApi, archive.string(), entryPosition.pos_in_zip_directory);
+			    zlibApi, archive.c_str(), entryPosition.pos_in_zip_directory);
 
-		// 打不开（密码不对、密文被改过、包损坏）就在这里明确报出来。放过去的话，
-		// 调用方拿到的是一个读不出任何数据的流，而 CBufferedStream 又处理不了
-		// read() 返回 -1，最后会在 buffer.resize 上炸掉。
+		// 打不开（密码不对、密文被改过、包损坏）就按 VCMI 里"资源读不出来"的
+		// 统一类型报出来，交给上层决定怎么办。注意不能抛 std::runtime_error：
+		// 这条路径（CModState::computeChecksum 之类）只认 DataLoadingException，
+		// 别的类型会一路逃到顶层把客户端带崩。
 		if(encryptedReader == nullptr || encryptedReader->isFailed())
 		{
+			logGlobal->error("Failed to open encrypted entry %s in %s", filename_inzip, archive.string());
 			unzCloseCurrentFile(file);
 			unzClose(file);
-			throw std::runtime_error("Failed to open encrypted entry in '" + archive.string() + "'");
+			throw DataLoadingException("Failed to open encrypted entry '" + std::string(filename_inzip)
+			                           + "' in '" + archive.string() + "'");
 		}
 	}
 	else 
@@ -69,15 +87,19 @@ si64 CZipStream::readMore(ui8 * data, si64 size)
 
 si64 CZipStream::getSize()
 {
-	unz_file_info64 info;
-	unzGetCurrentFileInfo64 (file, &info, nullptr, 0, nullptr, 0, nullptr, 0);
+	unz_file_info64 info{};
+	if(unzGetCurrentFileInfo64(file, &info, nullptr, 0, nullptr, 0, nullptr, 0) != UNZ_OK)
+		return 0;
+
 	return info.uncompressed_size;
 }
 
 ui32 CZipStream::calculateCRC32()
 {
-	unz_file_info64 info;
-	unzGetCurrentFileInfo64 (file, &info, nullptr, 0, nullptr, 0, nullptr, 0);
+	unz_file_info64 info{};
+	if(unzGetCurrentFileInfo64(file, &info, nullptr, 0, nullptr, 0, nullptr, 0) != UNZ_OK)
+		return 0;
+
 	return info.crc;
 }
 
