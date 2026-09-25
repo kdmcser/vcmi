@@ -71,7 +71,20 @@ CZipStream::CZipStream(const std::shared_ptr<CIOApi> & api, const boost::filesys
 		nullptr, 0
 	);
 	if ((file_info.flag & 1) != 0)
-		unzOpenCurrentFilePassword(file, deobfuscate(MOD_PASSWORD).c_str());
+	{
+		// AES 加密的条目（compression method = 99）minizip 不认识，
+		// 交给自研的解密器；传统的 ZipCrypto 仍然走 minizip。
+		if (file_info.compression_method == 99)
+		{
+			unz64_file_pos entryPosition;
+			if(unzGetFilePos64(file, &entryPosition) == UNZ_OK)
+				aesReader = std::make_unique<ZipAes::ZipAesReader>(zlibApi, archive.string(),
+				                                                   entryPosition.pos_in_zip_directory,
+				                                                   deobfuscate(MOD_PASSWORD));
+		}
+		else
+			unzOpenCurrentFilePassword(file, deobfuscate(MOD_PASSWORD).c_str());
+	}
 	else 
 		unzOpenCurrentFile(file);
 }
@@ -84,6 +97,9 @@ CZipStream::~CZipStream()
 
 si64 CZipStream::readMore(ui8 * data, si64 size)
 {
+	if (aesReader)
+		return aesReader->read(data, size);
+
 	return unzReadCurrentFile(file, data, static_cast<unsigned int>(size));
 }
 

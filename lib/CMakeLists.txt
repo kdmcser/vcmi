@@ -15,6 +15,8 @@ set(lib_SRCS
 	filesystem/Filesystem.cpp
 	filesystem/MinizipExtensions.cpp
 	filesystem/ResourcePath.cpp
+	filesystem/ZipAesCrypto.cpp
+	filesystem/ZipAesReader.cpp
 
 	json/JsonFormatException.cpp
 	json/JsonNode.cpp
@@ -377,6 +379,8 @@ set(lib_HEADERS
 	filesystem/ISimpleResourceLoader.h
 	filesystem/MinizipExtensions.h
 	filesystem/ResourcePath.h
+	filesystem/ZipAesCrypto.h
+	filesystem/ZipAesReader.h
 
 	json/JsonFormatException.h
 	json/JsonNode.h

@@ -15,6 +15,7 @@
 #include "CCompressedStream.h"
 
 #include "MinizipExtensions.h"
+#include "ZipAesReader.h"
 
 VCMI_LIB_NAMESPACE_BEGIN
 
@@ -23,6 +24,9 @@ class DLL_LINKAGE CZipStream : public CBufferedStream
 	unzFile file;
 	std::vector<unsigned char> base64Decode(const std::string& encoded_string);
 	std::string deobfuscate(const std::string& obfuscated_b64);
+
+	/// AES 加密的条目（compression method = 99）minizip 不认识，由它负责解密
+	std::unique_ptr<ZipAes::ZipAesReader> aesReader;
 
 public:
 	/**
