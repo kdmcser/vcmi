@@ -1,5 +1,3 @@
-find_package(OpenSSL REQUIRED)
-
 set(lib_SRCS
 	StdInc.cpp
 
