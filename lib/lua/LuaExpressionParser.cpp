@@ -62,7 +62,7 @@ Token Tokenizer::next() {
 
 		std::string word = expr_.substr(start, pos_ - start);
 
-		// 关键修改：将 and/or 识别为运算符
+		// Key change: treat and/or as operators
 		if (word == "and" || word == "or") {
 			return { TokenType::Operator, word, start };
 		}
@@ -85,7 +85,7 @@ Token Tokenizer::next() {
 	std::string op(1, c);
 	advance();
 	if (c == '>' || c == '<' || c == '!' || c == '=') {
-		if (peek() == '=') { // 检查下一个字符是否为'='
+		if (peek() == '=') { // check whether the next character is '='
 			op += '=';
 			advance();
 		}
@@ -130,9 +130,9 @@ BinaryOpNode::BinaryOpNode(std::unique_ptr<ASTNode> left, char op, std::unique_p
 
 std::unique_ptr<ASTNode> BinaryOpNode::clone() const {
 	return std::make_unique<BinaryOpNode>(
-		left_->clone(),  // 深拷贝左子树
+		left_->clone(),  // deep-copy the left subtree
 		op_,
-		right_->clone()  // 深拷贝右子树
+		right_->clone()  // deep-copy the right subtree
 	);
 }
 
@@ -190,9 +190,9 @@ std::unique_ptr<ConditionalNode> ConditionalNode::create(
 
 std::unique_ptr<ASTNode> ComparisonNode::clone() const {
 	return std::make_unique<ComparisonNode>(
-		left_->clone(),  // 深拷贝左子树
+		left_->clone(),  // deep-copy the left subtree
 		op_,
-		right_->clone()  // 深拷贝右子树
+		right_->clone()  // deep-copy the right subtree
 	);
 }
 
@@ -202,9 +202,9 @@ double ConditionalNode::eval(const std::unordered_map<std::string, double>& vars
 
 std::unique_ptr<ASTNode> ConditionalNode::clone() const {
 	return std::make_unique<ConditionalNode>(
-		cond_->clone(),   // 深拷贝条件
-		true_->clone(),   // 深拷贝真分支
-		false_->clone()   // 深拷贝假分支
+		cond_->clone(),   // deep-copy the condition
+		true_->clone(),   // deep-copy the true branch
+		false_->clone()   // deep-copy the false branch
 	);
 }
 
@@ -233,7 +233,7 @@ double FunctionNode::eval(const std::unordered_map<std::string, double>& vars) c
 std::unique_ptr<ASTNode> FunctionNode::clone() const {
 	std::vector<std::unique_ptr<ASTNode>> cloned_args;
 	for (const auto& arg : args_) {
-		cloned_args.push_back(arg->clone()); // 深拷贝所有参数
+		cloned_args.push_back(arg->clone()); // deep-copy all arguments
 	}
 	return std::make_unique<FunctionNode>(name_, std::move(cloned_args));
 }
@@ -262,26 +262,26 @@ std::unique_ptr<ASTNode> Parser::parseExpression() {
 }
 
 std::unique_ptr<ASTNode> Parser::parseConditional() {
-	// 先解析基础条件（比较运算）
+	// First parse the base condition (comparison)
 	auto cond = parseComparison();
 
-	// 处理 and-or 组合
+	// Handle the and-or combination
 	if (current_.value == "and") {
-		advance(); // 跳过 and
+		advance(); // skip 'and'
 
-		// 解析 and 右侧的表达式（b部分）
-		auto trueExpr = parseComparison(); // 改为调用 parseComparison() 而非递归
+		// Parse the expression on the right of 'and' (part b)
+		auto trueExpr = parseComparison(); // call parseComparison() instead of recursing
 
-		// 强制检查 or
+		// Require 'or'
 		if (current_.value != "or") {
 			error("Expected 'or' after 'and' expression");
 		}
-		advance(); // 跳过 or
+		advance(); // skip 'or'
 
-		// 解析 or 右侧的表达式（c部分）
+		// Parse the expression on the right of 'or' (part c)
 		auto falseExpr = parseComparison();
 
-		// 构建三目表达式节点
+		// Build the ternary expression node
 		return std::make_unique<ConditionalNode>(
 			std::move(cond),
 			std::move(trueExpr),
@@ -289,7 +289,7 @@ std::unique_ptr<ASTNode> Parser::parseConditional() {
 		);
 	}
 
-	// 单独出现 or 直接报错
+	// An 'or' on its own is an immediate error
 	if (current_.value == "or") {
 		error("Unexpected 'or' without preceding 'and'");
 	}
@@ -301,17 +301,17 @@ std::unique_ptr<ASTNode> Parser::parseComparison() {
 	auto node = parseAddSub();
 	while (current_.type == TokenType::Operator) {
 		std::string op = current_.value;
-		// 检查是否为合法的比较运算符
+		// Check whether it is a valid comparison operator
 		if (op == ">" || op == "<" || op == ">=" || op == "<=" ||
 			op == "==" || op == "~=") {
-			advance(); // 消费当前运算符
-			auto right = parseAddSub(); // 解析右侧表达式
+			advance(); // consume the current operator
+			auto right = parseAddSub(); // parse the right-hand expression
 			node = std::make_unique<ComparisonNode>(
 				std::move(node), op, std::move(right)
 			);
 		}
 		else {
-			break; // 非比较运算符则退出循环
+			break; // not a comparison operator, so exit the loop
 		}
 	}
 	return node;

@@ -28,9 +28,9 @@ CZipStream::CZipStream(const std::shared_ptr<CIOApi> & api, const boost::filesys
 		throw DataLoadingException("Failed to open zip archive '" + archive.string() + "'");
 	}
 
-	// 这两个调用失败时 file_info 一个字节都不会被写入。原来的代码没看返回值，
-	// 后面 getSize() / calculateCRC32() 读的就是栈上的垃圾值，
-	// 调用方再拿它去 resize 一个缓冲区，就会直接炸掉。这里必须当硬错误处理。
+	// If these two calls fail, not a single byte of file_info is written. The original code ignored the
+	// return values, so getSize() / calculateCRC32() would read garbage from the stack, and the caller
+	// would then use it to resize a buffer and blow up. This must be treated as a hard error.
 	unz_file_info64 file_info{};
 	char filename_inzip[256]{};
 	if(unzGoToFilePos64(file, &filepos) != UNZ_OK
@@ -44,19 +44,21 @@ CZipStream::CZipStream(const std::shared_ptr<CIOApi> & api, const boost::filesys
 
 	if ((file_info.flag & 1) != 0)
 	{
-		// 加密条目（ZipCrypto 与 AES）统一交给受保护的读取器：
-		// 交给 minizip 就得把密码明文递进去，那正是攻击者想要的。
-		// 路径要传 archive.c_str()：Windows 下它是宽字符，跟 IO 实现的约定一致；
-		// 传 std::string::c_str() 会被当成宽字符串解释，路径全乱、必然打不开。
+		// Encrypted entries (ZipCrypto and AES) are all handed to the protected reader: giving them to
+		// minizip would require passing the plaintext password in, which is exactly what an attacker wants.
+		// The path must be passed as archive.c_str(): on Windows it is wide-character, matching the IO
+		// implementation's convention; passing std::string::c_str() would be interpreted as a wide string,
+		// scrambling the path so it could never be opened.
 		unz64_file_pos entryPosition;
 		if(unzGetFilePos64(file, &entryPosition) == UNZ_OK)
 			encryptedReader = std::make_unique<ModPassword::EncryptedZipReader>(
 			    zlibApi, archive.c_str(), entryPosition.pos_in_zip_directory);
 
-		// 打不开（密码不对、密文被改过、包损坏）就按 VCMI 里"资源读不出来"的
-		// 统一类型报出来，交给上层决定怎么办。注意不能抛 std::runtime_error：
-		// 这条路径（CModState::computeChecksum 之类）只认 DataLoadingException，
-		// 别的类型会一路逃到顶层把客户端带崩。
+		// If it cannot be opened (wrong password, tampered ciphertext, corrupt archive), report it as
+		// VCMI's unified "resource cannot be read" type and let the upper layer decide what to do. Note
+		// that we must not throw std::runtime_error: this path (CModState::computeChecksum and the like)
+		// only recognizes DataLoadingException, and any other type would escape all the way to the top
+		// level and crash the client.
 		if(encryptedReader == nullptr || encryptedReader->isFailed())
 		{
 			logGlobal->error("Failed to open encrypted entry %s in %s", filename_inzip, archive.string());
@@ -72,7 +74,7 @@ CZipStream::CZipStream(const std::shared_ptr<CIOApi> & api, const boost::filesys
 
 CZipStream::~CZipStream()
 {
-	// 加密条目的认证码在打开时就已经校验过了，不通过的话压根读不出数据
+	// The authentication code of an encrypted entry was already verified when it was opened; if it had not passed, no data could be read at all
 	unzCloseCurrentFile(file);
 	unzClose(file);
 }

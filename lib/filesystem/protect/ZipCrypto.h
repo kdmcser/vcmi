@@ -18,13 +18,15 @@ VCMI_LIB_NAMESPACE_BEGIN
 namespace ModPassword
 {
 
-/// ZipCrypto（PKWARE 传统加密）的内部状态。
+/// Internal state of ZipCrypto (PKWARE traditional encryption).
 ///
-/// 对应 minizip 里 init_keys / decrypt_byte 那套算法：三个 32 位密钥，
-/// 每解一个字节先用密钥流异或，再用得到的明文回填密钥状态。
+/// Mirrors the init_keys / decrypt_byte scheme from minizip: three 32-bit keys,
+/// where each decrypted byte is first XORed with the key stream and the resulting
+/// plaintext byte is then fed back into the key state.
 ///
-/// 这里自己实现而不是把密码交给 minizip，是为了让密钥状态由受保护的字节码
-/// 直接算出来 —— 密码明文不必落进任何缓冲区、也不经过任何"接收密码"的接口。
+/// This is implemented here instead of handing the password over to minizip so that the
+/// key state is computed directly from the protected bytecode -- the plaintext password
+/// never has to land in any buffer or pass through any "receive password" interface.
 struct ZipCryptoKeys
 {
 	std::uint32_t key0 = 0x12345678;
@@ -32,13 +34,13 @@ struct ZipCryptoKeys
 	std::uint32_t key2 = 0x34567890;
 };
 
-/// 复位到初始常量（等价于"还没喂过密码"）
+/// Reset to the initial constants (equivalent to "no password fed yet")
 void zipCryptoReset(ZipCryptoKeys & keys);
 
-/// 把一个密码字节喂进密钥表
+/// Feed a password byte into the key state
 void zipCryptoFeedPassword(ZipCryptoKeys & keys, std::uint8_t passwordByte);
 
-/// 解密一个字节并推进密钥状态
+/// Decrypt a single byte and advance the key state
 std::uint8_t zipCryptoDecryptByte(ZipCryptoKeys & keys, std::uint8_t cipherByte);
 
 }

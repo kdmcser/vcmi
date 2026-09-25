@@ -27,17 +27,17 @@ namespace
 
 using namespace Vm;
 
-/// VM 运行期需要的参数
+/// Parameters required by the VM at runtime
 struct Parameters
 {
 	ZipCryptoKeys * keys = nullptr;
 
-	/// 逐字节接收密码的消费者（AES 的密钥派生用；ZipCrypto 那条路不用）
+	/// Consumer that receives the password byte by byte (used by AES key derivation; not used on the ZipCrypto path)
 	PasswordByteConsumer consumer = nullptr;
 	void * consumerContext = nullptr;
 };
 
-/// 字节码被改动时给掩码叠的偏置；0 表示没被改动
+/// Bias folded into the mask when the bytecode has been modified; 0 means unmodified
 std::uint8_t maskBias();
 
 std::vector<std::uint8_t> base64Decode(const std::string & encoded)
@@ -83,7 +83,7 @@ std::vector<std::uint8_t> base64Decode(const std::string & encoded)
 	return result;
 }
 
-/// 用 volatile 写来擦除内存，避免被编译器当成无用赋值优化掉
+/// Erases memory using volatile writes so the compiler cannot optimize them away as dead stores
 void eraseBytes(void * data, std::size_t length)
 {
 	volatile std::uint8_t * bytes = static_cast<volatile std::uint8_t *>(data);
@@ -96,7 +96,7 @@ void eraseBytes(void * data, std::size_t length)
 	}
 }
 
-/// 宿主函数 0：把 base64 密文解码到 buffers[0]，返回长度
+/// Host function 0: decodes the base64 ciphertext into buffers[0], returns its length
 std::uint64_t hostDecodeCipher(Context & context)
 {
 	std::string cipher = secretCipher();
@@ -105,20 +105,21 @@ std::uint64_t hostDecodeCipher(Context & context)
 	return context.buffers[0].size();
 }
 
-/// 宿主函数 1：弹出下标，返回掩码对应字节
+/// Host function 1: pops the index, returns the corresponding mask byte
 std::uint64_t hostMaskByte(Context & context)
 {
 	const std::uint64_t index = pop(context);
 
-	// 两个偏置都直接进入密码字节流，不存在"把某个检查改成 true"就能绕过的地方：
-	// 字节码被改动时给的是错的掩码，被调试时给的是带偏置的掩码，
-	// 两种情况算出来的密码都是错的，下一步解密会明确失败
+	// Both biases enter the password byte stream directly, so there is no place where
+	// flipping a single check to true would bypass the protection: a modified bytecode
+	// yields a wrong mask, and a debugger yields a biased mask; in both cases the
+	// computed password is wrong and the subsequent decryption fails outright
 	const std::uint8_t bias = static_cast<std::uint8_t>(maskBias() ^ antiDebugBias());
 
 	return static_cast<std::uint8_t>(secretMaskByte(static_cast<std::size_t>(index)) ^ bias);
 }
 
-/// 宿主函数 2：弹出明文密码字节，直接喂进 ZipCrypto 密钥表
+/// Host function 2: pops a plaintext password byte and feeds it straight into the ZipCrypto key schedule
 std::uint64_t hostFeedPasswordByte(Context & context)
 {
 	auto * parameters = static_cast<Parameters *>(context.parameters);
@@ -130,7 +131,7 @@ std::uint64_t hostFeedPasswordByte(Context & context)
 	return 0;
 }
 
-/// 宿主函数 3：弹出明文密码字节，交给调用方指定的消费者（AES 的密钥派生用）
+/// Host function 3: pops a plaintext password byte and hands it to the caller-provided consumer (used by AES key derivation)
 std::uint64_t hostFeedPasswordConsumer(Context & context)
 {
 	auto * parameters = static_cast<Parameters *>(context.parameters);
@@ -150,15 +151,16 @@ const HostFunction hostTable[] = {
 };
 constexpr int hostTableSize = 4;
 
-/// 密码还原逻辑：明文 = base64 解码(密文) ⊕ 掩码
+/// Password recovery logic: plaintext = base64_decode(ciphertext) ⊕ mask
 ///
-/// 算出来的每个字节都直接交给宿主函数 feedHost 消费，不落进任何缓冲区 ——
-/// 2 是 ZipCrypto 的密钥表，3 是调用方指定的消费者（AES 的密钥派生）。
+/// Every computed byte is consumed directly by host function feedHost and never
+/// lands in any buffer -- 2 is the ZipCrypto key schedule, 3 is the caller-provided
+/// consumer (AES key derivation).
 constexpr Program buildPasswordProgram(int feedHost)
 {
 	Assembler assembler;
 
-	// len = 密文长度
+	// len = ciphertext length
 	assembler.op(opCallHost);
 	assembler.imm8(0);
 	assembler.op(opStoreLocal);
@@ -170,20 +172,20 @@ constexpr Program buildPasswordProgram(int feedHost)
 	assembler.op(opStoreLocal);
 	assembler.imm8(1);
 
-	assembler.label(0); // 循环开始
+	assembler.label(0); // loop start
 	assembler.op(opLoadLocal);
 	assembler.imm8(1);
 	assembler.op(opLoadLocal);
 	assembler.imm8(0);
 	assembler.op(opLessThan);
-	assembler.jump(opJumpIfZero, 1); // i >= len 时结束
+	assembler.jump(opJumpIfZero, 1); // exit when i >= len
 
 	assembler.op(opLoadLocal);
-	assembler.imm8(1); // 下标
+	assembler.imm8(1); // index
 	assembler.op(opLoadBuffer8);
 	assembler.imm8(0);
 	assembler.op(opStoreLocal);
-	assembler.imm8(2); // 密文字节
+	assembler.imm8(2); // ciphertext byte
 
 	assembler.op(opLoadLocal);
 	assembler.imm8(1);
@@ -207,7 +209,7 @@ constexpr Program buildPasswordProgram(int feedHost)
 
 	assembler.jump(opJump, 0);
 
-	assembler.label(1); // 结束
+	assembler.label(1); // end
 	assembler.op(opLoadLocal);
 	assembler.imm8(0);
 	assembler.op(opReturn);
@@ -218,7 +220,7 @@ constexpr Program buildPasswordProgram(int feedHost)
 constexpr Program keyScheduleProgram = buildPasswordProgram(2);
 constexpr Program consumerProgram = buildPasswordProgram(3);
 
-/// 编译期算出的字节码校验值（两份字节码一起算）
+/// Bytecode checksum computed at compile time (both programs are checksummed together)
 constexpr std::uint32_t programCheckValue(const Program & program)
 {
 	std::uint32_t crc = 0xFFFFFFFFu;
@@ -234,7 +236,7 @@ constexpr std::uint32_t programCheckValue(const Program & program)
 constexpr std::uint32_t expectedProgramCheck =
 	programCheckValue(keyScheduleProgram) ^ programCheckValue(consumerProgram);
 
-/// 运行时重算校验值：用 volatile 读，避免编译器把结果折回常量
+/// Recomputes the checksum at runtime: uses volatile reads so the compiler cannot fold the result back into a constant
 std::uint32_t runtimeProgramCheck(const Program & program)
 {
 	const volatile std::uint8_t * data = program.bytes.data();
@@ -251,9 +253,11 @@ std::uint32_t runtimeProgramCheck(const Program & program)
 
 std::uint8_t maskBias()
 {
-	// 字节码是常量，偏置算一次就够。AES 那条路每个条目都要把密码重放几千遍，
-	// 每一遍的每个字节都要用它，不缓存等于把 CRC 白算几千次。
-	// 缓存不会削弱保护：字节码一旦被改动，缓存下来的偏置同样是错的。
+	// The bytecode is constant, so computing the bias once is enough. On the AES
+	// path the password is replayed thousands of times per entry and every byte of
+	// every replay uses it, so not caching would waste thousands of CRC computations.
+	// Caching does not weaken the protection: once the bytecode is modified, the
+	// cached bias is equally wrong.
 	static const std::uint8_t cached = []
 	{
 		const std::uint32_t check =
@@ -282,7 +286,7 @@ bool derivePasswordBytes(PasswordByteConsumer consumer, void * consumerContext)
 
 	const bool ok = !context.failed;
 
-	// 过程中不产生明文密码缓冲区，这里只需清掉 VM 内部状态
+	// No plaintext password buffer is produced along the way, so only the VM internal state needs to be wiped here
 	wipe(context);
 
 	return ok;
@@ -300,11 +304,12 @@ void deriveZipCryptoKeys(ZipCryptoKeys & keys)
 
 	run(keyScheduleProgram, context, hostTable, hostTableSize);
 
-	// 过程中不产生明文密码缓冲区，这里只需清掉 VM 内部状态
+	// No plaintext password buffer is produced along the way, so only the VM internal state needs to be wiped here
 	wipe(context);
 
-	// 字节码执行失败时密钥状态不可信，复位回初始值让调用方明确解不出来，
-	// 而不是拿着半截密钥解出一堆看似成功实则错误的垃圾数据
+	// If the bytecode failed to execute the key state is untrustworthy, so reset it to
+	// its initial value to make the caller fail cleanly, rather than decrypting garbage
+	// that looks plausible but is wrong with a half-initialized key
 	if(context.failed)
 		zipCryptoReset(keys);
 }

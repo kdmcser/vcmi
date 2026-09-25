@@ -17,22 +17,24 @@
 
 VCMI_LIB_NAMESPACE_BEGIN
 
-/// mod 密码的还原。
+/// Reconstruction of the mod password.
 ///
-/// 密文与掩码都不以原样形式出现在二进制里：材料由 CMake 在配置阶段拆成交错碎片
-/// 写入构建目录的头文件（cmake/ModPasswordSecrets.cmake），密文片里存的是
-/// base64 字母表下标，掩码片里存的是异或过的值，每片各自的键随构建目录随机生成。
-/// 想拿到原始材料必须读懂这里的还原逻辑，再把那些键从二进制里找出来。
+/// Neither the ciphertext nor the mask appears verbatim in the binary: CMake splits the
+/// material into interleaved shards at configure time and writes them to a header in the
+/// build directory (cmake/ModPasswordSecrets.cmake). The ciphertext shards store base64
+/// alphabet indices, the mask shards store XOR-obfuscated values, and each shard's key is
+/// randomly generated per build directory. Recovering the original material requires
+/// understanding the reconstruction logic here and then locating those keys in the binary.
 namespace ModPassword
 {
 
-/// 还原密码密文（base64 形式）
+/// Reconstruct the password ciphertext (base64 form)
 std::string secretCipher();
 
-/// 还原掩码第 index 个字节（碎片里存的是异或过的值）
+/// Reconstruct the index-th mask byte (the shard stores an XOR-obfuscated value)
 std::uint8_t secretMaskByte(std::size_t index);
 
-/// 掩码字节数
+/// Mask length in bytes
 std::size_t secretMaskLength();
 
 }

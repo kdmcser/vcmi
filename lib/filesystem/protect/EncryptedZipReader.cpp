@@ -22,34 +22,35 @@ namespace ModPassword
 namespace
 {
 
-/// extra field 里 AES 信息的表头 ID
+/// Header ID of the AES information within the extra field
 constexpr std::uint16_t aesExtraFieldId = 0x9901;
 
-/// AES 条目的压缩方法编号
+/// Compression method number of an AES entry
 constexpr std::uint16_t aesCompressionMethod = 99;
 
-/// 中央目录项与本地头的固定部分长度
+/// Fixed portion lengths of the central directory record and the local header
 constexpr std::size_t centralDirectoryRecordLength = 46;
 constexpr std::size_t localHeaderLength = 30;
 
-/// ZipCrypto 的加密头长度
+/// Length of the ZipCrypto encryption header
 constexpr std::size_t zipCryptoHeaderLength = 12;
 
-/// 两个结构开头的签名
+/// Signatures at the start of the two structures
 constexpr std::uint32_t centralDirectorySignature = 0x02014b50;
 constexpr std::uint32_t localHeaderSignature = 0x04034b50;
 
-/// 需要读 zip64 extra field 的哨兵值，这种条目这里没做支持
+/// Sentinel value indicating that a zip64 extra field must be read; such entries are not supported here
 constexpr std::uint32_t zip64Marker = 0xffffffffu;
 
-/// 把受保护字节码给出的密码字节交给调用方。
-/// AES 的 PBKDF2 每次重建 HMAC 密钥块都会重放一遍，全程不留完整的密码。
+/// Hands the password bytes produced by the protected bytecode to the caller.
+/// AES PBKDF2 replays them every time the HMAC key block is rebuilt, and a full
+/// password is never retained at any point.
 bool replayPasswordBytes(void * context, ZipAes::PasswordByteConsumer consumer, void * consumerContext)
 {
 	return derivePasswordBytes(consumer, consumerContext);
 }
 
-/// 每次处理的块大小。放在栈上，取小一点避免深调用链上爆栈。
+/// Chunk size processed per iteration. Kept on the stack and made small to avoid stack overflow on deep call chains.
 constexpr std::size_t chunkSize = 16 * 1024;
 
 std::uint16_t readLittleEndian16(const std::uint8_t * data)
@@ -72,8 +73,8 @@ EncryptedZipReader::EncryptedZipReader(const zlib_filefunc64_def & fileApi, cons
                                        std::uint64_t centralDirectoryOffset)
 	: fileApi(fileApi)
 {
-	// 路径按 fileApi 的约定原样透传：Windows 下实现期望宽字符路径，
-	// 这里绝不能拿 std::string::c_str() 去顶
+	// The path is forwarded as-is per the fileApi contract: on Windows the
+	// implementation expects a wide-character path, so std::string::c_str() must never be used here
 	stream = fileApi.zopen64_file(fileApi.opaque, archivePath, ZLIB_FILEFUNC_MODE_READ);
 	if(stream == nullptr)
 	{
@@ -81,7 +82,7 @@ EncryptedZipReader::EncryptedZipReader(const zlib_filefunc64_def & fileApi, cons
 		return;
 	}
 
-	// 打不开的具体原因由调用方（CZipLoader）连条目名和包名一起记下来
+	// The concrete reason for failure is recorded by the caller (CZipLoader) along with the entry name and archive name
 	if(!openEntry(centralDirectoryOffset))
 		failed = true;
 }
@@ -94,7 +95,7 @@ EncryptedZipReader::~EncryptedZipReader()
 	if(stream != nullptr)
 		fileApi.zclose_file(fileApi.opaque, stream);
 
-	// 密钥材料用完立刻清掉
+	// Wipe the key material as soon as it is no longer needed
 	ZipAes::secureErase(&zipCryptoKeys, sizeof(zipCryptoKeys));
 	ZipAes::secureErase(&aesCtr, sizeof(aesCtr));
 	ZipAes::secureErase(&aesHmac, sizeof(aesHmac));
@@ -102,8 +103,8 @@ EncryptedZipReader::~EncryptedZipReader()
 
 bool EncryptedZipReader::openEntry(std::uint64_t centralDirectoryOffset)
 {
-	// 中央目录项：method 在偏移 10，compressed size 20，
-	// 文件名长度 28、extra 长度 30、本地头偏移 42
+	// Central directory record: method at offset 10, compressed size 20,
+	// name length 28, extra length 30, local header offset 42
 	std::uint8_t record[centralDirectoryRecordLength];
 	if(!seekAndRead(centralDirectoryOffset, record, sizeof(record))
 	   || readLittleEndian32(record) != centralDirectorySignature)
@@ -124,7 +125,7 @@ bool EncryptedZipReader::openEntry(std::uint64_t centralDirectoryOffset)
 	                   extraField.data(), extraLength))
 		return false;
 
-	// 本地头：文件名长度在偏移 26，extra 长度 28，固定部分 30 字节
+	// Local header: name length at offset 26, extra length 28, fixed part 30 bytes
 	std::uint8_t localHeader[localHeaderLength];
 	if(!seekAndRead(localHeaderOffset, localHeader, sizeof(localHeader))
 	   || readLittleEndian32(localHeader) != localHeaderSignature)
@@ -157,8 +158,9 @@ bool EncryptedZipReader::openEntry(std::uint64_t centralDirectoryOffset)
 		if(!readExact(saltBuffer, saltSize) || !readExact(verifyBuffer, ZipAes::verifyValueLength))
 			return false;
 
-		// 密码由受保护的字节码逐字节给出。PBKDF2 每次重建 HMAC 密钥块都要重放
-		// 一遍密码，中途没有任何一步会把密码拼成完整的一份。
+		// The password is produced byte by byte by the protected bytecode. PBKDF2
+		// replays it every time the HMAC key block is rebuilt, and at no point is the
+		// password assembled into a complete copy.
 		ZipAes::PasswordByteSource password;
 		password.context = nullptr;
 		password.replay = &replayPasswordBytes;
@@ -174,8 +176,10 @@ bool EncryptedZipReader::openEntry(std::uint64_t centralDirectoryOffset)
 
 		remainingCipher = compressedSize - overhead;
 
-		// 认证码在数据末尾，而数据一旦交出去就收不回来，所以趁密钥还在手上
-		// 先把密文整体扫一遍验证掉；通过之后才允许读给调用方。
+		// The authentication code is at the end of the data, and once data has been
+		// handed out it cannot be taken back, so while the key is still in hand the
+		// whole ciphertext is scanned and verified first; only after it passes is the
+		// data allowed to be read out to the caller.
 		const std::uint64_t cipherOffset = dataOffset
 		                                 + static_cast<std::uint64_t>(saltSize)
 		                                 + ZipAes::verifyValueLength;
@@ -202,10 +206,10 @@ bool EncryptedZipReader::openEntry(std::uint64_t centralDirectoryOffset)
 		if(compressedSize < zipCryptoHeaderLength)
 			return false;
 
-		// 密钥状态直接由字节码算出来，密码明文不经过这里、也不落缓冲区
+		// The key state is computed directly by the bytecode; the plaintext password never passes through here nor lands in a buffer
 		deriveZipCryptoKeys(zipCryptoKeys);
 
-		// 先解掉 12 字节加密头：内容本身不用，但会推进密钥状态
+		// First decrypt the 12-byte encryption header: its content is unused, but it advances the key state
 		std::uint8_t header[zipCryptoHeaderLength];
 		if(!readExact(header, sizeof(header)))
 			return false;
@@ -227,7 +231,7 @@ bool EncryptedZipReader::openEntry(std::uint64_t centralDirectoryOffset)
 	}
 	else if(compressionMethod != 0)
 	{
-		// 除了「存储」和 deflate，其他压缩方式没做支持
+		// No compression methods other than "stored" and deflate are supported
 		return false;
 	}
 
@@ -248,7 +252,7 @@ bool EncryptedZipReader::parseAesExtraField(const std::uint8_t * data, std::size
 
 		if(headerId == aesExtraFieldId)
 		{
-			// 布局：version(2) + "AE"(2) + strength(1) + 真实压缩方法(2)
+			// Layout: version(2) + "AE"(2) + strength(1) + actual compression method(2)
 			if(dataSize < 7)
 				return false;
 
@@ -303,7 +307,7 @@ void EncryptedZipReader::decryptChunk(std::uint8_t * data, std::size_t length)
 	}
 	else
 	{
-		// AES 的认证码算的是密文，所以要先喂 HMAC 再解密
+		// The AES authentication code is computed over the ciphertext, so the HMAC must be fed before decrypting
 		ZipAes::hmacSha1Update(aesHmac, data, length);
 		ZipAes::aesCtrCrypt(aesCtr, data, length);
 	}
@@ -380,7 +384,7 @@ bool EncryptedZipReader::inflateChunk(const std::uint8_t * data, std::size_t len
 		if(result == Z_STREAM_END)
 			break;
 
-		// 既没产出也没消耗输入，说明还缺数据，等下一块
+		// Neither produced output nor consumed input, meaning more data is needed; wait for the next chunk
 		if(result == Z_BUF_ERROR && produced == 0)
 			break;
 	}
@@ -453,14 +457,14 @@ bool EncryptedZipReader::precheckAuthentication(const std::uint8_t * authenticat
 	ZipAes::secureErase(computedAuthCode, sizeof(computedAuthCode));
 	ZipAes::secureErase(buffer.data(), buffer.size());
 
-	// 回到密文开头：正式读取时从头再解密一遍
+	// Seek back to the start of the ciphertext: the actual read decrypts it again from the beginning
 	return valid && seek(cipherOffset);
 }
 
 void EncryptedZipReader::finishEntry()
 {
-	// 认证码在打开条目时就校验过了（见 precheckAuthentication），
-	// 走到这里只是标记这条数据已经读完
+	// The authentication code was already verified when the entry was opened (see
+	// precheckAuthentication); reaching here only marks this data as fully read
 	finished = true;
 }
 

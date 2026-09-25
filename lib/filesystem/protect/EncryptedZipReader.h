@@ -15,8 +15,8 @@
 
 #include <vector>
 
-// 与 MinizipExtensions.h 保持一致：优先用 minizip-ng，其次用传统 minizip。
-// 这里只用到它的 IO 回调类型，不使用它的条目读取接口。
+// Kept in sync with MinizipExtensions.h: prefer minizip-ng, fall back to legacy minizip.
+// Only its IO callback types are used here; its entry reading interface is not.
 #if __has_include(<minizip-ng/unzip.h>)
 #include <minizip-ng/unzip.h>
 #else
@@ -28,32 +28,36 @@ VCMI_LIB_NAMESPACE_BEGIN
 namespace ModPassword
 {
 
-/// 读取加密的 zip 条目，ZipCrypto 与 WinZip AES 两种都支持。
+/// Reads encrypted zip entries, supporting both ZipCrypto and WinZip AES.
 ///
-/// 为什么两种情况都不交给 minizip：
-///   * AES 条目的 method 是 99，minizip 只认 0 / 8 / 12，即使以 raw 模式打开
-///     也会返回 UNZ_BADZIPFILE；各平台用的是预先构建好的依赖包，给它打补丁不现实。
-///   * ZipCrypto 如果交给 minizip，就必须把密码明文传进 unzOpenCurrentFilePassword，
-///     而那正是攻击者想要的。这里改成由受保护的字节码直接算出密钥状态，
-///     密码明文不落进任何缓冲区。
+/// Why neither case is delegated to minizip:
+///   * An AES entry has method 99, while minizip only recognizes 0 / 8 / 12, so even
+///     when opened in raw mode it returns UNZ_BADZIPFILE; the platforms use prebuilt
+///     dependency packages, so patching minizip is not realistic.
+///   * For ZipCrypto, delegating to minizip would require passing the plaintext
+///     password into unzOpenCurrentFilePassword, which is exactly what an attacker
+///     wants. Instead, the key state is computed directly by the protected bytecode,
+///     so the plaintext password never lands in any buffer.
 ///
-/// 所以自己走一遍 zip 结构：从中央目录项找到本地头，跳过文件名和 extra field，
-/// 就得到该条目的加密数据。
+/// Therefore the zip structure is walked manually: from the central directory
+/// record, locate the local header and skip the filename and extra field to obtain
+/// the entry's encrypted data.
 class EncryptedZipReader
 {
 public:
-	/// centralDirectoryOffset 取自 unzGetFilePos64() 返回的 pos_in_zip_directory
+	/// centralDirectoryOffset comes from the pos_in_zip_directory returned by unzGetFilePos64()
 	///
-	/// archivePath 必须按 fileApi 约定的类型原样传入，这里不做转换：
-	/// Windows 下 zopen64_file 的实现（MinizipExtensions.cpp）会把文件名当成
-	/// 宽字符串用 _wfopen 打开，所以调用方要传 boost::filesystem::path::c_str()；
-	/// 其他平台是普通 char 路径。传 std::string::c_str() 会被当成宽字符串解释，
-	/// 路径全乱、必然打不开。
+	/// archivePath must be passed as-is, in the type expected by the fileApi contract;
+	/// no conversion is done here: on Windows the zopen64_file implementation
+	/// (MinizipExtensions.cpp) treats the filename as a wide string and opens it with
+	/// _wfopen, so callers must pass boost::filesystem::path::c_str(); on other
+	/// platforms it is a plain char path. Passing std::string::c_str() would be
+	/// interpreted as a wide string, garbling the path so it can never be opened.
 	EncryptedZipReader(const zlib_filefunc64_def & fileApi, const void * archivePath,
 	                   std::uint64_t centralDirectoryOffset);
 	~EncryptedZipReader();
 
-	/// 读取解密后的数据；返回实际读到的字节数，0 表示已读完，-1 表示出错
+	/// Reads the decrypted data; returns the number of bytes actually read, 0 for end of data, -1 for error
 	si64 read(ui8 * data, si64 size);
 
 	bool isFailed() const { return failed; }
@@ -77,7 +81,7 @@ private:
 	void decryptChunk(std::uint8_t * data, std::size_t length);
 	void finishEntry();
 
-	/// 按值保存：调用方传进来的那一份可能是栈上的临时变量
+	/// Stored by value: the caller's instance may be a temporary on the stack
 	zlib_filefunc64_def fileApi{};
 	voidpf stream = nullptr;
 
@@ -86,15 +90,15 @@ private:
 
 	Cipher cipher = Cipher::Aes;
 
-	/// ZipCrypto：由受保护的字节码算出来的密钥状态
+	/// ZipCrypto: key state computed by the protected bytecode
 	ZipCryptoKeys zipCryptoKeys;
 
-	/// AES：强度与流式解密状态
+	/// AES: strength and streaming decryption state
 	ZipAes::Strength aesStrength = ZipAes::Strength::Aes256;
 	ZipAes::AesCtrContext aesCtr;
 	ZipAes::HmacSha1Context aesHmac;
 
-	/// 解密后数据实际使用的压缩方法（AES 把它记在 extra field 里）
+	/// Compression method actually used for the decrypted data (AES records it in the extra field)
 	int compressionMethod = 0;
 
 	std::uint64_t remainingCipher = 0;

@@ -17,7 +17,7 @@ namespace ModPassword
 namespace
 {
 
-/// ZipCrypto 用的 CRC32（反射多项式 0xEDB88320）
+/// CRC32 used by ZipCrypto (reflected polynomial 0xEDB88320)
 std::uint32_t crc32Update(std::uint32_t crc, std::uint8_t value)
 {
 	crc ^= value;
@@ -34,7 +34,7 @@ void updateKeys(ZipCryptoKeys & keys, std::uint8_t plainByte)
 	keys.key2 = crc32Update(keys.key2, static_cast<std::uint8_t>(keys.key1 >> 24));
 }
 
-/// 当前密钥流字节
+/// Current key stream byte
 std::uint8_t keyStreamByte(const ZipCryptoKeys & keys)
 {
 	const std::uint32_t temp = keys.key2 | 2;

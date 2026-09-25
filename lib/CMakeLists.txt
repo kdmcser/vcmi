@@ -1,4 +1,5 @@
 find_package(LuaJIT)
+find_package(OpenSSL REQUIRED)
 
 if (LUAJIT_FOUND)
 	message(STATUS "LuaJIT found: ${LUAJIT_LIBRARIES}")
@@ -887,14 +888,16 @@ endif()
 
 set_target_properties(vcmi PROPERTIES COMPILE_DEFINITIONS "VCMI_DLL=1")
 
-# mod 密码保护里的反调试只在 Release 编入。Debug 与 RelWithDebInfo 是本地带调试器
-# 工作用的配置，在这两个配置下加密 Mod 会解不开，所以编译成空。
-# 判定放在这里而不是代码里的 NDEBUG：Release 与 RelWithDebInfo 都会定义 NDEBUG。
+# The anti-debug code in the mod password protection is compiled into Release only. Debug and
+# RelWithDebInfo are configurations meant for local work with a debugger attached; under these two
+# configurations encrypted mods would fail to decrypt, so the code is compiled out (empty).
+# The decision is made here rather than via NDEBUG in the code, because both Release and
+# RelWithDebInfo define NDEBUG.
 target_compile_definitions(vcmi PRIVATE $<$<CONFIG:Release>:MODPASSWORD_ANTIDEBUG>)
 message(STATUS "Mod password anti-debug: Release only (define MODPASSWORD_NO_ANTIDEBUG to force off)")
 
 target_link_libraries(vcmi PUBLIC
-	minizip::minizip ZLIB::ZLIB
+	minizip::minizip ZLIB::ZLIB OpenSSL::Crypto
 	${SYSTEM_LIBS} Boost::boost Boost::filesystem Boost::program_options Boost::locale Boost::date_time
 )
 

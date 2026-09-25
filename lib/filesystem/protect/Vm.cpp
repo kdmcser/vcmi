@@ -26,8 +26,8 @@ std::int16_t readOffset(const std::uint8_t * code, int position)
 	return static_cast<std::int16_t>(raw);
 }
 
-/// 用 volatile 写来擦除内存，避免被编译器当成无用赋值优化掉。
-/// 这里不用 SecureZeroMemory 之类的平台接口，是为了让同一份代码能跨平台编译。
+/// Wipe memory with volatile writes so the compiler cannot optimize them away as dead stores.
+/// Platform APIs such as SecureZeroMemory are deliberately avoided to keep this code portable.
 void eraseBytes(void * data, std::size_t length)
 {
 	volatile std::uint8_t * bytes = static_cast<volatile std::uint8_t *>(data);
@@ -235,8 +235,8 @@ void wipe(Context & context)
 	for(std::uint64_t & value : context.locals)
 		eraseBytes(&value, sizeof(value));
 
-	// 按 capacity 擦除而不是 size：程序结尾 opReturn 会把栈弹空，
-	// 而弹出过的值仍留在已分配的存储里，只擦 size() 会漏掉这些明文残片。
+	// Wipe by capacity rather than by size: opReturn at the end of the program drains the stack,
+	// but the popped values remain in the allocated storage, so wiping only size() would miss these plaintext remnants.
 	for(int i = 0; i < bufferCount; ++i)
 	{
 		if(context.buffers[i].capacity() > 0)
