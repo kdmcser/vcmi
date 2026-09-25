@@ -24,6 +24,7 @@
 #include "../../lib/entities/ResourceTypeHandler.h"
 #include "../../lib/gameState/CGameState.h"
 #include "../../lib/gameState/SThievesGuildInfo.h"
+#include "../../lib/mapObjectConstructors/CObjectClassesHandler.h"
 #include "../../lib/mapObjects/CGHeroInstance.h"
 #include "../../lib/mapObjects/CGTownInstance.h"
 #include "../../lib/mapObjects/IOwnableObject.h"
@@ -46,6 +47,9 @@ void NewTurnProcessor::handleTimeEvents(PlayerColor color)
 	for (auto const & event : gameHandler->gameState().getMap().events)
 	{
 		if (!event.occursToday(gameHandler->gameState().day))
+			continue;
+
+		if (!event.affectsDifficulty(gameHandler->gameInfo().getStartInfo()->getDifficulty()))
 			continue;
 
 		if (!event.affectsPlayer(color, gameHandler->gameInfo().getPlayerState(color)->isHuman()))
@@ -80,6 +84,9 @@ void NewTurnProcessor::handleTownEvents(const CGTownInstance * town)
 	for (auto const & event : town->events)
 	{
 		if (!event.occursToday(gameHandler->gameState().day))
+			continue;
+
+		if (!event.affectsDifficulty(gameHandler->gameInfo().getStartInfo()->getDifficulty()))
 			continue;
 
 		PlayerColor player = town->getOwner();
@@ -179,7 +186,7 @@ void NewTurnProcessor::onPlayerTurnEnded(PlayerColor which)
 	// check for 7 days without castle
 	gameHandler->checkVictoryLossConditionsForPlayer(which);
 
-	bool newWeek = gameHandler->gameInfo().getDate(Date::DAY_OF_WEEK) == 7; // end of 7th day
+	bool newWeek = gameHandler->gameInfo().getDate(Date::DAY_OF_WEEK) == LIBRARY->engineSettings()->getInteger(EGameSettings::GENERAL_DAYS_PER_WEEK); // end of 7th day
 
 	if (newWeek) //new heroes in tavern
 		gameHandler->heroPool->onNewWeek(which);
@@ -263,8 +270,8 @@ ResourceSet NewTurnProcessor::generatePlayerIncome(PlayerColor playerID, bool ne
 			int64_t weeklyBonus = difficultyConfig[name].Integer();
 			int64_t dayOfWeek = gameHandler->gameState().getDate(Date::DAY_OF_WEEK);
 			int64_t dailyIncome = incomeHandicapped[i];
-			int64_t amountTillToday = dailyIncome * weeklyBonus * (dayOfWeek-1) / 7 / 100;
-			int64_t amountAfterToday = dailyIncome * weeklyBonus * dayOfWeek / 7 / 100;
+			int64_t amountTillToday = dailyIncome * weeklyBonus * (dayOfWeek-1) / LIBRARY->engineSettings()->getInteger(EGameSettings::GENERAL_DAYS_PER_WEEK) / 100;
+			int64_t amountAfterToday = dailyIncome * weeklyBonus * dayOfWeek / LIBRARY->engineSettings()->getInteger(EGameSettings::GENERAL_DAYS_PER_WEEK) / 100;
 			int64_t dailyBonusToday = amountAfterToday - amountTillToday;
 			int64_t totalIncomeToday = std::min(GameConstants::PLAYER_RESOURCES_CAP, incomeHandicapped[i] + dailyBonusToday);
 			incomeHandicapped[i] = totalIncomeToday;
@@ -274,7 +281,7 @@ ResourceSet NewTurnProcessor::generatePlayerIncome(PlayerColor playerID, bool ne
 	return incomeHandicapped;
 }
 
-SetAvailableCreatures NewTurnProcessor::generateTownGrowth(const CGTownInstance * t, EWeekType weekType, CreatureID creatureWeek, bool firstDay)
+SetAvailableCreatures NewTurnProcessor::generateTownGrowth(const CGTownInstance * t, EWeekType weekType, CreatureID creatureWeek, bool firstDay, int additionalGrowth)
 {
 	SetAvailableCreatures sac;
 	PlayerColor player = t->tempOwner;
@@ -301,11 +308,11 @@ SetAvailableCreatures NewTurnProcessor::generateTownGrowth(const CGTownInstance 
 
 			//Deity of fire week - upgrade both imps and upgrades
 			if (weekType == EWeekType::DEITYOFFIRE && vstd::contains(t->creatures.at(k).second, creatureWeek))
-				creatureGrowth += 15;
+				creatureGrowth += additionalGrowth;
 
 			//bonus week, effect applies only to identical creatures
 			if (weekType == EWeekType::BONUS_GROWTH && cre->getId() == creatureWeek)
-				creatureGrowth += 5;
+				creatureGrowth += additionalGrowth;
 		}
 
 		// Neutral towns have halved creature growth
@@ -507,48 +514,69 @@ RumorState NewTurnProcessor::pickNewRumor()
 	return newRumor;
 }
 
-std::tuple<EWeekType, CreatureID> NewTurnProcessor::pickWeekType(bool newMonth)
+std::tuple<EWeekType, CreatureID, int> NewTurnProcessor::pickWeekType(bool newMonth)
 {
-	for (const auto & townID : gameHandler->gameState().getMap().getAllTowns())
+	// creatures without a map object cannot be spawned as wandering monsters, so exclude them from special weeks
+	auto canSpawnAsMapObject = [](const CreatureID & creatureID)
 	{
-		const auto * t = gameHandler->gameState().getTown(townID);
-		if (t->hasBuilt(BuildingSubID::DEITY_OF_FIRE))
-			return { EWeekType::DEITYOFFIRE, CreatureID::IMP };
+		return LIBRARY->objtypeh->knownSubObjects(Obj::MONSTER).contains(creatureID.getNum());
+	};
+
+	std::vector<std::tuple<CreatureID, int>> creaturesWithDeityOfFireBonus;
+	for(const auto & bonus : *gameHandler->gameState().globalEffects.getBonusesOfType(BonusType::DEITYOFFIRE))
+	{
+		CreatureID creatureID = bonus->subtype.as<CreatureID>();
+		if(canSpawnAsMapObject(creatureID))
+			creaturesWithDeityOfFireBonus.push_back({creatureID, bonus->val});
+	}
+	if(!creaturesWithDeityOfFireBonus.empty())
+	{
+		auto item = *RandomGeneratorUtil::nextItem(creaturesWithDeityOfFireBonus, gameHandler->getRandomGenerator());
+		return { EWeekType::DEITYOFFIRE, std::get<0>(item), std::get<1>(item)};
 	}
 
 	if(!gameHandler->gameInfo().getSettings().getBoolean(EGameSettings::CREATURES_ALLOW_RANDOM_SPECIAL_WEEKS))
-		return { EWeekType::NORMAL, CreatureID::NONE};
+		return { EWeekType::NORMAL, CreatureID::NONE, 0};
 
 	int monthType = gameHandler->getRandomGenerator().nextInt(99);
 	if (newMonth) //new month
 	{
-		if (monthType < 40) //double growth
+		if (monthType < gameHandler->gameInfo().getSettings().getInteger(EGameSettings::CREATURES_MONTH_DOUBLE_GROWTH_PROBABILITY)) //double growth
 		{
 			if (gameHandler->gameInfo().getSettings().getBoolean(EGameSettings::CREATURES_ALLOW_ALL_FOR_DOUBLE_MONTH))
 			{
 				CreatureID creatureID = gameHandler->randomizer->rollCreature();
-				return { EWeekType::DOUBLE_GROWTH, creatureID};
-			}
-			else if (!LIBRARY->creh->doubledCreatures.empty())
-			{
-				CreatureID creatureID = *RandomGeneratorUtil::nextItem(LIBRARY->creh->doubledCreatures, gameHandler->getRandomGenerator());
-				return { EWeekType::DOUBLE_GROWTH, creatureID};
+				return { EWeekType::DOUBLE_GROWTH, creatureID, 0};
 			}
 			else
 			{
-				gameHandler->complain("Cannot find creature that can be spawned!");
-				return { EWeekType::NORMAL, CreatureID::NONE};
+				std::vector<CreatureID> spawnableDoubledCreatures;
+				for(const auto & creatureID : LIBRARY->creh->doubledCreatures)
+					if(canSpawnAsMapObject(creatureID))
+						spawnableDoubledCreatures.push_back(creatureID);
+
+				if(!spawnableDoubledCreatures.empty())
+				{
+					CreatureID creatureID = *RandomGeneratorUtil::nextItem(spawnableDoubledCreatures, gameHandler->getRandomGenerator());
+					return { EWeekType::DOUBLE_GROWTH, creatureID, 0};
+				}
+				else
+				{
+					gameHandler->complain("Cannot find creature that can be spawned!");
+					return { EWeekType::NORMAL, CreatureID::NONE, 0};
+				}
 			}
 		}
 
-		if (monthType < 50)
-			return { EWeekType::PLAGUE, CreatureID::NONE};
+		if (monthType < gameHandler->gameInfo().getSettings().getInteger(EGameSettings::CREATURES_MONTH_DOUBLE_GROWTH_PROBABILITY) +
+						 gameHandler->gameInfo().getSettings().getInteger(EGameSettings::CREATURES_MONTH_PLAGUE_PROBABILITY)) //plague
+			return { EWeekType::PLAGUE, CreatureID::NONE, 0};
 
-		return { EWeekType::NORMAL, CreatureID::NONE};
+		return { EWeekType::NORMAL, CreatureID::NONE, 0};
 	}
 	else //it's a week, but not full month
 	{
-		if (monthType < 25)
+		if (monthType < gameHandler->gameInfo().getSettings().getInteger(EGameSettings::CREATURES_WEEK_SPECIAL_PROBABILITY))
 		{
 			std::pair<int, CreatureID> newMonster(54, CreatureID());
 			do
@@ -556,9 +584,9 @@ std::tuple<EWeekType, CreatureID> NewTurnProcessor::pickWeekType(bool newMonth)
 				newMonster.second = gameHandler->randomizer->rollCreature();
 			} while (newMonster.second.toEntity(LIBRARY)->getFactionID().toFaction()->town == nullptr); // find first non neutral creature
 
-			return { EWeekType::BONUS_GROWTH, newMonster.second};
+			return { EWeekType::BONUS_GROWTH, newMonster.second, gameHandler->gameInfo().getSettings().getInteger(EGameSettings::CREATURES_ADDITIONAL_WEEKLY_GROWTH_SPECIAL_WEEK)};
 		}
-		return { EWeekType::NORMAL, CreatureID::NONE};
+		return { EWeekType::NORMAL, CreatureID::NONE, 0};
 	}
 }
 
@@ -598,7 +626,7 @@ std::vector<SetMovePoints> NewTurnProcessor::updateHeroesMovementPoints()
 	return result;
 }
 
-InfoWindow NewTurnProcessor::createInfoWindow(EWeekType weekType, CreatureID creatureWeek, bool newMonth)
+InfoWindow NewTurnProcessor::createInfoWindow(EWeekType weekType, CreatureID creatureWeek, bool newMonth, int additionalGrowth)
 {
 	InfoWindow iw;
 	switch (weekType)
@@ -617,13 +645,19 @@ InfoWindow NewTurnProcessor::createInfoWindow(EWeekType weekType, CreatureID cre
 			iw.text.replaceNameSingular(creatureWeek);
 			break;
 		case EWeekType::DEITYOFFIRE:
+		{
+			const CCreature *base = creatureWeek.toCreature();
+			CreatureID upgradedCreature = creatureWeek;
+			if(base && !base->upgrades.empty())
+				upgradedCreature = *base->upgrades.rbegin();
 			iw.text.appendLocalString(EMetaText::ARRAY_TXT, 135);
-			iw.text.replaceNameSingular(CreatureID::IMP); //%s imp
-			iw.text.replaceNameSingular(CreatureID::IMP); //%s imp
-			iw.text.replacePositiveNumber(15);//%+d 15
-			iw.text.replaceNameSingular(CreatureID::FAMILIAR); //%s familiar
-			iw.text.replacePositiveNumber(15);//%+d 15
+			iw.text.replaceNameSingular(creatureWeek);
+			iw.text.replaceNameSingular(creatureWeek);
+			iw.text.replacePositiveNumber(additionalGrowth);
+			iw.text.replaceNameSingular(upgradedCreature);
+			iw.text.replacePositiveNumber(additionalGrowth);
 			break;
+		}
 		default:
 			if (newMonth)
 			{
@@ -646,9 +680,14 @@ NewTurn NewTurnProcessor::generateNewTurnPack()
 	n.creatureid = CreatureID::NONE;
 	n.day = gameHandler->gameState().day + 1;
 
+	int daysPerWeek = LIBRARY->engineSettings()->getInteger(EGameSettings::GENERAL_DAYS_PER_WEEK);
+	int daysPerMonth = LIBRARY->engineSettings()->getInteger(EGameSettings::GENERAL_WEEKS_PER_MONTH) * daysPerWeek;
+
 	bool firstTurn = !gameHandler->gameInfo().getDate(Date::DAY);
-	bool newWeek = gameHandler->gameInfo().getDate(Date::DAY_OF_WEEK) == 7; //day numbers are confusing, as day was not yet switched
-	bool newMonth = gameHandler->gameInfo().getDate(Date::DAY_OF_MONTH) == 28;
+	bool newWeek = gameHandler->gameInfo().getDate(Date::DAY_OF_WEEK) == daysPerWeek; //day numbers are confusing, as day was not yet switched
+	bool newMonth = gameHandler->gameInfo().getDate(Date::DAY_OF_MONTH) == daysPerMonth;
+
+	int additionalGrowth = 0;
 
 	if (!firstTurn)
 	{
@@ -658,9 +697,10 @@ NewTurn NewTurnProcessor::generateNewTurnPack()
 
 	if (newWeek && !firstTurn)
 	{
-		auto [specialWeek, creatureID] = pickWeekType(newMonth);
+		auto [specialWeek, creatureID, addGrowth] = pickWeekType(newMonth);
 		n.specialWeek = specialWeek;
 		n.creatureid = creatureID;
+		additionalGrowth = addGrowth;
 	}
 
 	n.heroesMana = updateHeroesManaPoints();
@@ -671,14 +711,14 @@ NewTurn NewTurnProcessor::generateNewTurnPack()
 		for (const auto & townID : gameHandler->gameState().getMap().getAllTowns())
 		{
 			const auto * t = gameHandler->gameState().getTown(townID);
-			n.availableCreatures.push_back(generateTownGrowth(t, n.specialWeek, n.creatureid, firstTurn));
+			n.availableCreatures.push_back(generateTownGrowth(t, n.specialWeek, n.creatureid, firstTurn, additionalGrowth));
 		}
 
 		n.newRumor = pickNewRumor();
 
 		//new week info popup
 		if (n.specialWeek != EWeekType::FIRST_WEEK)
-			n.newWeekNotification = createInfoWindow(n.specialWeek, n.creatureid, newMonth);
+			n.newWeekNotification = createInfoWindow(n.specialWeek, n.creatureid, newMonth, additionalGrowth);
 	}
 
 	return n;
@@ -688,9 +728,12 @@ void NewTurnProcessor::onNewTurn()
 {
 	NewTurn n = generateNewTurnPack();
 
+	int daysPerWeek = LIBRARY->engineSettings()->getInteger(EGameSettings::GENERAL_DAYS_PER_WEEK);
+	int daysPerMonth = LIBRARY->engineSettings()->getInteger(EGameSettings::GENERAL_WEEKS_PER_MONTH) * daysPerWeek;
+
 	bool firstTurn = !gameHandler->gameInfo().getDate(Date::DAY);
-	bool newWeek = gameHandler->gameInfo().getDate(Date::DAY_OF_WEEK) == 7; //day numbers are confusing, as day was not yet switched
-	bool newMonth = gameHandler->gameInfo().getDate(Date::DAY_OF_MONTH) == 28;
+	bool newWeek = gameHandler->gameInfo().getDate(Date::DAY_OF_WEEK) == daysPerWeek; //day numbers are confusing, as day was not yet switched
+	bool newMonth = gameHandler->gameInfo().getDate(Date::DAY_OF_MONTH) == daysPerMonth;
 
 	gameHandler->sendAndApply(n);
 
@@ -710,7 +753,7 @@ void NewTurnProcessor::onNewTurn()
 		{
 			const auto * t = gameHandler->gameState().getTown(townID);
 			if (!t->getOwner().isValidPlayer())
-				updateNeutralTownGarrison(t, 1 + gameHandler->gameInfo().getDate(Date::DAY) / 7);
+				updateNeutralTownGarrison(t, 1 + gameHandler->gameInfo().getDate(Date::DAY) / LIBRARY->engineSettings()->getInteger(EGameSettings::GENERAL_DAYS_PER_WEEK));
 		}
 	}
 

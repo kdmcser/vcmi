@@ -13,10 +13,23 @@
 
 VCMI_LIB_NAMESPACE_BEGIN
 
-class TerminationRequestedException : public std::exception
+class DLL_LINKAGE TerminationRequestedException : public std::exception
 {
 public:
 	using exception::exception;
+	~TerminationRequestedException() override;
+
+	const char* what() const noexcept override
+	{
+		return "Thread termination requested";
+	}
+};
+
+class DLL_LINKAGE InterruptionRequestedException : public std::exception
+{
+public:
+	using exception::exception;
+	~InterruptionRequestedException() override;
 
 	const char* what() const noexcept override
 	{
@@ -34,7 +47,7 @@ public:
 		bool result = interruptionRequested.exchange(false);
 
 		if (result)
-			throw TerminationRequestedException();
+			throw InterruptionRequestedException();
 	}
 
 	void interruptThread()
@@ -52,7 +65,9 @@ class ConditionalWait
 {
 	bool isBusyValue = false;
 	bool isTerminating = false;
+	int activeWaiters = 0;
 	std::condition_variable cond;
+	std::condition_variable waitersExited;
 	std::mutex mx;
 
 	void set(bool value)
@@ -63,6 +78,14 @@ class ConditionalWait
 
 public:
 	ConditionalWait() = default;
+
+	~ConditionalWait()
+	{
+		// Defensive: if owner forgot to call requestTermination(), block destruction
+		// until any waiter has actually exited waitWhileBusy(). Without this, the
+		// waiter can race past notify_all and re-lock a destroyed mutex.
+		requestTermination();
+	}
 
 	void setBusy()
 	{
@@ -77,8 +100,11 @@ public:
 
 	void requestTermination()
 	{
+		std::unique_lock un(mx);
 		isTerminating = true;
-		setFree();
+		isBusyValue = false;
+		cond.notify_all();
+		waitersExited.wait(un, [this]{ return activeWaiters == 0; });
 	}
 
 	bool isBusy()
@@ -90,9 +116,14 @@ public:
 	void waitWhileBusy()
 	{
 		std::unique_lock un(mx);
+		++activeWaiters;
 		cond.wait(un, [this](){ return !isBusyValue;});
 
-		if (isTerminating)
+		const bool terminate = isTerminating;
+		if (--activeWaiters == 0)
+			waitersExited.notify_all();
+
+		if (terminate)
 			throw TerminationRequestedException();
 	}
 };

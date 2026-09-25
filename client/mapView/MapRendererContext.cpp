@@ -114,7 +114,7 @@ const TerrainTile & MapRendererBaseContext::getMapTile(const int3 & coordinates)
 const MapRendererBaseContext::MapObjectsList & MapRendererBaseContext::getObjects(const int3 & coordinates) const
 {
 	assert(isInMap(coordinates));
-	return viewState.objects[coordinates.z][coordinates.x][coordinates.y];
+	return viewState.objects[coordinates];
 }
 
 const CGObjectInstance * MapRendererBaseContext::getObject(ObjectInstanceID objectID) const
@@ -528,7 +528,7 @@ size_t MapRendererWorldViewContext::overlayImageIndex(const int3 & coordinates) 
 	{
 		const auto * object = getObject(objectID);
 
-		if(!object->visitableAt(coordinates))
+		if(!object || !object->visitableAt(coordinates))
 			continue;
 
 		ObjectPosInfo info(object);

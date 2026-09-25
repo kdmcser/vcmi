@@ -438,16 +438,17 @@ void AdventureMapInterface::onPlayerTurnStarted(PlayerColor playerID)
 	{
 		GAME->interface()->localState->setSelection(heroToSelect);
 	}
-	else if (GAME->interface()->localState->getOwnedTowns().size())
+	else if (!GAME->interface()->localState->getOwnedTowns().empty())
 	{
 		GAME->interface()->localState->setSelection(GAME->interface()->localState->getOwnedTown(0));
 	}
-	else
+	else if (!GAME->interface()->localState->getWanderingHeroes().empty())
 	{
 		GAME->interface()->localState->setSelection(GAME->interface()->localState->getWanderingHero(0));
 	}
 
-	onSelectionChanged(GAME->interface()->localState->getCurrentArmy());
+	if (GAME->interface()->localState->getCurrentArmy())
+		onSelectionChanged(GAME->interface()->localState->getCurrentArmy());
 
 	//show new day animation and sound on infobar, except for 1st day of the game
 	if (GAME->interface()->cb->getDate(Date::DAY) != 1)
@@ -883,7 +884,11 @@ void AdventureMapInterface::openWorldView(const std::vector<ObjectPosInfo>& obje
 
 void AdventureMapInterface::hotkeyNextTown()
 {
+	int selectedIndex = widget->getTownList()->getSelectedIndex();
 	widget->getTownList()->selectNext();
+
+	if(selectedIndex == widget->getTownList()->getSelectedIndex())
+		widget->getTownList()->refreshSelected();
 }
 
 void AdventureMapInterface::hotkeySwitchMapLevel()
