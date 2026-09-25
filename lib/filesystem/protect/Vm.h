@@ -24,7 +24,7 @@ namespace Vm
 
 constexpr int maxLocals = 16;
 
-/// 字节缓冲区个数：受保护逻辑用它们存放密文、掩码等中间数据
+/// Number of byte buffers: the protected logic uses them to hold intermediate data such as ciphertext and mask
 constexpr int bufferCount = 4;
 
 struct Context
@@ -33,10 +33,10 @@ struct Context
 	std::vector<std::uint64_t> stack;
 	std::vector<std::uint8_t> buffers[bufferCount];
 
-	/// 各受保护逻辑自己的参数结构，由宿主函数负责转换
+	/// Parameter structure specific to each protected logic; the host functions handle the conversion
 	void * parameters = nullptr;
 
-	/// 宿主函数返回错误（例如长度不符）时的标记
+	/// Flag set when a host function reports an error (e.g. a length mismatch)
 	bool failed = false;
 };
 
@@ -60,10 +60,10 @@ inline std::uint64_t pop(Context & context)
 	return value;
 }
 
-/// 执行字节码，返回 opReturn 弹栈得到的值
+/// Execute the bytecode, returning the value popped from the stack by opReturn
 std::uint64_t run(const Program & program, Context & context, const HostFunction * hosts, int hostCount);
 
-/// 擦除缓冲区与局部变量，避免明文留在内存里
+/// Wipe buffers and locals so that plaintext does not linger in memory
 void wipe(Context & context);
 
 }

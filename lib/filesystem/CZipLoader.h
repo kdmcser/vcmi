@@ -23,7 +23,7 @@ class DLL_LINKAGE CZipStream : public CBufferedStream
 {
 	unzFile file;
 
-	/// 加密条目（ZipCrypto 与 AES）都由它解密，这样密码明文不必交给 minizip
+	/// Both encrypted entry types (ZipCrypto and AES) are decrypted by it, so the plaintext password never has to be handed to minizip
 	std::unique_ptr<ModPassword::EncryptedZipReader> encryptedReader;
 
 public:

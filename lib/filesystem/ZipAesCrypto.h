@@ -11,20 +11,26 @@
 
 #include "StdInc.h"
 
+// OpenSSL 3.0 marks the low-level SHA1_*/AES_* interfaces as deprecated and recommends EVP. SHA-1 here
+// specifically needs the low-level interface (EVP would create a context for every hash, which costs more).
+// This macro must be defined before the include.
+#ifndef OPENSSL_SUPPRESS_DEPRECATED
+#  define OPENSSL_SUPPRESS_DEPRECATED
+#endif
+#include <openssl/sha.h>
+
 VCMI_LIB_NAMESPACE_BEGIN
 
-/// WinZip AES（AE-1 / AE-2）解密所需的密码学原语。
+/// Cryptographic primitives required for WinZip AES (AE-1 / AE-2) decryption.
 ///
-/// 为什么自带一份而不是直接用 OpenSSL：各平台的依赖包里未必都有 OpenSSL。
-/// 例如 Apple 平台（iOS / macOS），VCMI 依赖图里的 OpenSSL 是跟着 Qt 的 openssl 选项
-/// 进来的，而那个选项在 Apple 平台是关掉的（改用系统 SecureTransport），
-/// 所以 iOS / macOS 的依赖包里没有 OpenSSL。
-/// 自带实现可以保证同一套代码在 Windows / Android / iOS / macOS 上都能编译，
-/// 也不需要改动 dependencies/conanfile.py 重新构建依赖包。
+/// SHA-1 and AES use OpenSSL directly: reading and writing encrypted zips is a CPU-intensive path, and
+/// OpenSSL uses the SHA-NI / AES-NI hardware instructions, an order of magnitude faster than a custom
+/// implementation (the custom SHA-1 runs at about 200 MB/s and AES at about 59 MB/s, whereas with OpenSSL
+/// they reach 2800 MB/s and 3000 MB/s respectively).
 namespace ZipAes
 {
 
-/// WinZip AES 的三档强度，数值与 extra field 0x9901 里的 strength 字段一致
+/// The three strength levels of WinZip AES; the values match the strength field of extra field 0x9901
 enum class Strength : std::uint8_t
 {
 	Aes128 = 1,
@@ -32,7 +38,7 @@ enum class Strength : std::uint8_t
 	Aes256 = 3,
 };
 
-/// 三档强度各自对应的密钥长度
+/// Key length for each of the three strength levels
 constexpr std::size_t keyLength(Strength strength)
 {
 	return strength == Strength::Aes128 ? 16
@@ -40,7 +46,7 @@ constexpr std::size_t keyLength(Strength strength)
 	     : 32;
 }
 
-/// 三档强度各自对应的 salt 长度
+/// Salt length for each of the three strength levels
 constexpr std::size_t saltLength(Strength strength)
 {
 	return strength == Strength::Aes128 ? 8
@@ -48,23 +54,21 @@ constexpr std::size_t saltLength(Strength strength)
 	     : 16;
 }
 
-/// 密码校验值和认证码的长度，三档强度都一样
+/// Length of the password verify value and the authentication code; identical for all three strength levels
 constexpr std::size_t verifyValueLength = 2;
 constexpr std::size_t authCodeLength = 10;
 
-/// 规范规定的 PBKDF2 迭代次数
+/// PBKDF2 iterations mandated by the specification
 constexpr std::uint32_t pbkdf2Iterations = 1000;
 
 // ---------------------------------------------------------------------------
-// SHA-1（FIPS 180-1），支持增量更新
+// SHA-1 (FIPS 180-1), with incremental update support
 // ---------------------------------------------------------------------------
 
+/// SHA-1 context (OpenSSL implementation, see the note at the top of the file)
 struct Sha1Context
 {
-	std::uint32_t state[5];
-	std::uint64_t totalLength;
-	std::uint8_t buffer[64];
-	std::size_t bufferedLength;
+	SHA_CTX handle;
 };
 
 void sha1Init(Sha1Context & context);
@@ -72,7 +76,7 @@ void sha1Update(Sha1Context & context, const void * data, std::size_t length);
 void sha1Final(Sha1Context & context, std::uint8_t digest[20]);
 
 // ---------------------------------------------------------------------------
-// HMAC-SHA1（RFC 2104），支持增量更新
+// HMAC-SHA1 (RFC 2104), with incremental update support
 // ---------------------------------------------------------------------------
 
 struct HmacSha1Context
@@ -81,24 +85,25 @@ struct HmacSha1Context
 	Sha1Context outer;
 };
 
-/// 密码字节的消费者，每拿到一个字节调用一次
+/// Consumer of password bytes, invoked once for every byte it receives
 using PasswordByteConsumer = void (*)(void * context, std::uint8_t value);
 
-/// 能反复从头提供密码字节的来源。
+/// A source that can repeatedly supply the password bytes from the beginning.
 ///
-/// 为什么不用「指针 + 长度」：那样调用方手里得先有一份完整的密码原文，而
-/// PBKDF2 会反复重建 HMAC 的密钥块，这份原文就得在整个派生期间一直留着，
-/// 谁都能一次读走。改成按需重放之后，密码只在需要它的那一刻逐字节出现。
+/// Why not use a "pointer + length" instead: that would force the caller to already hold a complete
+/// plaintext copy of the password, and since PBKDF2 repeatedly rebuilds the HMAC key block, that copy
+/// would have to stay around for the whole derivation, where anyone could read it out in one go. With
+/// on-demand replay, the password only appears byte by byte at the moment it is needed.
 struct PasswordByteSource
 {
 	void * context = nullptr;
 
-	/// 把密码字节依次交给 consumer；返回 false 表示来源失效（此时密码不可信）
+	/// Hand the password bytes to consumer one after another; returning false means the source is invalid (and the password is then untrustworthy)
 	bool (*replay)(void * context, PasswordByteConsumer consumer, void * consumerContext) = nullptr;
 };
 
-/// 用一段现成的密码缓冲区当来源，供测试向量之类的调用方使用。
-/// password 的生命周期由调用方保证。
+/// Use an existing password buffer as the source, for callers such as test vectors.
+/// The lifetime of `password` is guaranteed by the caller.
 struct MemoryPassword
 {
 	const std::uint8_t * bytes = nullptr;
@@ -112,8 +117,30 @@ void hmacSha1Init(HmacSha1Context & context, const std::uint8_t * key, std::size
 void hmacSha1Update(HmacSha1Context & context, const void * data, std::size_t length);
 void hmacSha1Final(HmacSha1Context & context, std::uint8_t digest[20]);
 
+/// HMAC key schedule: the intermediate SHA-1 state after absorbing the key block (pad).
+///
+/// Every PBKDF2 iteration uses the same key block, yet the original code re-read the password and
+/// recomputed the pad on every iteration. The read side runs a full PBKDF2 for every encrypted entry it
+/// opens (1000 iterations x 4 output blocks), so this overhead gets multiplied thousands of times -- this
+/// is the main reason decryption was slow. Storing the state after absorbing the pad and reusing it
+/// reduces "a password replay per iteration" to "one per derivation".
+///
+/// Security: what is stored is the SHA-1 intermediate state after absorbing the pad; it is one-way and
+/// cannot be used to recover the password.
+struct HmacSha1KeySchedule
+{
+	Sha1Context inner;
+	Sha1Context outer;
+};
+
+/// Build the key schedule from the password source (the password is read only once, here). Returns false if the password source is invalid.
+bool hmacSha1Prepare(HmacSha1KeySchedule & schedule, const PasswordByteSource & password);
+
+/// Begin an HMAC using an existing key schedule (equivalent to hmacSha1Init, but without reading the password again)
+void hmacSha1Begin(const HmacSha1KeySchedule & schedule, HmacSha1Context & context);
+
 // ---------------------------------------------------------------------------
-// PBKDF2-HMAC-SHA1（RFC 2898）
+// PBKDF2-HMAC-SHA1 (RFC 2898)
 // ---------------------------------------------------------------------------
 
 void pbkdf2Sha1(const PasswordByteSource & password,
@@ -125,38 +152,41 @@ void pbkdf2Sha1(const std::uint8_t * password, std::size_t passwordLength,
                 std::uint32_t iterations, std::uint8_t * output, std::size_t outputLength);
 
 // ---------------------------------------------------------------------------
-// AES：只做加密方向，因为 CTR 模式的解密用的也是加密方向
+// AES: encryption direction only, since CTR-mode decryption also uses the encryption direction
 // ---------------------------------------------------------------------------
 
-/// 轮密钥最多 60 个字：AES-256 需要 4 * (14 + 1) = 60
-struct AesContext
-{
-	std::uint32_t roundKeys[60];
-	int rounds;
-};
+/// keystream pool size: generate 1024 blocks (16 KB) in one batch to amortize the EVP call overhead
+///
+/// The keystream is generated in bulk with EVP's AES-ECB: a single-block call to the low-level
+/// AES_encrypt measures only 247 MB/s (it goes through the generic C implementation), while EVP in bulk
+/// reaches 11 GB/s (via AES-NI).
+constexpr std::size_t keystreamBlocks = 1024;
+constexpr std::size_t keystreamBytes = keystreamBlocks * 16;
 
-void aesInit(AesContext & context, Strength strength, const std::uint8_t * key);
-void aesEncryptBlock(const AesContext & context, const std::uint8_t input[16], std::uint8_t output[16]);
-
-/// WinZip AES 用的 CTR 流。
-/// 要点：16 字节计数器按 128 位「小端」整数处理，初值为 1 —— 这是实现里最容易写错的地方。
+/// The CTR stream used by WinZip AES.
+/// Key point: the 16-byte counter is treated as a 128-bit "little-endian" integer with an initial value of 1 -- this is the easiest place to get the implementation wrong.
+///
+/// Only POD is stored here (key, counter, keystream pool): the caller wipes this structure as a whole,
+/// so it must not hold any resource that needs to be released separately.
 struct AesCtrContext
 {
-	AesContext cipher;
-	std::uint8_t counter[16];
-	std::uint8_t stream[16];
-	std::size_t streamUsed;
+	Strength strength = Strength::Aes256;
+	std::uint8_t key[32] = {};
+	std::uint8_t counter[16] = {};
+	std::uint8_t stream[keystreamBytes] = {};
+	/// Number of keystream bytes already consumed; equal to keystreamBytes means the pool is exhausted
+	std::size_t streamUsed = keystreamBytes;
 };
 
 void aesCtrInit(AesCtrContext & context, Strength strength, const std::uint8_t * key);
 void aesCtrCrypt(AesCtrContext & context, std::uint8_t * data, std::size_t length);
 
 // ---------------------------------------------------------------------------
-// WinZip AES 的密钥材料
+// WinZip AES key material
 // ---------------------------------------------------------------------------
 
-/// 规范要求一次 PBKDF2 派生 (2 * 密钥长度 + 2) 字节，
-/// 按顺序切成加密密钥、HMAC 密钥和 2 字节的密码校验值
+/// The specification requires a single PBKDF2 derivation of (2 * key length + 2) bytes,
+/// split in order into the encryption key, the HMAC key and the 2-byte password verify value
 struct AesKeyMaterial
 {
 	std::uint8_t encryptionKey[32];
@@ -168,10 +198,10 @@ void deriveAesKeys(Strength strength, const PasswordByteSource & password,
                    const std::uint8_t * salt, AesKeyMaterial & keys);
 
 // ---------------------------------------------------------------------------
-// 工具
+// Utilities
 // ---------------------------------------------------------------------------
 
-/// 擦除内存中的敏感数据。用 volatile 写，避免被编译器当作无用赋值优化掉。
+/// Erase sensitive data from memory. Uses volatile writes so the compiler does not optimize them away as dead stores.
 void secureErase(void * data, std::size_t length);
 
 }

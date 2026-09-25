@@ -96,8 +96,8 @@ uint32_t ModsState::computeChecksum(const TModID & modName) const
 		}
 		catch (const std::exception & e)
 		{
-			// 校验和是尽力而为的：某个文件读不出来（例如加密条目打不开）
-			// 不该让整个加载流程失败，按 0 计入即可
+			// Checksumming is best-effort: failing to read a single file (e.g. an encrypted entry that
+			// cannot be opened) should not fail the whole loading process, so just count it as 0
 			logGlobal->error("Failed to checksum '%s': %s", file.getName(), e.what());
 		}
 		modChecksum.process_bytes(static_cast<const void *>(&fileChecksum), sizeof(fileChecksum));

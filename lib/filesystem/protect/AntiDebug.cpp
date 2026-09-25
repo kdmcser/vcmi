@@ -37,8 +37,9 @@ VCMI_LIB_NAMESPACE_BEGIN
 namespace ModPassword
 {
 
-// MODPASSWORD_ANTIDEBUG 由 CMake 只在 Release 配置下传入；
-// MODPASSWORD_NO_ANTIDEBUG 是手工强制关闭的开关。两者都不满足时整个模块编译成空。
+// MODPASSWORD_ANTIDEBUG is passed in by CMake only for the Release configuration;
+// MODPASSWORD_NO_ANTIDEBUG is a manual switch that forces it off. When neither is
+// satisfied the whole module compiles to nothing.
 #if !defined(MODPASSWORD_ANTIDEBUG) || defined(MODPASSWORD_NO_ANTIDEBUG)
 
 std::uint8_t antiDebugBias()
@@ -51,21 +52,23 @@ std::uint8_t antiDebugBias()
 namespace
 {
 
-/// 命中时叠到掩码上的偏置。与 maskBias() 取不同的值，
-/// 两者同时生效时还原出来的密码同样是错的。
+/// Bias folded into the mask when triggered. It takes a different value from
+/// maskBias(); when both are active the recovered password is equally wrong.
 constexpr std::uint8_t detectionBias = 0x5B;
 
 // ---------------------------------------------------------------------------
-// 是否附加了调试器
+// Is a debugger attached
 // ---------------------------------------------------------------------------
 
 #if defined(VCMI_WINDOWS)
 
-/// NtQueryInformationProcess 的两条查询：DebugPort 非零、DebugObjectHandle 非空。
-/// 一部分调试器会把 PEB 里的 BeingDebugged 清掉，但这两条仍然会露出来。
+/// Two NtQueryInformationProcess queries: a non-zero DebugPort and a non-null
+/// DebugObjectHandle. Some debuggers clear BeingDebugged in the PEB, but these two
+/// still give them away.
 ///
-/// 用 GetModuleHandleA/GetProcAddress 动态取函数地址，而不是直接依赖 ntdll 导入，
-/// 是为了不给导入表新增条目。只读取句柄，不做任何设置类操作。
+/// The function address is resolved dynamically with GetModuleHandleA/GetProcAddress
+/// rather than relying on an ntdll import, so as not to add a new entry to the import
+/// table. It only reads handles and performs no setter-style operations.
 bool debuggerAttachedViaNtdll()
 {
 	using QueryInformationProcessFn = long (WINAPI *)(HANDLE, unsigned long, void *, unsigned long, unsigned long *);
@@ -94,8 +97,9 @@ bool debuggerAttachedViaNtdll()
 	return false;
 }
 
-/// 三条查询都是只读的：问「本进程有没有调试器」，不问「有没有外部代码在动我」。
-/// 往进程里注入钩子的叠加层与录屏工具不会命中任何一条。
+/// All three queries are read-only: they ask "does this process have a debugger"
+/// rather than "is external code touching me". Overlay and screen recording tools
+/// that inject hooks into the process trigger none of them.
 bool debuggerAttached()
 {
 	if(IsDebuggerPresent() != FALSE)
@@ -110,8 +114,9 @@ bool debuggerAttached()
 
 #elif defined(VCMI_MAC)
 
-/// 只读查询进程自身的 P_TRACED 标志，没有副作用。
-/// 不用 ptrace(PT_DENY_ATTACH)：那会让进程在被附加时直接被杀掉，代价太大。
+/// Read-only query of the process's own P_TRACED flag, with no side effects.
+/// ptrace(PT_DENY_ATTACH) is not used: it would kill the process outright on
+/// attach, which is too costly.
 bool debuggerAttached()
 {
 	int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid() };
@@ -126,10 +131,12 @@ bool debuggerAttached()
 
 #elif defined(VCMI_UNIX)
 
-/// 读 /proc/self/status 里的 TracerPid，只读、无副作用。
-/// 特意不用 ptrace(PTRACE_TRACEME)：那会永久改变本进程的信号传递语义，
-/// 影响崩溃转储和退出行为，对一个游戏客户端来说代价过大。
-/// 在没有 /proc 的环境（例如 iOS）上 fopen 失败，按未命中处理。
+/// Reads TracerPid from /proc/self/status, read-only and side-effect free.
+/// ptrace(PTRACE_TRACEME) is deliberately avoided: it would permanently change this
+/// process's signal delivery semantics, affecting crash dumps and exit behavior --
+/// too costly for a game client.
+/// On environments without /proc (for example iOS) fopen fails, which is treated as
+/// not triggered.
 bool debuggerAttached()
 {
 	std::FILE * status = std::fopen("/proc/self/status", "r");
@@ -162,15 +169,18 @@ bool debuggerAttached()
 #endif
 
 // ---------------------------------------------------------------------------
-// 是否在单步执行
+// Is single-stepping in progress
 // ---------------------------------------------------------------------------
 
-/// 单步执行会让一个已知代价的小循环慢上几个数量级。
+/// Single-stepping slows a small loop of known cost by several orders of magnitude.
 ///
-/// 取多轮测量的最小值：线程被抢占只会让测量值偏大，最小值对系统负载、
-/// 虚拟机、CPU 降频都不敏感，所以阈值可以取得很宽 —— 正常机器上这个循环
-/// 在百微秒量级，阈值取在两者中间，留出约三个数量级的余量，
-/// 意味着只有真正的单步执行（每步一次用户态往返）才会命中。
+/// The minimum over several measurement rounds is taken: thread preemption only
+/// inflates the measurement, and the minimum is insensitive to system load, virtual
+/// machines, and CPU frequency scaling, so the threshold can be set very loosely --
+/// on a normal machine this loop takes on the order of a hundred microseconds, and
+/// the threshold sits between the two with roughly three orders of magnitude of
+/// headroom, meaning only genuine single-stepping (one user-mode round trip per
+/// step) will trigger it.
 bool singleSteppingDetected()
 {
 	constexpr int rounds = 3;
@@ -197,9 +207,10 @@ bool singleSteppingDetected()
 
 std::uint8_t antiDebugBias()
 {
-	/// 调用点是每个密码字节一次，而 AES 那条路每个条目要把密码重放上千遍，
-	/// 所以检查必须节流：便宜的两项每 1024 次跑一次，
-	/// 昂贵的定时测量每 65536 次跑一次（约每两三个条目一次，摊销后可以忽略）。
+	/// The call site runs once per password byte, and on the AES path the password is
+	/// replayed thousands of times per entry, so the checks must be throttled: the two
+	/// cheap checks run every 1024 calls, and the expensive timing measurement runs every
+	/// 65536 calls (roughly once every two or three entries, negligible when amortized).
 	static constexpr std::uint32_t attachedInterval = 1024;
 	static constexpr std::uint32_t steppingInterval = 65536;
 
@@ -208,7 +219,7 @@ std::uint8_t antiDebugBias()
 
 	const std::uint32_t index = calls.fetch_add(1, std::memory_order_relaxed);
 
-	// 首次调用走完整检查，因此「先附加调试器、再让 VCMI 加载加密 Mod」会被立刻抓到
+	// The first call performs the full check, so "attach the debugger first, then let VCMI load the encrypted Mod" is caught immediately
 	if(index % steppingInterval == 0)
 	{
 		const bool hit = debuggerAttached() || singleSteppingDetected();

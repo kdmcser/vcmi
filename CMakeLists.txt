@@ -13,8 +13,9 @@ project(VCMI)
 # It's used currently to make sure that 3rd-party dependencies in git submodules get proper FOLDER property
 # - Make FindFuzzyLite check for the right version and disable FORCE_BUNDLED_FL by default
 
-# mod 密码的密文、掩码，以及 VM 的 opcode 置换密钥，都在构建目录里生成（不进版本库）。
-# 具体逻辑见 cmake/ModPasswordSecrets.cmake
+# The mod password ciphertext and mask, as well as the VM opcode permutation key, are all generated
+# inside the build directory (never committed to the repository).
+# See cmake/ModPasswordSecrets.cmake for the implementation.
 include(cmake/ModPasswordSecrets.cmake)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/generated)
