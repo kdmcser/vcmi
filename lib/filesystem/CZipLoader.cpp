@@ -7,53 +7,12 @@
  * Full text of license available in license.txt file, in main folder
  *
  */
-#include "mask.h"
 #include "StdInc.h"
 #include "CZipLoader.h"
 #include "../ScopeGuard.h"
 #include "../texts/TextOperations.h"
 
 VCMI_LIB_NAMESPACE_BEGIN
-
-std::vector<unsigned char> CZipStream::base64Decode(const std::string& encoded_string) 
-{
-	const std::string base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-	std::vector<unsigned char> decoded_bytes;
-	int in_len = encoded_string.size();
-	int i = 0, j = 0, char_array_4[4], char_array_3[3];
-
-	while (in_len-- && (encoded_string[i] != '=')) {
-		char_array_4[j++] = base64_chars.find(encoded_string[i]);
-		if (j == 4) {
-			char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
-			char_array_3[1] = ((char_array_4[1] & 0x0F) << 4) + ((char_array_4[2] & 0x3C) >> 2);
-			char_array_3[2] = ((char_array_4[2] & 0x03) << 6) + char_array_4[3];
-
-			for (int k = 0; k < 3; k++) decoded_bytes.push_back(char_array_3[k]);
-			j = 0;
-		}
-		i++;
-	}
-
-	if (j) {
-		for (int k = j; k < 4; k++) char_array_4[k] = 0;
-		char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
-		char_array_3[1] = ((char_array_4[1] & 0x0F) << 4) + ((char_array_4[2] & 0x3C) >> 2);
-		for (int k = 0; k < j - 1; k++) decoded_bytes.push_back(char_array_3[k]);
-	}
-
-	return decoded_bytes;
-}
-
-std::string CZipStream::deobfuscate(const std::string& obfuscated_b64) 
-{
-	std::vector<unsigned char> obfuscated_bytes = base64Decode(obfuscated_b64);
-	std::vector<unsigned char> plain_bytes;
-	for (size_t i = 0; i < obfuscated_bytes.size(); ++i) {
-		plain_bytes.push_back(obfuscated_bytes[i] ^ mask[i % mask_length]);
-	}
-	return std::string(plain_bytes.begin(), plain_bytes.end());
-}
 
 CZipStream::CZipStream(const std::shared_ptr<CIOApi> & api, const boost::filesystem::path & archive, unz64_file_pos filepos)
 {
@@ -72,18 +31,12 @@ CZipStream::CZipStream(const std::shared_ptr<CIOApi> & api, const boost::filesys
 	);
 	if ((file_info.flag & 1) != 0)
 	{
-		// AES 加密的条目（compression method = 99）minizip 不认识，
-		// 交给自研的解密器；传统的 ZipCrypto 仍然走 minizip。
-		if (file_info.compression_method == 99)
-		{
-			unz64_file_pos entryPosition;
-			if(unzGetFilePos64(file, &entryPosition) == UNZ_OK)
-				aesReader = std::make_unique<ZipAes::ZipAesReader>(zlibApi, archive.string(),
-				                                                   entryPosition.pos_in_zip_directory,
-				                                                   deobfuscate(MOD_PASSWORD));
-		}
-		else
-			unzOpenCurrentFilePassword(file, deobfuscate(MOD_PASSWORD).c_str());
+		// 加密条目（ZipCrypto 与 AES）统一交给受保护的读取器：
+		// 交给 minizip 就得把密码明文递进去，那正是攻击者想要的。
+		unz64_file_pos entryPosition;
+		if(unzGetFilePos64(file, &entryPosition) == UNZ_OK)
+			encryptedReader = std::make_unique<ModPassword::EncryptedZipReader>(
+			    zlibApi, archive.string(), entryPosition.pos_in_zip_directory);
 	}
 	else 
 		unzOpenCurrentFile(file);
@@ -97,8 +50,8 @@ CZipStream::~CZipStream()
 
 si64 CZipStream::readMore(ui8 * data, si64 size)
 {
-	if (aesReader)
-		return aesReader->read(data, size);
+	if (encryptedReader)
+		return encryptedReader->read(data, size);
 
 	return unzReadCurrentFile(file, data, static_cast<unsigned int>(size));
 }
