@@ -323,43 +323,116 @@ void sha1Final(Sha1Context & context, std::uint8_t digest[sha1DigestLength])
 // HMAC-SHA1
 // ---------------------------------------------------------------------------
 
-void hmacSha1Init(HmacSha1Context & context, const std::uint8_t * key, std::size_t keyLength)
+namespace
 {
-	std::uint8_t paddedKey[sha1BlockLength];
-	std::memset(paddedKey, 0, sizeof(paddedKey));
 
-	if(keyLength > sha1BlockLength)
+/// 把密码字节 XOR 进 HMAC 需要的两个 pad 块
+struct PadFiller
+{
+	std::uint8_t * innerPad = nullptr;
+	std::uint8_t * outerPad = nullptr;
+	std::size_t index = 0;
+	bool tooLong = false;
+};
+
+void fillPadBlock(void * context, std::uint8_t value)
+{
+	auto * filler = static_cast<PadFiller *>(context);
+
+	if(filler->index < sha1BlockLength)
 	{
-		std::uint8_t hashedKey[sha1DigestLength];
-		Sha1Context hasher;
-		sha1Init(hasher);
-		sha1Update(hasher, key, keyLength);
-		sha1Final(hasher, hashedKey);
-		std::memcpy(paddedKey, hashedKey, sizeof(hashedKey));
+		filler->innerPad[filler->index] ^= value;
+		filler->outerPad[filler->index] ^= value;
 	}
 	else
 	{
-		std::memcpy(paddedKey, key, keyLength);
+		// 密码比一个 SHA-1 block 还长：按规范得先对密码做一次 SHA-1
+		filler->tooLong = true;
 	}
 
+	++filler->index;
+}
+
+void hashPasswordByte(void * context, std::uint8_t value)
+{
+	sha1Update(*static_cast<Sha1Context *>(context), &value, 1);
+}
+
+bool replayMemoryPassword(void * context, PasswordByteConsumer consumer, void * consumerContext)
+{
+	auto * password = static_cast<MemoryPassword *>(context);
+
+	for(std::size_t i = 0; i < password->length; ++i)
+		consumer(consumerContext, password->bytes[i]);
+
+	return true;
+}
+
+}
+
+PasswordByteSource passwordSourceOf(MemoryPassword & password)
+{
+	PasswordByteSource source;
+	source.context = &password;
+	source.replay = &replayMemoryPassword;
+	return source;
+}
+
+void hmacSha1Init(HmacSha1Context & context, const PasswordByteSource & password)
+{
+	// 直接以 pad 值为底、把密码字节 XOR 进来，不经过「先拼出一份完整密码」这一步
 	std::uint8_t innerPad[sha1BlockLength];
 	std::uint8_t outerPad[sha1BlockLength];
+	std::memset(innerPad, 0x36, sizeof(innerPad));
+	std::memset(outerPad, 0x5c, sizeof(outerPad));
 
-	for(std::size_t i = 0; i < sha1BlockLength; ++i)
+	PadFiller filler;
+	filler.innerPad = innerPad;
+	filler.outerPad = outerPad;
+
+	const bool replayed = password.replay != nullptr
+	                   && password.replay(password.context, &fillPadBlock, &filler);
+
+	if(replayed && filler.tooLong)
 	{
-		innerPad[i] = static_cast<std::uint8_t>(paddedKey[i] ^ 0x36);
-		outerPad[i] = static_cast<std::uint8_t>(paddedKey[i] ^ 0x5c);
+		Sha1Context hasher;
+		sha1Init(hasher);
+		password.replay(password.context, &hashPasswordByte, &hasher);
+
+		std::uint8_t hashedKey[sha1DigestLength];
+		sha1Final(hasher, hashedKey);
+
+		std::memset(innerPad, 0x36, sizeof(innerPad));
+		std::memset(outerPad, 0x5c, sizeof(outerPad));
+
+		for(std::size_t i = 0; i < sha1DigestLength; ++i)
+		{
+			innerPad[i] ^= hashedKey[i];
+			outerPad[i] ^= hashedKey[i];
+		}
+
+		secureErase(hashedKey, sizeof(hashedKey));
 	}
 
+	// 来源失效时按空密码收尾：算出来的密钥是错的，解密必然失败，
+	// 不会悄悄放行一份错误内容
 	sha1Init(context.inner);
 	sha1Update(context.inner, innerPad, sha1BlockLength);
 
 	sha1Init(context.outer);
 	sha1Update(context.outer, outerPad, sha1BlockLength);
 
-	secureErase(paddedKey, sizeof(paddedKey));
 	secureErase(innerPad, sizeof(innerPad));
 	secureErase(outerPad, sizeof(outerPad));
+}
+
+void hmacSha1Init(HmacSha1Context & context, const std::uint8_t * key, std::size_t keyLength)
+{
+	MemoryPassword password;
+	password.bytes = key;
+	password.length = keyLength;
+
+	hmacSha1Init(context, passwordSourceOf(password));
 }
 
 void hmacSha1Update(HmacSha1Context & context, const void * data, std::size_t length)
@@ -380,7 +453,7 @@ void hmacSha1Final(HmacSha1Context & context, std::uint8_t digest[sha1DigestLeng
 // PBKDF2-HMAC-SHA1
 // ---------------------------------------------------------------------------
 
-void pbkdf2Sha1(const std::uint8_t * password, std::size_t passwordLength,
+void pbkdf2Sha1(const PasswordByteSource & password,
                 const std::uint8_t * salt, std::size_t saltLength,
                 std::uint32_t iterations, std::uint8_t * output, std::size_t outputLength)
 {
@@ -406,8 +479,10 @@ void pbkdf2Sha1(const std::uint8_t * password, std::size_t passwordLength,
 		std::uint8_t current[sha1DigestLength];
 		std::uint8_t accumulated[sha1DigestLength];
 
+		// 每次迭代都重新从密码源取一遍密码：代价是每条目多几千次重放，
+		// 换来的是内存里不存在一份完整的密码
 		HmacSha1Context hmac;
-		hmacSha1Init(hmac, password, passwordLength);
+		hmacSha1Init(hmac, password);
 		hmacSha1Update(hmac, saltBlock, saltLength + 4);
 		hmacSha1Final(hmac, current);
 
@@ -415,7 +490,7 @@ void pbkdf2Sha1(const std::uint8_t * password, std::size_t passwordLength,
 
 		for(std::uint32_t iteration = 1; iteration < iterations; ++iteration)
 		{
-			hmacSha1Init(hmac, password, passwordLength);
+			hmacSha1Init(hmac, password);
 			hmacSha1Update(hmac, current, sha1DigestLength);
 			hmacSha1Final(hmac, current);
 
@@ -434,6 +509,17 @@ void pbkdf2Sha1(const std::uint8_t * password, std::size_t passwordLength,
 	}
 
 	secureErase(saltBlock, sizeof(saltBlock));
+}
+
+void pbkdf2Sha1(const std::uint8_t * password, std::size_t passwordLength,
+                const std::uint8_t * salt, std::size_t saltLength,
+                std::uint32_t iterations, std::uint8_t * output, std::size_t outputLength)
+{
+	MemoryPassword memoryPassword;
+	memoryPassword.bytes = password;
+	memoryPassword.length = passwordLength;
+
+	pbkdf2Sha1(passwordSourceOf(memoryPassword), salt, saltLength, iterations, output, outputLength);
 }
 
 // ---------------------------------------------------------------------------
@@ -504,7 +590,7 @@ void aesCtrCrypt(AesCtrContext & context, std::uint8_t * data, std::size_t lengt
 // 密钥派生
 // ---------------------------------------------------------------------------
 
-void deriveAesKeys(Strength strength, const std::uint8_t * password, std::size_t passwordLength,
+void deriveAesKeys(Strength strength, const PasswordByteSource & password,
                    const std::uint8_t * salt, AesKeyMaterial & keys)
 {
 	const std::size_t length = keyLength(strength);
@@ -512,7 +598,7 @@ void deriveAesKeys(Strength strength, const std::uint8_t * password, std::size_t
 	// 一次 PBKDF2 出 (2 * 密钥长度 + 2) 字节，再按规范顺序切开
 	std::uint8_t derived[2 * 32 + 2];
 
-	pbkdf2Sha1(password, passwordLength, salt, saltLength(strength), pbkdf2Iterations,
+	pbkdf2Sha1(password, salt, saltLength(strength), pbkdf2Iterations,
 	           derived, 2 * length + verifyValueLength);
 
 	std::memcpy(keys.encryptionKey, derived, length);

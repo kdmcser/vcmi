@@ -19,10 +19,25 @@ namespace ModPassword
 namespace
 {
 
-/// 各掩码碎片在生成时异或过的常量，必须与 cmake/ModPasswordSecrets.cmake 保持一致
-constexpr std::uint8_t shardKeys[Secrets::maskShardCount] = { 0x71, 0x1E, 0x9B, 0x44 };
+/// 密文碎片里存的是这张表的下标，64 表示填充符 '='
+constexpr char base64Alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 /// volatile 读取，避免编译器把碎片重新拼成一份连续的常量放进二进制
+const volatile std::uint8_t * cipherShardData(std::size_t shard)
+{
+	switch(shard)
+	{
+	case 0:
+		return Secrets::cipherShard0;
+	case 1:
+		return Secrets::cipherShard1;
+	case 2:
+		return Secrets::cipherShard2;
+	default:
+		return Secrets::cipherShard3;
+	}
+}
+
 const volatile std::uint8_t * maskShardData(std::size_t shard)
 {
 	switch(shard)
@@ -49,8 +64,11 @@ std::string secretCipher()
 	{
 		const std::size_t shard = i % Secrets::cipherShardCount;
 		const std::size_t offset = i / Secrets::cipherShardCount;
-		const volatile char * data = Secrets::cipherShard[shard];
-		result[i] = data[offset];
+
+		const std::uint8_t value = static_cast<std::uint8_t>(
+		    cipherShardData(shard)[offset] ^ Secrets::cipherShardKeys[shard]);
+
+		result[i] = value < 64 ? base64Alphabet[value] : '=';
 	}
 
 	return result;
@@ -66,8 +84,10 @@ std::uint8_t secretMaskByte(std::size_t index)
 	const std::size_t shard = wrapped % Secrets::maskShardCount;
 	const std::size_t offset = wrapped / Secrets::maskShardCount;
 
-	const volatile std::uint8_t * data = maskShardData(shard);
-	return static_cast<std::uint8_t>(data[offset] ^ shardKeys[shard]);
+	const std::uint8_t value = static_cast<std::uint8_t>(
+	    maskShardData(shard)[offset] ^ Secrets::maskShardKeys[shard]);
+
+	return value;
 }
 
 std::size_t secretMaskLength()

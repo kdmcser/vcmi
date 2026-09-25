@@ -81,6 +81,33 @@ struct HmacSha1Context
 	Sha1Context outer;
 };
 
+/// 密码字节的消费者，每拿到一个字节调用一次
+using PasswordByteConsumer = void (*)(void * context, std::uint8_t value);
+
+/// 能反复从头提供密码字节的来源。
+///
+/// 为什么不用「指针 + 长度」：那样调用方手里得先有一份完整的密码原文，而
+/// PBKDF2 会反复重建 HMAC 的密钥块，这份原文就得在整个派生期间一直留着，
+/// 谁都能一次读走。改成按需重放之后，密码只在需要它的那一刻逐字节出现。
+struct PasswordByteSource
+{
+	void * context = nullptr;
+
+	/// 把密码字节依次交给 consumer；返回 false 表示来源失效（此时密码不可信）
+	bool (*replay)(void * context, PasswordByteConsumer consumer, void * consumerContext) = nullptr;
+};
+
+/// 用一段现成的密码缓冲区当来源，供测试向量之类的调用方使用。
+/// password 的生命周期由调用方保证。
+struct MemoryPassword
+{
+	const std::uint8_t * bytes = nullptr;
+	std::size_t length = 0;
+};
+
+PasswordByteSource passwordSourceOf(MemoryPassword & password);
+
+void hmacSha1Init(HmacSha1Context & context, const PasswordByteSource & password);
 void hmacSha1Init(HmacSha1Context & context, const std::uint8_t * key, std::size_t keyLength);
 void hmacSha1Update(HmacSha1Context & context, const void * data, std::size_t length);
 void hmacSha1Final(HmacSha1Context & context, std::uint8_t digest[20]);
@@ -88,6 +115,10 @@ void hmacSha1Final(HmacSha1Context & context, std::uint8_t digest[20]);
 // ---------------------------------------------------------------------------
 // PBKDF2-HMAC-SHA1（RFC 2898）
 // ---------------------------------------------------------------------------
+
+void pbkdf2Sha1(const PasswordByteSource & password,
+                const std::uint8_t * salt, std::size_t saltLength,
+                std::uint32_t iterations, std::uint8_t * output, std::size_t outputLength);
 
 void pbkdf2Sha1(const std::uint8_t * password, std::size_t passwordLength,
                 const std::uint8_t * salt, std::size_t saltLength,
@@ -133,7 +164,7 @@ struct AesKeyMaterial
 	std::uint8_t verifyValue[2];
 };
 
-void deriveAesKeys(Strength strength, const std::uint8_t * password, std::size_t passwordLength,
+void deriveAesKeys(Strength strength, const PasswordByteSource & password,
                    const std::uint8_t * salt, AesKeyMaterial & keys);
 
 // ---------------------------------------------------------------------------

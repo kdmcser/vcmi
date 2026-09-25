@@ -42,6 +42,13 @@ constexpr std::uint32_t localHeaderSignature = 0x04034b50;
 /// 需要读 zip64 extra field 的哨兵值，这种条目这里没做支持
 constexpr std::uint32_t zip64Marker = 0xffffffffu;
 
+/// 把受保护字节码给出的密码字节交给调用方。
+/// AES 的 PBKDF2 每次重建 HMAC 密钥块都会重放一遍，全程不留完整的密码。
+bool replayPasswordBytes(void * context, ZipAes::PasswordByteConsumer consumer, void * consumerContext)
+{
+	return derivePasswordBytes(consumer, consumerContext);
+}
+
 /// 每次处理的块大小。放在栈上，取小一点避免深调用链上爆栈。
 constexpr std::size_t chunkSize = 16 * 1024;
 
@@ -147,15 +154,14 @@ bool EncryptedZipReader::openEntry(std::uint64_t centralDirectoryOffset)
 		if(!readExact(saltBuffer, saltSize) || !readExact(verifyBuffer, ZipAes::verifyValueLength))
 			return false;
 
-		// 密码来自受保护的字节码。PBKDF2 必须拿到密码原文，所以这条路无法避免
-		// 明文短暂存在，好在窗口只到派生结束。
-		std::string password = derivePassword();
+		// 密码由受保护的字节码逐字节给出。PBKDF2 每次重建 HMAC 密钥块都要重放
+		// 一遍密码，中途没有任何一步会把密码拼成完整的一份。
+		ZipAes::PasswordByteSource password;
+		password.context = nullptr;
+		password.replay = &replayPasswordBytes;
 
 		ZipAes::AesKeyMaterial keyMaterial;
-		ZipAes::deriveAesKeys(aesStrength, reinterpret_cast<const std::uint8_t *>(password.data()),
-		                      password.size(), saltBuffer, keyMaterial);
-
-		eraseSecret(password);
+		ZipAes::deriveAesKeys(aesStrength, password, saltBuffer, keyMaterial);
 
 		if(verifyBuffer[0] != keyMaterial.verifyValue[0] || verifyBuffer[1] != keyMaterial.verifyValue[1])
 		{
