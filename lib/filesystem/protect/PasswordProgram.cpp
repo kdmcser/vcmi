@@ -9,6 +9,7 @@
  */
 #include "PasswordProgram.h"
 
+#include "AntiDebug.h"
 #include "SecretConstants.h"
 #include "Vm.h"
 #include "VmAsm.h"
@@ -109,9 +110,12 @@ std::uint64_t hostMaskByte(Context & context)
 {
 	const std::uint64_t index = pop(context);
 
-	// 字节码被改动时这里给出的是错的掩码，算出来的密码自然不对 ——
-	// 偏置直接进入密码字节流，不存在"把某个检查改成 true"就能绕过的地方
-	return static_cast<std::uint8_t>(secretMaskByte(static_cast<std::size_t>(index)) ^ maskBias());
+	// 两个偏置都直接进入密码字节流，不存在"把某个检查改成 true"就能绕过的地方：
+	// 字节码被改动时给的是错的掩码，被调试时给的是带偏置的掩码，
+	// 两种情况算出来的密码都是错的，下一步解密会明确失败
+	const std::uint8_t bias = static_cast<std::uint8_t>(maskBias() ^ antiDebugBias());
+
+	return static_cast<std::uint8_t>(secretMaskByte(static_cast<std::size_t>(index)) ^ bias);
 }
 
 /// 宿主函数 2：弹出明文密码字节，直接喂进 ZipCrypto 密钥表
