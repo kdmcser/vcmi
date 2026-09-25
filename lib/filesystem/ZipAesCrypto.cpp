@@ -428,6 +428,7 @@ void pbkdf2Sha1(const std::uint8_t * password, std::size_t passwordLength,
 		produced += take;
 		++blockIndex;
 
+		secureErase(&hmac, sizeof(hmac));
 		secureErase(current, sizeof(current));
 		secureErase(accumulated, sizeof(accumulated));
 	}

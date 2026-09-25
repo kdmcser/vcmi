@@ -238,12 +238,20 @@ void deriveZipCryptoKeys(ZipCryptoKeys & keys)
 
 	// 过程中不产生明文密码缓冲区，这里只需清掉 VM 内部状态
 	wipe(context);
+
+	// 字节码执行失败时密钥状态不可信，复位回初始值让调用方明确解不出来，
+	// 而不是拿着半截密钥解出一堆看似成功实则错误的垃圾数据
+	if(context.failed)
+		zipCryptoReset(keys);
 }
 
 void eraseSecret(std::string & text)
 {
 	if(!text.empty())
-		eraseBytes(text.data(), text.size());
+	{
+		// 按 capacity 擦而不是 size：assign 等操作可能在已分配存储里留下旧残片
+		eraseBytes(text.data(), text.capacity());
+	}
 }
 
 }
