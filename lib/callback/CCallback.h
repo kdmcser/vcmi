@@ -39,6 +39,10 @@ public:
 
 	std::optional<PlayerColor> getPlayerID() const override;
 
+	/// Returns false if both players still play simultaneous turns without contact,
+	/// which means that interaction between them is not allowed yet
+	bool isContactAllowed(PlayerColor color1, PlayerColor color2) const;
+
 //commands
 	void moveHero(const CGHeroInstance *h, const std::vector<int3> & path, bool transit) override;
 	void moveHero(const CGHeroInstance *h, const int3 & destination, bool transit) override;

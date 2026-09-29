@@ -1102,6 +1102,17 @@ PlayerRelations CGameState::getPlayerRelations( PlayerColor color1, PlayerColor 
 	return PlayerRelations::ENEMIES;
 }
 
+bool CGameState::isContactAllowed(PlayerColor color1, PlayerColor color2) const
+{
+	if (color1 == color2)
+		return true;
+
+	if (color2 < color1)
+		std::swap(color1, color2);
+
+	return !blockedContacts.count({color1, color2});
+}
+
 void CGameState::apply(CPackForClient & pack)
 {
 	GameStatePackVisitor visitor(*this);
