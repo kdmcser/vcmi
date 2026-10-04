@@ -33,15 +33,18 @@
 		"hota.mainmenu",
 		"hota.mainmenu.mainMenuLegacy",
 		"tides-of-war.tow-main-menu",
-        "hi-rez-menu"
+        "hi-rez-menu",
+        "tears-of-ashan.toa-ashan-menu",
+        "naga-town.mainmenu",
+        "mainmenu"
 	],
 	"changelog" :
 	{
 		"1.0"  : ["Initial release"]
 	},
 	"chinese" : {
-		"name" : "英雄无敌3增强版VCMI高清菜单",
-		"description" : "Dru为VCMI创建的高清菜单素材包, kdmcser修改后在英雄无敌3增强版VCMI中使用。"
+		"name" : "英雄无敌3增强版：微曦沐霭高清菜单",
+		"description" : "Dru为VCMI创建的高清菜单素材包, kdmcser修改后在英雄无敌3增强版：微曦沐霭中使用。"
 	},
 	"czech" : {
 		"name" : "Vysoké rozlišení Menu",
