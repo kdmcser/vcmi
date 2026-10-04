@@ -9,6 +9,21 @@ import os
 class VCMIApp(VCMI):
     generators = "CMakeDeps"
 
+    def requirements(self):
+        super().requirements()
+
+        # The encrypted zip support in lib/ includes OpenSSL headers directly, so OpenSSL
+        # has to be a direct requirement here. On non-Apple platforms Qt pulls OpenSSL into
+        # the graph anyway (the qt:openssl option), but Conan only publishes include
+        # directories of direct requirements to CMake - an OpenSSL that is merely
+        # transitive comes without include dirs and the headers can't be found.
+        # On Apple the package also has to be built for the first time, i.e. `conan
+        # install` needs `--build=missing`.
+        #
+        # Note: this is deliberately done here and not in the dependencies submodule, so
+        # that upstream dependency updates stay mergeable.
+        self.requires("openssl/[^3.0]")
+
     def _pathForCmake(self, path: str) -> str:
         # CMake doesn't like \ in strings
         return path.replace(os.path.sep, os.path.altsep) if os.path.altsep else path

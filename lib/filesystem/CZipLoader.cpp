@@ -9,7 +9,7 @@
  */
 #include "StdInc.h"
 #include "CZipLoader.h"
-
+#include "../ExceptionsCommon.h"
 #include "../ScopeGuard.h"
 #include "../texts/TextOperations.h"
 
@@ -22,32 +22,86 @@ CZipStream::CZipStream(const std::shared_ptr<CIOApi> & api, const boost::filesys
 	zlibApi = api->getApiStructure();
 
 	file = unzOpen2_64(archive.c_str(), &zlibApi);
-	unzGoToFilePos64(file, &filepos);
-	unzOpenCurrentFile(file);
+	if(file == nullptr)
+	{
+		logGlobal->error("Failed to open zip archive %s", archive.string());
+		throw DataLoadingException("Failed to open zip archive '" + archive.string() + "'");
+	}
+
+	// If these two calls fail, not a single byte of file_info is written. The original code ignored the
+	// return values, so getSize() / calculateCRC32() would read garbage from the stack, and the caller
+	// would then use it to resize a buffer and blow up. This must be treated as a hard error.
+	unz_file_info64 file_info{};
+	char filename_inzip[256]{};
+	if(unzGoToFilePos64(file, &filepos) != UNZ_OK
+	   || unzGetCurrentFileInfo64(file, &file_info, filename_inzip, sizeof(filename_inzip),
+	                              nullptr, 0, nullptr, 0) != UNZ_OK)
+	{
+		logGlobal->error("Failed to locate entry in zip archive %s", archive.string());
+		unzClose(file);
+		throw DataLoadingException("Failed to locate entry in zip archive '" + archive.string() + "'");
+	}
+
+	if ((file_info.flag & 1) != 0)
+	{
+		// Encrypted entries (ZipCrypto and AES) are all handed to the protected reader: giving them to
+		// minizip would require passing the plaintext password in, which is exactly what an attacker wants.
+		// The path must be passed as archive.c_str(): on Windows it is wide-character, matching the IO
+		// implementation's convention; passing std::string::c_str() would be interpreted as a wide string,
+		// scrambling the path so it could never be opened.
+		unz64_file_pos entryPosition;
+		if(unzGetFilePos64(file, &entryPosition) == UNZ_OK)
+			encryptedReader = std::make_unique<ModPassword::EncryptedZipReader>(
+			    zlibApi, archive.c_str(), entryPosition.pos_in_zip_directory);
+
+		// If it cannot be opened (wrong password, tampered ciphertext, corrupt archive), report it as
+		// VCMI's unified "resource cannot be read" type and let the upper layer decide what to do. Note
+		// that we must not throw std::runtime_error: this path (CModState::computeChecksum and the like)
+		// only recognizes DataLoadingException, and any other type would escape all the way to the top
+		// level and crash the client.
+		if(encryptedReader == nullptr || encryptedReader->isFailed())
+		{
+			logGlobal->error("Failed to open encrypted entry %s in %s", filename_inzip, archive.string());
+			unzCloseCurrentFile(file);
+			unzClose(file);
+			throw DataLoadingException("Failed to open encrypted entry '" + std::string(filename_inzip)
+			                           + "' in '" + archive.string() + "'");
+		}
+	}
+	else 
+		unzOpenCurrentFile(file);
 }
 
 CZipStream::~CZipStream()
 {
+	// The authentication code of an encrypted entry was already verified when it was opened; if it had not passed, no data could be read at all
 	unzCloseCurrentFile(file);
 	unzClose(file);
 }
 
 si64 CZipStream::readMore(ui8 * data, si64 size)
 {
+	if (encryptedReader)
+		return encryptedReader->read(data, size);
+
 	return unzReadCurrentFile(file, data, static_cast<unsigned int>(size));
 }
 
 si64 CZipStream::getSize()
 {
-	unz_file_info64 info;
-	unzGetCurrentFileInfo64 (file, &info, nullptr, 0, nullptr, 0, nullptr, 0);
+	unz_file_info64 info{};
+	if(unzGetCurrentFileInfo64(file, &info, nullptr, 0, nullptr, 0, nullptr, 0) != UNZ_OK)
+		return 0;
+
 	return info.uncompressed_size;
 }
 
 ui32 CZipStream::calculateCRC32()
 {
-	unz_file_info64 info;
-	unzGetCurrentFileInfo64 (file, &info, nullptr, 0, nullptr, 0, nullptr, 0);
+	unz_file_info64 info{};
+	if(unzGetCurrentFileInfo64(file, &info, nullptr, 0, nullptr, 0, nullptr, 0) != UNZ_OK)
+		return 0;
+
 	return info.crc;
 }
 
