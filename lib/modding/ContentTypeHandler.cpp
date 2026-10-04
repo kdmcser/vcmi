@@ -61,7 +61,7 @@ ContentTypeHandler::ContentTypeHandler(IHandlerBase * handler, const std::string
 bool ContentTypeHandler::preloadModData(const std::string & modName, const JsonNode & fileList, bool validate)
 {
 	bool result = true;
-	JsonNode data = JsonUtils::assembleFromFiles(fileList, result);
+	JsonNode data = JsonUtils::assembleFromFiles(fileList, {}, result);
 	data.setModScope(modName);
 
 	ModInfo & modInfo = modData[modName];
@@ -107,8 +107,8 @@ bool ContentTypeHandler::loadMod(const std::string & modName, bool validate)
 	{
 		for (auto & objectPatch : objectPatches)
 		{
-			if (settings["mods"]["validation"].String() != "off")
-				JsonUtils::detectConflicts(conflictList, modInfo.modData, objectPatch, objectName);
+			if (settings["mods"]["validation"].String() != "off" && !modInfo.modData[objectName].isNull())
+				JsonUtils::detectConflicts(conflictList, modInfo.modData[objectName], objectPatch, objectName);
 
 			JsonUtils::merge(modInfo.modData[objectName], objectPatch);
 		}

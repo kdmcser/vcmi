@@ -324,7 +324,8 @@ private:
 		T * internalPtr;
 		loadRawPointer(internalPtr);
 		data.reset(internalPtr);
-		loadedUniquePointers.insert(internalPtr);
+		if (internalPtr != nullptr)
+			loadedUniquePointers.insert(internalPtr);
 	}
 
 	template<typename T, size_t N>
@@ -426,12 +427,11 @@ private:
 	{
 		int32_t which;
 		load(which);
-		assert(which < sizeof...(TN));
 
 		// Create array of variants that contains all default-constructed alternatives
-		const std::variant<TN...> table[] = { TN{ }... };
+		std::array<std::variant<TN...>, sizeof...(TN)> table{ TN{}... };
 		// use appropriate alternative for result
-		data = table[which];
+		data = table.at(which);
 		// perform actual load via std::visit dispatch
 		std::visit([&](auto& o) { load(o); }, data);
 	}

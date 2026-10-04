@@ -432,6 +432,13 @@ void CPlayerInterface::townRemoved(const CGTownInstance* town)
 {
 	EVENT_HANDLER_CALLED_BY_CLIENT;
 
+	// close town screen if it shows the town being removed, otherwise objectRemovedAfter dereferences a dangling pointer
+	if(castleInt && castleInt->town == town)
+	{
+		castleInt->close();
+		castleInt = nullptr;
+	}
+
 	if(town->tempOwner == playerID)
 	{
 		localState->removeOwnedTown(town);
@@ -1268,7 +1275,7 @@ void CPlayerInterface::moveHero( const CGHeroInstance *h, const CGPath& path )
 	movementController->requestMovementStart(h, path);
 }
 
-void CPlayerInterface::showGarrisonDialog( const CArmedInstance *up, const CGHeroInstance *down, bool removableUnits, QueryID queryID)
+void CPlayerInterface::showGarrisonDialog(const CArmedInstance * up, const CGHeroInstance * down, bool removableUnits, QueryID queryID, const MetaString & customTitle)
 {
 	EVENT_HANDLER_CALLED_BY_CLIENT;
 	auto onEnd = [this, queryID](){ cb->selectionMade(0, queryID); };
@@ -1281,7 +1288,7 @@ void CPlayerInterface::showGarrisonDialog( const CArmedInstance *up, const CGHer
 
 	waitForAllDialogs();
 
-	auto cgw = std::make_shared<CGarrisonWindow>(up, down, removableUnits);
+	auto cgw = std::make_shared<CGarrisonWindow>(up, down, removableUnits, customTitle);
 	cgw->quit->addCallback(onEnd);
 	ENGINE->windows().pushWindow(cgw);
 }
@@ -1742,12 +1749,14 @@ void CPlayerInterface::artifactPut(const ArtifactLocation &al)
 {
 	EVENT_HANDLER_CALLED_BY_CLIENT;
 	adventureInt->onHeroChanged(cb->getHero(al.artHolder));
+	garrisonsChanged(al.artHolder, ObjectInstanceID());
 }
 
 void CPlayerInterface::artifactRemoved(const ArtifactLocation &al)
 {
 	EVENT_HANDLER_CALLED_BY_CLIENT;
 	adventureInt->onHeroChanged(cb->getHero(al.artHolder));
+	garrisonsChanged(al.artHolder, ObjectInstanceID());
 	artifactController->artifactRemoved();
 }
 
@@ -1755,6 +1764,7 @@ void CPlayerInterface::artifactMoved(const ArtifactLocation &src, const Artifact
 {
 	EVENT_HANDLER_CALLED_BY_CLIENT;
 	adventureInt->onHeroChanged(cb->getHero(dst.artHolder));
+	garrisonsChanged(src.artHolder, dst.artHolder);
 	artifactController->artifactMoved();
 }
 

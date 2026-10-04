@@ -291,6 +291,7 @@ void CSettingsView::loadToggleButtonSettings()
 	setCheckbuttonState(ui->buttonShowIntro, settings["video"]["showIntro"].Bool());
 	setCheckbuttonState(ui->buttonAllowPortrait, settings["video"]["allowPortrait"].Bool());
 	setCheckbuttonState(ui->buttonAutoCheck, settings["launcher"]["autoCheckRepositories"].Bool());
+	setCheckbuttonState(ui->buttonFullModExtraction, settings["launcher"]["fullModExtraction"].Bool());
 
 	setCheckbuttonState(ui->buttonRepositoryDefault, settings["launcher"]["defaultRepositoryEnabled"].Bool());
 	setCheckbuttonState(ui->buttonRepositoryExtra, settings["launcher"]["extraRepositoryEnabled"].Bool());
@@ -528,6 +529,13 @@ void CSettingsView::on_buttonAutoCheck_toggled(bool value)
 	updateCheckbuttonText(ui->buttonAutoCheck);
 }
 
+void CSettingsView::on_buttonFullModExtraction_toggled(bool value)
+{
+	Settings node = settings.write["launcher"]["fullModExtraction"];
+	node->Bool() = value;
+	updateCheckbuttonText(ui->buttonFullModExtraction);
+}
+
 void CSettingsView::on_comboBoxDisplayIndex_currentIndexChanged(int index)
 {
 	Settings node = settings.write["video"];
@@ -582,8 +590,8 @@ void CSettingsView::on_comboBoxAlliedPlayerAI_currentIndexChanged(int index)
 
 void CSettingsView::on_spinBoxNetworkPort_valueChanged(int arg1)
 {
-	Settings node = settings.write["server"]["port"];
-	node->Float() = arg1;
+	Settings node = settings.write["server"]["localPort"];
+	node->Integer() = arg1;
 }
 
 void CSettingsView::on_buttonSaveBeforeVisit_toggled(bool value)

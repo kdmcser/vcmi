@@ -17,6 +17,7 @@
 
 #include "../lib/CThreadHelper.h"
 #include "../lib/GameLibrary.h"
+#include "../lib/CPlayerState.h"
 #include "../lib/campaign/CampaignState.h"
 #include "../lib/entities/hero/CHeroHandler.h"
 #include "../lib/entities/hero/CHeroClass.h"
@@ -346,6 +347,24 @@ bool CVCMIServer::prepareToStartGame()
 	if (!started)
 		return false;
 
+	// prevent loading or starting game where human player is not present on map
+	// actual bug might be someplace else, from more likely to less likely:
+	// a) RMG bug that fails to place player on map
+	// b) this is saved game and player picked already eliminated player
+	// c) corrupted map with invalid player
+	for (const auto & [color, info] : si->playerInfos)
+	{
+		if (!info.isControlledByHuman())
+			continue;
+		const auto * ps = newGH->gameInfo().getPlayerState(color, false);
+		if (!ps || ps->checkVanquished())
+		{
+			logGlobal->error("Human player %s has no heroes and no towns! Aborting game start!", color.toString());
+			auto str = MetaString::createFromTextID("vcmi.broadcast.failedLoadGame");
+			return false;
+		}
+	}
+
 	gh = std::move(newGH);
 
 	if(lobbyProcessor)
@@ -495,7 +514,11 @@ void CVCMIServer::clientConnected(std::shared_ptr<GameConnection> c, std::vector
 		cp.connection = c->connectionID;
 		cp.name = name;
 		playerNames.try_emplace(id, cp);
-		announceTxt(boost::str(boost::format("%s (pid %d cid %d) joins the game") % name % static_cast<int>(id) % static_cast<int>(c->connectionID)));
+		logNetwork->info("Player joined lobby: name='%s', playerId=%d, connectionId=%d", name, static_cast<int>(id), static_cast<int>(c->connectionID));
+		MetaString joinMessage;
+		joinMessage.appendTextID("vcmi.lobby.system.playerJoined");
+		joinMessage.replaceRawString(name);
+		announceTxt(joinMessage);
 
 		//put new player in first slot with AI
 		for(auto & elem : si->playerInfos)
@@ -515,6 +538,23 @@ void CVCMIServer::clientDisconnected(std::shared_ptr<GameConnection> connection)
 	logGlobal->trace("Received disconnection request");
 	vstd::erase(activeConnections, connection);
 
+	std::vector<PlayerConnectionID> disconnectedPlayerIds;
+	for(const auto & playerEntry : playerNames)
+	{
+		if(playerEntry.second.connection != connection->connectionID)
+			continue;
+
+		disconnectedPlayerIds.push_back(playerEntry.first);
+		logNetwork->info("Player disconnected from lobby: name='%s', connectionId=%d", playerEntry.second.name, static_cast<int>(connection->connectionID));
+		MetaString disconnectMessage;
+		disconnectMessage.appendTextID("vcmi.lobby.system.playerDisconnected");
+		disconnectMessage.replaceRawString(playerEntry.second.name);
+		announceTxt(disconnectMessage);
+	}
+
+	if(disconnectedPlayerIds.empty())
+		logNetwork->info("Connection %d disconnected from lobby with no mapped player names", static_cast<int>(connection->connectionID));
+
 	if(activeConnections.empty() || hostClientId == connection->connectionID)
 	{
 		setState(EServerState::SHUTDOWN);
@@ -523,7 +563,17 @@ void CVCMIServer::clientDisconnected(std::shared_ptr<GameConnection> connection)
 
 	if(gh && getState() == EServerState::GAMEPLAY)
 	{
-		gh->handleClientDisconnection(connection->connectionID);
+		gh->handleClientDisconnection(connection->connectionID, disconnectedPlayerIds);
+	}
+
+	for(const auto & playerId : disconnectedPlayerIds)
+		playerNames.erase(playerId);
+
+	for(auto & playerInfoEntry : si->playerInfos)
+	{
+		auto & connectedPlayerIDs = playerInfoEntry.second.connectedPlayerIDs;
+		for(const auto & playerId : disconnectedPlayerIds)
+			connectedPlayerIDs.erase(playerId);
 	}
 }
 
@@ -1196,4 +1246,3 @@ void CVCMIServer::sendPack(CPackForClient & pack, GameConnectionID connectionID)
 		if (c->connectionID == connectionID)
 			c->sendPack(pack);
 }
-

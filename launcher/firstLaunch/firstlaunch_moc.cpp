@@ -288,12 +288,14 @@ QString FirstLaunchView::getHeroesInstallDir()
 {
 #ifdef VCMI_WINDOWS
 	QVector<QPair<QString, QString>> regKeys = {
-		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\GOG.com\\Games\\1207658787",											 "path"	   }, // Gog on x86 system
-		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\GOG.com\\Games\\1207658787",							     "path"	   }, // Gog on x64 system
-		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\New World Computing\\Heroes of Might and Magic® III\\1.0",			     "AppPath" }, // H3 Complete on x86 system
-		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\New World Computing\\Heroes of Might and Magic® III\\1.0", "AppPath" }, // H3 Complete on x64 system
-		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\New World Computing\\Heroes of Might and Magic III\\1.0",			     "AppPath" }, // some localized H3 on x86 system
-		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\New World Computing\\Heroes of Might and Magic III\\1.0",  "AppPath" }, // some localized H3 on x64 system
+		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\GOG.com\\Games\\1207658787",											 "path"	      }, // Gog on x86 system
+		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\GOG.com\\Games\\1207658787",							     "path"	      }, // Gog on x64 system
+		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\New World Computing\\Heroes of Might and Magic® III\\1.0",			     "AppPath"    }, // H3 Complete on x86 system
+		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\New World Computing\\Heroes of Might and Magic® III\\1.0", "AppPath"    }, // H3 Complete on x64 system
+		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\New World Computing\\Heroes of Might and Magic III\\1.0",			     "AppPath"    }, // some localized H3 on x86 system
+		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\New World Computing\\Heroes of Might and Magic III\\1.0",  "AppPath"    }, // some localized H3 on x64 system
+		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\Ubisoft\\Launcher\\Installs\\353",                                      "InstallDir" }, // Ubisoft H3 on x86 system
+		{ "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Ubisoft\\Launcher\\Installs\\353",                         "InstallDir" }, // Ubisoft H3 on x64 system
 	};
 
 	for(auto & regKey : regKeys)
@@ -310,7 +312,6 @@ static QString defaultStartDirForOpen()
 {
 #if defined(VCMI_MOBILE)
 	const QStandardPaths::StandardLocation mobilePrefs[] = {
-		QStandardPaths::DocumentsLocation,
 		QStandardPaths::HomeLocation
 	};
 	for(auto location : mobilePrefs)
@@ -340,9 +341,9 @@ static QString defaultStartDirForOpen()
 
 QString FirstLaunchView::checkFileMagic(const QString &filename, const QString &filter, const QByteArray &magic, const QString &ext, bool &openFailed) const
 {
-    QFile file(filename);
-    if(!file.open(QIODevice::ReadOnly))
-    {
+	QFile file(filename);
+	if(!file.open(QIODevice::ReadOnly))
+	{
 		if(openFailed)
 		{
 			return tr("Failed to open file: %1").arg(file.errorString());
@@ -354,43 +355,46 @@ QString FirstLaunchView::checkFileMagic(const QString &filename, const QString &
 			openFailed = true;
 			return {};
 		}
-    }
+	}
 
-    QFileInfo fileInfo(filename);
-    quint64 fileSize = fileInfo.size();
+	QFileInfo fileInfo(filename);
+	quint64 fileSize = fileInfo.size();
 
-    logGlobal->info("Checking %s with size: %llu", filename.toStdString(), fileSize);
+	QString realFilename = Helper::getRealPath(filename);
+
+	logGlobal->info("Checking %s with size: %llu", realFilename.toStdString(), fileSize);
 
 #if defined(VCMI_MOBILE)
-    if(fileInfo.suffix().compare(ext, Qt::CaseInsensitive) != 0)
-        return tr("You need to select a %1 file!", "param is file extension").arg(ext);
+	if(!realFilename.endsWith(ext, Qt::CaseInsensitive))
+		return tr("You need to select a %1 file!", "param is file extension").arg(ext);
 #endif
 
-    if(fileInfo.suffix().compare("exe", Qt::CaseInsensitive) == 0){
-        if(fileSize > 1500000) // 1.5MB
-        {
-            logGlobal->info("Unknown installer selected: %s", filename.toStdString());
-            return tr("Unknown installer selected.\nYou need to select the offline GOG installer.");
-        }
+	if(realFilename.endsWith(".exe", Qt::CaseInsensitive))
+	{
+		if(fileSize > 1500000) // 1.5MB
+		{
+			logGlobal->info("Unknown installer selected: %s", filename.toStdString());
+			return tr("Unknown installer selected.\nYou need to select the offline GOG installer.");
+		}
 
-        const QByteArray data = file.peek(fileSize);
+		const QByteArray data = file.peek(fileSize);
 
-        constexpr std::u16string_view galaxyID = u"GOG Galaxy";
-        const auto galaxyIDBytes = reinterpret_cast<const char*>(galaxyID.data());
-        const auto magicId = QByteArray::fromRawData(galaxyIDBytes, galaxyID.size() * sizeof(decltype(galaxyID)::value_type));
+		constexpr std::u16string_view galaxyID = u"GOG Galaxy";
+		const auto galaxyIDBytes = reinterpret_cast<const char*>(galaxyID.data());
+		const auto magicId = QByteArray::fromRawData(galaxyIDBytes, galaxyID.size() * sizeof(decltype(galaxyID)::value_type));
 
-        if(data.contains(magicId))
-        {
-            logGlobal->info("GOG Galaxy detected! Aborting...");
-            return tr("You selected a GOG Galaxy installer. This file does not contain the game. Please download the offline backup game installer instead.");
-        }
-    }
+		if(data.contains(magicId))
+		{
+			logGlobal->info("GOG Galaxy detected! Aborting...");
+			return tr("You selected a GOG Galaxy installer. This file does not contain the game. Please download the offline backup game installer instead.");
+		}
+	}
 
-    const QByteArray magicFile = file.peek(magic.length());
-    if(!magicFile.startsWith(magic))
-        return tr("You need to select a %1 file!", "param is file extension").arg(filter);
+	const QByteArray magicFile = file.peek(magic.length());
+	if(!magicFile.startsWith(magic))
+		return tr("You need to select a %1 file!", "param is file extension").arg(filter);
 
-    return {};
+	return {};
 }
 
 void FirstLaunchView::extractGogData()
@@ -408,7 +412,7 @@ void FirstLaunchView::extractGogData()
 	};
 
 	needPostCopyCheckExe = false;
-    needPostCopyCheckBin = false;
+	needPostCopyCheckBin = false;
 
 	QString filterExe = tr("GOG installer") + " (*.exe)";
 	QString titleExe  = tr("Select the offline GOG installer (.exe)");
@@ -440,7 +444,7 @@ void FirstLaunchView::extractGogData()
 		file.close();
 	}
 
-    QString fileBin = haveCandidate ? fileBinCandidate : fileSelection(titleBin, filterBin, exeInfo.absolutePath());
+	QString fileBin = haveCandidate ? fileBinCandidate : fileSelection(titleBin, filterBin, exeInfo.absolutePath());
 	if(fileBin.isEmpty())
 		return;
 
@@ -575,6 +579,12 @@ void FirstLaunchView::extractGogDataAsync(QString filePathBin, QString filePathE
 	// Defer heavy work to next event-loop tick to ensure overlay is painted
 	QTimer::singleShot(0, this, [this, filePathBin, filePathExe]()
 	{
+		// Lambda yields to the event loop several times (processEvents, ev.exec,
+		// Innoextract progress callback). If user quits the launcher mid-flight,
+		// MainWindow's destruction cascades to ~FirstLaunchView and our captured
+		// 'this' becomes dangling. Use a QPointer to detect that and abort.
+		QPointer<FirstLaunchView> alive(this);
+
 		QScopedPointer<ProgressOverlay> overlay(createOverlay(this, tr("Preparing installer..."), true));
 		overlay->setFileName(QFileInfo(filePathExe).fileName());
 		overlay->raise();
@@ -584,6 +594,9 @@ void FirstLaunchView::extractGogDataAsync(QString filePathBin, QString filePathE
 		QEventLoop ev;
 		QTimer::singleShot(0, &ev, &QEventLoop::quit);
 		ev.exec();
+
+		if(!alive)
+			return;
 
 		// 1) Prepare temp dir
 		QDir tempDir(pathToQString(VCMIDirs::get().userDataPath()));
@@ -613,7 +626,7 @@ void FirstLaunchView::extractGogDataAsync(QString filePathBin, QString filePathE
 			const QString err = checkFileMagic(tmpFileExe, tr("GOG installer") + " (*.exe)", QByteArray{"MZP"}, "EXE", needPostCopyCheckExe);
 			if(!err.isEmpty())
 			{
-				QMessageBox::critical(this, tr("Invalid file selected"), err);
+				MessageBoxCustom::critical(this, tr("Invalid file selected"), err);
 				tempDir.removeRecursively();
 				return;
 			}
@@ -626,7 +639,7 @@ void FirstLaunchView::extractGogDataAsync(QString filePathBin, QString filePathE
 			const QString err = checkFileMagic(tmpFileBin, tr("GOG data") + " (*.bin)", QByteArray{"idska32"}, "BIN", needPostCopyCheckBin);
 			if(!err.isEmpty())
 			{
-				QMessageBox::critical(this, tr("Invalid data file"), err);
+				MessageBoxCustom::critical(this, tr("Invalid data file"), err);
 				tempDir.removeRecursively();
 				return;
 			}
@@ -644,12 +657,22 @@ void FirstLaunchView::extractGogDataAsync(QString filePathBin, QString filePathE
 
 		QString errorText;
 
-		errorText = Innoextract::extract(tmpFileExe, tempDir.path(), [overlayPtr = overlay.data()](float progress) {
-			overlayPtr->setValue(static_cast<int>(progress * 100));
+		errorText = Innoextract::extract(tmpFileExe, tempDir.path(), [overlayGuard = QPointer<ProgressOverlay>(overlay.data())](float progress) {
+			// Overlay is parented to FirstLaunchView; if 'this' was destroyed
+			// mid-extract, the overlay is gone too. Skip the UI update silently.
+			if(!overlayGuard)
+				return;
+			overlayGuard->setValue(static_cast<int>(progress * 100));
 			qApp->processEvents();
 		});
 
 		logGlobal->info("Extraction done!");
+
+		if(!alive)
+		{
+			tempDir.removeRecursively();
+			return;
+		}
 
 		// 4) Post-extract verification and error reporting
 		QString hashError;
@@ -662,15 +685,15 @@ void FirstLaunchView::extractGogDataAsync(QString filePathBin, QString filePathE
 			if(!errorText.isEmpty())
 			{
 				logGlobal->error("GOG installer extraction failure! Reason: %s", errorText.toStdString());
-				QMessageBox::critical(this, tr("Extracting error!"), errorText, QMessageBox::Ok, QMessageBox::Ok);
+				MessageBoxCustom::critical(this, tr("Extracting error!"), errorText, QMessageBox::Ok, QMessageBox::Ok);
 				if(!hashError.isEmpty())
 				{
 					logGlobal->error("Hash error: %s", hashError.toStdString());
-					QMessageBox::critical(this, tr("Hash error!"), hashError, QMessageBox::Ok, QMessageBox::Ok);
+					MessageBoxCustom::critical(this, tr("Hash error!"), hashError, QMessageBox::Ok, QMessageBox::Ok);
 				}
 			}
 			else
-				QMessageBox::critical(this, tr("No Heroes III data!"), tr("Selected files do not contain Heroes III data!"), QMessageBox::Ok, QMessageBox::Ok);
+				MessageBoxCustom::critical(this, tr("No Heroes III data!"), tr("Selected files do not contain Heroes III data!"), QMessageBox::Ok, QMessageBox::Ok);
 			tempDir.removeRecursively();
 			return;
 		}
@@ -682,6 +705,9 @@ void FirstLaunchView::extractGogDataAsync(QString filePathBin, QString filePathE
 		overlay->setFileName({});
 		overlay->setRange(100); // performCopyFlow will reset to plan size internally
 		overlay->setValue(0);
+
+		if(!alive)
+			return;
 
 		if(performCopyFlow(tempDir.path(), overlay.data(), true))
 			if(heroesDataUpdate())

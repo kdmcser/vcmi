@@ -17,7 +17,7 @@ set(vcmiqt_HEADERS
 
 assign_source_group(${vcmiqt_SRCS} ${vcmiqt_HEADERS})
 
-if(ENABLE_STATIC_LIBS OR NOT (ENABLE_EDITOR AND ENABLE_LAUNCHER))
+if(ENABLE_SINGLE_APP_BUILD OR ENABLE_STATIC_LIBS OR NOT (ENABLE_EDITOR AND ENABLE_LAUNCHER))
 	add_library(vcmiqt STATIC ${vcmiqt_SRCS} ${vcmiqt_HEADERS})
 	target_compile_definitions(vcmiqt PRIVATE VCMIQT_STATIC)
 	set(TARGET_IS_SHARED OFF)
@@ -28,6 +28,12 @@ else()
 endif()
 
 if(WIN32)
+	set(VCMI_FILE_DESCRIPTION "VCMI Qt Library")
+	set(VCMI_ORIGINAL_FILENAME "VCMI_vcmiqt.dll")
+	set(VCMI_ICON_RESOURCE "")
+	set(vcmiqt_ICON "${CMAKE_CURRENT_BINARY_DIR}/VCMI_vcmiqt_versioninfo.rc")
+	configure_file("${CMAKE_SOURCE_DIR}/win/WindowsFileInfo.rc.in" "${vcmiqt_ICON}" @ONLY)
+	target_sources(vcmiqt PRIVATE ${vcmiqt_ICON})
 	set_target_properties(vcmiqt
 		PROPERTIES
 			OUTPUT_NAME "VCMI_vcmiqt"

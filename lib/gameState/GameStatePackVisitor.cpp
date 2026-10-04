@@ -250,7 +250,7 @@ void GameStatePackVisitor::visitGiveBonus(GiveBonus & pack)
 	assert(cbsn);
 
 	if(Bonus::OneWeek(&pack.bonus))
-		pack.bonus.turnsRemain = 8 - gs.getDate(Date::DAY_OF_WEEK); // set correct number of days before adding bonus
+		pack.bonus.turnsRemain = (LIBRARY->engineSettings()->getInteger(EGameSettings::GENERAL_DAYS_PER_WEEK) + 1) - gs.getDate(Date::DAY_OF_WEEK); // set correct number of days before adding bonus
 
 	auto b = std::make_shared<Bonus>(pack.bonus);
 	cbsn->addNewBonus(b);
@@ -383,6 +383,20 @@ void GameStatePackVisitor::visitRemoveObject(RemoveObject & pack)
 
 	if(obj->ID == Obj::HERO) //remove beaten hero
 	{
+		// Diagnostic: heroes engaged in active battles should only be removed
+		// via BattleResultProcessor::battleFinalize, which clears heroID inside
+		// visitBattleResultsApplied before sending RemoveObject. If a side
+		// still references this hero, something else is removing the hero
+		// mid-battle - cause of A19 (iOS #7503) which we haven't pinned down.
+		// Surface the call stack via the thrown exception's .what() so the
+		// next Google Play / TestFlight report points at the culprit.
+		for (const auto & battle : gs.currentBattles)
+			for (auto side : {BattleSide::ATTACKER, BattleSide::DEFENDER})
+				if (battle->getSide(side).heroID == pack.objectID)
+					throw std::runtime_error("Hero " + std::to_string(pack.objectID.getNum())
+						+ " is being removed while still engaged in battle "
+						+ std::to_string(battle->battleID.getNum()));
+
 		auto beatenHero = dynamic_cast<CGHeroInstance*>(obj);
 		assert(beatenHero);
 
@@ -1338,8 +1352,8 @@ void GameStatePackVisitor::visitStartAction(StartAction & pack)
 				break;
 			case EActionType::MONSTER_SPELL:
 			{
-				auto * spell = pack.ba.spell.toSpell();
-				if (spell && spell->canCastWithoutSkip())
+				SpellID spellID = pack.ba.spell;
+				if (spellID.hasValue() && spellID.toSpell()->canCastWithoutSkip())
 				{
 					//state does not change
 				}
@@ -1383,6 +1397,11 @@ void GameStatePackVisitor::visitSetStackEffect(SetStackEffect & pack)
 void GameStatePackVisitor::visitStacksInjured(StacksInjured & pack)
 {
 	BattleStatePackVisitor battleVisitor(*gs.getBattle(pack.battleID));
+	for (auto attackInfo : pack.stacks)
+	{
+		auto injuredStack = gs.getBattle(pack.battleID)->getStack(attackInfo.stackAttacked);
+		injuredStack->removeBonusesRecursive(Bonus::UntilTakingIndirectDamage);
+	}
 	pack.visitTyped(battleVisitor);
 }
 
@@ -1466,6 +1485,15 @@ void GameStatePackVisitor::visitBattleResultsApplied(BattleResultsApplied & pack
 			hero->mana = std::min(hero->mana, currentBattle.getSide(i).initialMana);
 		}
 	}
+
+	// Release heroes from the battle - all battle consequences have been
+	// applied. Any subsequent RemoveObject for one of these heroes is the
+	// expected post-battle cleanup (BattleResultProcessor::battleFinalize).
+	// visitRemoveObject below throws if a hero is removed while still flagged
+	// as engaged - that path indicates a bug elsewhere.
+	auto * mutBattle = gs.getBattle(pack.battleID);
+	for(auto i : {BattleSide::ATTACKER, BattleSide::DEFENDER})
+		mutBattle->getSide(i).heroID = ObjectInstanceID::NONE;
 }
 
 void GameStatePackVisitor::visitBattleEnded(BattleEnded & pack)

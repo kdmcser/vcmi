@@ -49,7 +49,7 @@
 
 void ClientCommandManager::handleQuitCommand()
 {
-		exit(EXIT_SUCCESS);
+		throw GameShutdownException();
 }
 
 void ClientCommandManager::handleSaveCommand(std::istringstream & singleWordBuffer)
@@ -91,7 +91,7 @@ void ClientCommandManager::handleGoSoloCommand()
 		// unlikely it will work but just in case to be consistent
 		for(auto & color : GAME->server().getAllClientPlayers(GAME->server().logicConnection->connectionID))
 		{
-			if(color.isValidPlayer() && GAME->server().client->gameInfo().getStartInfo()->playerInfos.at(color).isControlledByHuman())
+			if(color.isValidPlayer() && GAME->server().client->gameInfo().getStartInfo()->playerInfos.count(color) && GAME->server().client->gameInfo().getStartInfo()->playerInfos.at(color).isControlledByHuman())
 			{
 				GAME->server().client->installNewPlayerInterface(std::make_shared<CPlayerInterface>(color), color);
 			}
@@ -190,7 +190,7 @@ void ClientCommandManager::handleRedrawCommand()
 
 void ClientCommandManager::handleTranslateGameCommand(bool onlyMissing)
 {
-	std::map<std::string, std::map<std::string, std::string>> textsByMod;
+	std::map<std::string, ExportedStrings> textsByMod;
 	LIBRARY->generaltexth->exportAllTexts(textsByMod, onlyMissing);
 
 	const boost::filesystem::path outPath = VCMIDirs::get().userExtractedPath() / ( onlyMissing ? "translationMissing" : "translation");
@@ -200,7 +200,7 @@ void ClientCommandManager::handleTranslateGameCommand(bool onlyMissing)
 	{
 		JsonNode output;
 
-		for(const auto & stringEntry : modEntry.second)
+		for(const auto & stringEntry : modEntry.second.strings)
 		{
 			if(boost::algorithm::starts_with(stringEntry.first, "map."))
 				continue;
@@ -212,7 +212,9 @@ void ClientCommandManager::handleTranslateGameCommand(bool onlyMissing)
 
 		if (!output.isNull())
 		{
-			const boost::filesystem::path filePath = outPath / (modEntry.first + ".json");
+			std::string filename = modEntry.first;
+			boost::range::replace(filename, '.', '_');
+			const boost::filesystem::path filePath = outPath / (filename + ".json");
 			std::ofstream file(filePath.c_str());
 			file << output.toString();
 		}
@@ -274,7 +276,7 @@ void ClientCommandManager::handleTranslateMapsCommand()
 		}
 	}
 
-	std::map<std::string, std::map<std::string, std::string>> textsByMod;
+	std::map<std::string, ExportedStrings> textsByMod;
 	LIBRARY->generaltexth->exportAllTexts(textsByMod, false);
 
 	const boost::filesystem::path outPath = VCMIDirs::get().userExtractedPath() / "translation";
@@ -284,7 +286,7 @@ void ClientCommandManager::handleTranslateMapsCommand()
 	{
 		JsonNode output;
 
-		for(const auto & stringEntry : modEntry.second)
+		for(const auto & stringEntry : modEntry.second.strings)
 		{
 			if(boost::algorithm::starts_with(stringEntry.first, "map."))
 				output[stringEntry.first].String() = stringEntry.second;

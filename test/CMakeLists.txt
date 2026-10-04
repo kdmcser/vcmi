@@ -38,10 +38,11 @@ set(test_SRCS
 		game/CGameStateTest.cpp
 		game/HeroRecruitmentTest.cpp
 
+		json/JsonTests.cpp
+
 		map/CMapEditManagerTest.cpp
 		map/CMapFormatTest.cpp
 		map/MapComparer.cpp
-
 
 		netpacks/NetPackFixture.cpp
 
@@ -139,6 +140,17 @@ if(ENABLE_ERM)
 	list(APPEND test_HEADERS
 		erm/interpretter/ErmRunner.h
 	)
+endif()
+
+if(ENABLE_BATTLE_AI)
+	file(GLOB_RECURSE BATTLE_AI_TEST_SRCS "../AI/BattleAI/*.cpp")
+	list(FILTER BATTLE_AI_TEST_SRCS EXCLUDE REGEX ".*main\\.cpp$")
+
+	list(APPEND test_SRCS
+		${BATTLE_AI_TEST_SRCS}
+		battleAI/SpellTargetsEvaluatorTest.cpp
+	)
+
 endif()
 
 assign_source_group(${test_SRCS} ${test_HEADERS})
