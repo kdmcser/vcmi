@@ -1,4 +1,7 @@
 #include"CImageMd5Calculator.h"
+#include "../GameEngine.h"
+#include "../render/IScreenHandler.h"
+#include "../lib/CConfigHandler.h"
 #include "../lib/filesystem/Filesystem.h"
 #include "../lib/json/JsonUtils.h"
 
@@ -223,31 +226,72 @@ void CImageMd5Calculator::decode(uint32_t* output, const ui8* input, uint32_t le
     }
 }
 
-ImagePath CImageMd5Calculator::getRealImagePath(const ImagePath& imagePath)
+int CImageMd5Calculator::getUsedScalingFactor()
 {
-	int validCount = 0;
-	ImagePath retPath = imagePath;
-	std::vector<ImagePath> possiablePaths = {imagePath, imagePath.addPrefix("DATA/"), imagePath.addPrefix("SPRITES/")};
+	// keep in sync with scaledSpritesPath and scaledDataPath
+	static constexpr int maxScalingFactor = 4;
 
-	for (auto& path : possiablePaths)
-	{
-		if (CResourceHandler::get()->existsResource(path))
-		{
-			retPath = path;
-			validCount++;
-		}
-	}
-	if(validCount > 1)
-	{
-		logGlobal->error("Get real image path %s conflict in DATA, SPIRTES and root.", imagePath.getOriginalName());
-		return ImagePath();
-	}
-	return retPath;
+	int scalingFactor = ENGINE->screenHandler().getScalingFactor();
+
+	if(scalingFactor < 1 || scalingFactor > maxScalingFactor)
+		scalingFactor = 1;
+	if(!settings["video"]["useHdTextures"].Bool())
+		scalingFactor = 1;
+
+	return scalingFactor;
 }
 
-std::string CImageMd5Calculator::calculate(const ImagePath& imagePath)
+ImagePath CImageMd5Calculator::getRealImagePath(const ImagePath& imagePath, bool useScaledAssets)
 {
-	ImagePath realPath = getRealImagePath(imagePath);
+	// folders holding scaled assets, indexed by scaling factor minus one - see RenderHandler::loadScaledImage
+	static constexpr std::array scaledSpritesPath = {"SPRITES/", "SPRITES2X/", "SPRITES3X/", "SPRITES4X/"};
+	static constexpr std::array scaledDataPath = {"DATA/", "DATA2X/", "DATA3X/", "DATA4X/"};
+
+	// assets of different resolutions are expected to coexist, so only same-resolution duplicates conflict
+	auto findUniquePath = [&](const std::vector<ImagePath> & possiablePaths) -> ImagePath
+	{
+		ImagePath retPath;
+		int validCount = 0;
+
+		for (auto& path : possiablePaths)
+		{
+			if (CResourceHandler::get()->existsResource(path))
+			{
+				retPath = path;
+				validCount++;
+			}
+		}
+		if(validCount > 1)
+		{
+			logGlobal->error("Get real image path %s conflict in DATA, SPRITES and root.", imagePath.getOriginalName());
+			return ImagePath();
+		}
+		return retPath;
+	};
+
+	if(useScaledAssets)
+	{
+		size_t pathIndex = static_cast<size_t>(getUsedScalingFactor() - 1);
+		return findUniquePath({imagePath.addPrefix(scaledSpritesPath.at(pathIndex)), imagePath.addPrefix(scaledDataPath.at(pathIndex))});
+	}
+
+	// 1x-only: with a scaled variant present the game displays that one, so our hash would be meaningless
+	for(size_t pathIndex = 1; pathIndex < scaledSpritesPath.size(); pathIndex++)
+	{
+		if(CResourceHandler::get()->existsResource(imagePath.addPrefix(scaledSpritesPath.at(pathIndex))) ||
+			CResourceHandler::get()->existsResource(imagePath.addPrefix(scaledDataPath.at(pathIndex))))
+		{
+			logGlobal->error("Not support scaled image path %s", imagePath.getOriginalName());
+			return ImagePath();
+		}
+	}
+
+	return findUniquePath({imagePath, imagePath.addPrefix(scaledDataPath.front()), imagePath.addPrefix(scaledSpritesPath.front())});
+}
+
+std::string CImageMd5Calculator::calculate(const ImagePath& imagePath, bool useScaledAssets)
+{
+	ImagePath realPath = getRealImagePath(imagePath, useScaledAssets);
 	if (!CResourceHandler::get()->existsResource(realPath))
 	{
 		logGlobal->error("Fail to find image oath %s", imagePath.getOriginalName());
@@ -342,15 +386,6 @@ std::vector<std::pair<std::unique_ptr<ui8[]>, si64> > CImageMd5Calculator::readD
 
 std::pair<std::unique_ptr<ui8[]>, si64> CImageMd5Calculator::readOneImage(const ImagePath &imagePath)
 {
-	static constexpr std::array unexceptedPaths = {"SPRITES2X/", "SPRITES3X/", "SPRITES4X/"};
-	for(auto & path : unexceptedPaths)
-	{
-		if(CResourceHandler::get()->existsResource(imagePath.addPrefix(path)))
-		{
-			logGlobal->error("Not support scaled image oath %s", imagePath.addPrefix(path).getOriginalName());
-			return std::make_pair<std::unique_ptr<ui8[]>, si64>(nullptr, 0);
-		}
-	}
 	ImagePath realPath = getRealImagePath(imagePath);
 	if(!CResourceHandler::get()->existsResource(realPath))
 	{

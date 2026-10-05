@@ -99,19 +99,15 @@ CMenuScreen::CMenuScreen(const JsonNode & configNode)
 		auto image = std::make_shared<CPicture>(imagePath, adjustNegativeCoordinate(node["x"].Integer(), node["y"].Integer()));
 		images.push_back(image);
 	}
-	size_t imageSize = config["images"].Vector().size();
-	int imageX = imageSize > 0 ? config["images"].Vector()[0]["x"].Integer() : 0;
-	int imageY = imageSize > 0 ? config["images"].Vector()[0]["y"].Integer() : 0;
-	std::string imageMd5 = imageMd5Handler.calculate(imagePath);
+	bool imageIsValid = checkImagesChanged(config);
 	bool containsVideo = !config["video"].isNull();
-	bool buttonChanged = checkButtonChanged(configNode);
-	bool imageIsValid = imageSize == 1 && imageMd5 == "b3d06a8e098d6007a93a5c4d8122ec4b" && imageX == 20 && imageY == -60;
-	if(bacogroudMd5 != "585825a130cafba0b2c6478bc2c0ed2b" || !imageIsValid || containsVideo || buttonChanged)
+	bool buttonChanged = checkButtonsChanged(config);
+	if(bacogroudMd5 != "5d9a0be0be43e69854974b7bdf759c6a" || !imageIsValid || containsVideo || buttonChanged)
 	{
 		std::string language = settings["general"]["language"].String();
 		std::string messageTitle = language == "chinese" ? "严重错误!" : "Fatal error!";
 		std::string messageToShowENG = "In Heroes3 Enhancement VCMI Edition, modifying the main menu is not allowed. Please disable all other main menu mods and ensure that the Heroes3 Enhancement VCMI High-res Menu Mod is enabled.";
-		std::string messageToShowCHS = "英雄无敌3增强版VCMI禁止修改主菜单！\n请禁用其他主菜单Mod并确保英雄无敌3增强版VCMI高清菜单Mod已启用！";
+		std::string messageToShowCHS = "英雄无敌3增强版：微曦沐霭禁止修改主菜单！\n请禁用其他主菜单Mod并确保英雄无敌3增强版：微曦沐霭高清菜单Mod已启用！";
 		std::string messageToShow = language == "chinese" ? messageToShowCHS : messageToShowENG;
 		logGlobal->error(messageToShowENG);
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, messageTitle.c_str(), messageToShow.c_str(), nullptr);
@@ -137,7 +133,47 @@ CMenuScreen::CMenuScreen(const JsonNode & configNode)
 
 }
 
-bool CMenuScreen::checkButtonChanged(const JsonNode & configNode)
+bool CMenuScreen::checkImagesChanged(const JsonNode & config)
+{
+	const JsonVector & imageVector = config["images"].Vector();
+	size_t imageSize = imageVector.size();
+	if(imageSize != 2)
+		return false;
+	std::set<std::string> expectedTextMd5 = {
+		"79fadbcfa3fad9d4361de8969d11789c",
+		"b17e844ec3697ee0e1ae6de73b4842b3",
+		"d575536d25fc414a7eb968d92e407d48",
+		"9a4b4f28545e9b1f6f8dcdc75771eabd"
+	};
+	if(!checkImageChanged(imageVector[0], expectedTextMd5, 20, -40))
+		return false;
+
+	std::set<std::string> expectedLogoMd5 = {
+		"16f9a3eea080b148783f923e2e15af4a",
+		"4beaa3c4dc1348f888be1f87c35716ce",
+		"071bb146e474ef37d3adf4ea7cce8e71",
+		"221e1e2238a9c8bd6141e3385b37a0b6"
+	};
+	if(!checkImageChanged(imageVector[1], expectedLogoMd5, 20, 20))
+		return false;
+	return true;
+}
+
+bool CMenuScreen::checkImageChanged(const JsonNode & config, const std::set<std::string> & expectedMd5, int expectedX, int expectedY )
+{
+	ImagePath imagePath = ImagePath::fromJson(*RandomGeneratorUtil::nextItem(config["name"].Vector(), CRandomGenerator::getDefault()));
+	CImageMd5Calculator imageMd5Handler;
+	std::string imageMd5 = imageMd5Handler.calculate(imagePath, true);
+	if(expectedMd5.find(imageMd5) == expectedMd5.end())
+		return false;
+	if(config["x"].Integer() != expectedX)
+		return false;
+	if(config["y"].Integer() != expectedY)
+		return false;
+	return true;
+}
+
+bool CMenuScreen::checkButtonsChanged(const JsonNode & config)
 {
 	std::vector<JsonNode> buttons;
 	for(const JsonNode & node : config["items"].Vector())

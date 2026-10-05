@@ -66,12 +66,16 @@ private:
         a = rotateLeft(a + I(b, c, d) + x + ac, s) + b;
     }
 
-	ImagePath getRealImagePath(const ImagePath& imagePath);
+	/// useScaledAssets - false: only 1x assets are accepted, any 2x/3x/4x variant makes this image rejected
+	///                   true: resolves the asset for the currently used scaling factor, rejects it if missing
+	ImagePath getRealImagePath(const ImagePath& imagePath, bool useScaledAssets = false);
+	/// Scaling factor actually used by RenderHandler - scaled assets are ignored when HD textures are disabled
+	static int getUsedScalingFactor();
 	std::string calculateMd5(ui8* data, si64 size);
 	std::vector<std::pair<std::unique_ptr<ui8[]>, si64> > readDefJsonImages(const JsonNode & config);
 	std::pair<std::unique_ptr<ui8[]>, si64> readOneImage(const ImagePath & imagePath);
 
 public:
-	std::string calculate(const ImagePath &imagePath);
+	std::string calculate(const ImagePath &imagePath, bool useScaledAssets = false);
 	std::string calculate(const AnimationPath & animationPath);
 };
