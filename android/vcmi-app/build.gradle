@@ -63,7 +63,7 @@ android {
 			debuggable true
 			applicationIdSuffix '.debug'
 			manifestPlaceholders = [
-				applicationLabel: '英雄无敌3增强版VCMI测试',
+				applicationLabel: '英雄无敌3增强版：微曦沐霭测试',
 				applicationVariant: 'debug',
 			]
 			ndk {
@@ -77,7 +77,7 @@ android {
 			signingConfig = signingConfigs[project.findProperty('signingConfig') ?: 'releaseSigning']
 			proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 			manifestPlaceholders = [
-				applicationLabel: project.findProperty('applicationLabel') ?: '英雄无敌3增强版VCMI',
+				applicationLabel: project.findProperty('applicationLabel') ?: '英雄无敌3增强版：微曦沐霭',
 				applicationVariant: project.findProperty('applicationVariant') ?: '',
 			]
 			ndk {
