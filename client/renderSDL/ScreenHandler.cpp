@@ -447,7 +447,7 @@ SDL_Window * ScreenHandler::createWindowImpl(Point dimensions, int flags, bool c
 {
 	int displayIndex = getPreferredDisplayIndex();
 	int positionFlags = center ? SDL_WINDOWPOS_CENTERED_DISPLAY(displayIndex) : SDL_WINDOWPOS_UNDEFINED_DISPLAY(displayIndex);
-	return SDL_CreateWindow("英雄无敌3增强版VCMI", positionFlags, positionFlags, dimensions.x, dimensions.y, flags);
+	return SDL_CreateWindow("英雄无敌3增强版：微曦沐霭", positionFlags, positionFlags, dimensions.x, dimensions.y, flags);
 }
 
 SDL_Window * ScreenHandler::createWindow()

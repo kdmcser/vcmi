@@ -89,7 +89,7 @@ CreditsScreen::CreditsScreen(Rect rect)
 	}
 
 	text = "{- " + LIBRARY->generaltexth->translate("vcmi.credits.vcmi") + " -}\r\n" + contributorsText + "\r\n\r\n{" + LIBRARY->generaltexth->translate("vcmi.credits.website") + ":}\r\nhttps://vcmi.eu\r\n\r\n\r\n\r\n\r\n{- " + LIBRARY->generaltexth->translate("vcmi.credits.heroes") + " -}\r\n\r\n\r\n" + text;
-	text = "{- 英雄无敌3增强版VCMI -}\r\n" + h3eContributorsText + "\r\n\r\n\r\n" + text;
+	text = "{- 英雄无敌3增强版：微曦沐霭 -}\r\n" + h3eContributorsText + "\r\n\r\n\r\n" + text;
 
 	credits = std::make_shared<CMultiLineLabel>(Rect(pos.w - 350, 0, 350, 600), FONT_CREDITS, ETextAlignment::CENTER, Colors::WHITE, text);
 	credits->scrollTextTo(-600); // move all text below the screen
