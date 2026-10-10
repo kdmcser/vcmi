@@ -159,7 +159,7 @@ void CInfoWindow::showInfoDialog(const std::string & text, const TCompsInfo & co
 	ENGINE->windows().pushWindow(CInfoWindow::create(text, player, components));
 }
 
-void CInfoWindow::showYesNoDialog(const std::string & text, const TCompsInfo & components, const CFunctionList<void()> & onYes, const CFunctionList<void()> & onNo, PlayerColor player)
+void CInfoWindow::showYesNoDialog(const std::string & text, const TCompsInfo & components, const CFunctionList<void()> & onYes, const CFunctionList<void()> & onNo, PlayerColor player, QueryID queryID)
 {
 	assert(!GAME->interface() || GAME->interface()->showingDialog->isBusy());
 	std::vector<std::pair<AnimationPath, CFunctionList<void()>>> pom;
@@ -169,6 +169,7 @@ void CInfoWindow::showYesNoDialog(const std::string & text, const TCompsInfo & c
 
 	temp->buttons[0]->addCallback(onYes);
 	temp->buttons[1]->addCallback(onNo);
+	temp->ID = queryID;
 
 	ENGINE->windows().pushWindow(temp);
 }
