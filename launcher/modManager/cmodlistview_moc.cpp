@@ -1589,6 +1589,9 @@ QStringList CModListView::getUpdateableMods()
 
 QString CModListView::getTranslationModName(const QString & language)
 {
+	if (language == "chinese" && modStateModel->isModExists("simplified-chinese-translation"))
+		return QStringLiteral("simplified-chinese-translation");
+
 	for(const auto & modName : modStateModel->getAllMods())
 	{
 		auto mod = modStateModel->getMod(modName);
