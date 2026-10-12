@@ -21,6 +21,7 @@ set(lib_SRCS
 	filesystem/Filesystem.cpp
 	filesystem/MinizipExtensions.cpp
 	filesystem/ResourcePath.cpp
+	filesystem/SavegamePath.cpp
 	filesystem/ZipAesCrypto.cpp
 	filesystem/protect/AntiDebug.cpp
 	filesystem/protect/EncryptedZipReader.cpp
@@ -399,6 +400,7 @@ set(lib_HEADERS
 	filesystem/ISimpleResourceLoader.h
 	filesystem/MinizipExtensions.h
 	filesystem/ResourcePath.h
+	filesystem/SavegamePath.h
 	filesystem/ZipAesCrypto.h
 	filesystem/protect/AntiDebug.h
 	filesystem/protect/EncryptedZipReader.h

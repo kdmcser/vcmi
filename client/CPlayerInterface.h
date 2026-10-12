@@ -62,7 +62,6 @@ namespace boost
 class CPlayerInterface : public CGameInterface
 {
 	bool ignoreEvents;
-	int autosaveCount;
 
 	const std::string QUICKSAVE_PATH = "Saves/Quicksave";
 

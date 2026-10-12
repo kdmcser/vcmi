@@ -323,6 +323,12 @@ void CCallback::save( const std::string &fname, bool notifySuccess )
 	sendRequest(save_game);
 }
 
+void CCallback::saveAutosave(const std::string & fname, int autosaveCountLimit)
+{
+	SaveGame save_game(fname, false, autosaveCountLimit);
+	sendRequest(save_game);
+}
+
 void CCallback::gamePause(bool pause)
 {
 	if(pause)

@@ -117,6 +117,7 @@
 #include "../lib/texts/TextOperations.h"
 
 #include "../lib/filesystem/Filesystem.h"
+#include "../lib/filesystem/SavegamePath.h"
 
 #include <boost/lexical_cast.hpp>
 
@@ -144,7 +145,6 @@ CPlayerInterface::CPlayerInterface(PlayerColor Player):
 	showingDialog = new ConditionalWait();
 	levelUpDialogGate = new ConditionalWait();
 	cingconsole = new CInGameConsole();
-	autosaveCount = 0;
 	isAutoFightOn = false;
 	isAutoFightEndBattle = false;
 	ignoreEvents = false;
@@ -280,22 +280,13 @@ void CPlayerInterface::performAutosave()
 			}
 		}
 
-		autosaveCount++;
+		const int autosaveCountLimit = static_cast<int>(settings["general"]["autosaveCountLimit"].Integer());
+		const std::string filename = SavegamePath::getAutosaveFilename(
+				cb->getDate(Date::MONTH),
+				cb->getDate(Date::WEEK),
+				cb->getDate(Date::DAY_OF_WEEK));
 
-		int autosaveCountLimit = settings["general"]["autosaveCountLimit"].Integer();
-		if(autosaveCountLimit > 0)
-		{
-			cb->save("Saves/Autosave/" + prefix + std::to_string(autosaveCount), false);
-			autosaveCount %= autosaveCountLimit;
-		}
-		else
-		{
-			std::string stringifiedDate = std::to_string(cb->getDate(Date::MONTH))
-					+ std::to_string(cb->getDate(Date::WEEK))
-					+ std::to_string(cb->getDate(Date::DAY_OF_WEEK));
-
-			cb->save("Saves/Autosave/" + prefix + stringifiedDate, false);
-		}
+		cb->saveAutosave("Saves/Autosave/" + prefix + filename, autosaveCountLimit);
 	}
 }
 
