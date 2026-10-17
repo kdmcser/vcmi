@@ -18,6 +18,8 @@
 
 #include <QObject>
 #include <QScroller>
+#include <QMessageBox>
+#include <QPushButton>
 
 #ifdef VCMI_ANDROID
 #include <QAndroidJniObject>
@@ -361,6 +363,17 @@ void sendFileToApp(QString path)
 #else
 	Q_UNUSED(path);
 #endif
+}
+
+bool confirmUpdateRisk(const QString & title, const QString & text, QWidget * parent)
+{
+	QMessageBox box(QMessageBox::Warning, title, text, QMessageBox::NoButton, parent);
+	QPushButton * continueButton = box.addButton(QStringLiteral("继续"), QMessageBox::AcceptRole);
+	QPushButton * cancelButton = box.addButton(QStringLiteral("取消"), QMessageBox::RejectRole);
+	box.setDefaultButton(cancelButton);
+	box.exec();
+
+	return box.clickedButton() == continueButton;
 }
 
 }

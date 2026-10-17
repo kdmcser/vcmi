@@ -63,6 +63,9 @@ class CModListView : public QWidget
 	QString genModInfoText(const ModState & mod);
 	QString getRepoUrl(const ModState & mod);
 
+	/// shows compatibility warning before user-initiated install/update; returns true to proceed
+	bool confirmModInstallOrUpdate(const QString & modName, bool isUpdate);
+
 	void changeEvent(QEvent *event) override;
 
 	auto buttonEnabledState(QString modName, ModState & mod);

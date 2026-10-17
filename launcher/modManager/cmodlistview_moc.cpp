@@ -549,7 +549,7 @@ void CModListView::onCustomContextMenu(const QPoint &point)
 	addContextEntry(
 		state.installVisible, state.installEnabled, QIcon{":/icons/mod-download.png"},
 		tr("Install"),
-		[this](ModState mod){ doInstallMod(mod.getID()); }
+		[this](ModState mod){ if (confirmModInstallOrUpdate(mod.getID(), false)) doInstallMod(mod.getID()); }
 	);
 	addContextEntry(
 		state.uninstallVisible, state.uninstallEnabled, QIcon{":/icons/mod-delete.png"},
@@ -559,7 +559,7 @@ void CModListView::onCustomContextMenu(const QPoint &point)
 	addContextEntry(
 		state.updateVisible, state.updateEnabled, QIcon{":/icons/mod-update.png"},
 		tr("Update"),
-		[this](ModState mod){ doUpdateMod(mod.getID()); }
+		[this](ModState mod){ if (confirmModInstallOrUpdate(mod.getID(), true)) doUpdateMod(mod.getID()); }
 	);
 	addContextEntry(
 		state.directoryVisible, state.directoryEnabled, QIcon{":/icons/menu-mods.png"},
@@ -748,6 +748,28 @@ QStringList CModListView::getModsToInstall(QString mod)
 	return result;
 }
 
+bool CModListView::confirmModInstallOrUpdate(const QString & modName, bool isUpdate)
+{
+	QString modDisplayName = modStateModel->getMod(modName).getName();
+
+	if (isUpdate)
+	{
+		QString title = QStringLiteral("更新须知");
+		QString text = QStringLiteral("即将更新模组「%1」。\n\n"
+			"该模组可能与当前 VCMI 主程序或其它模组不兼容，汉化完整性也未知。更新此模组后可能导致运行报错、功能异常、模组冲突或部分文本汉化缺失。若您无法自行处理，不建议执行此操作。\n\n"
+			"是否继续？").arg(modDisplayName);
+		return Helper::confirmUpdateRisk(title, text, this);
+	}
+	else
+	{
+		QString title = QStringLiteral("安装须知");
+		QString text = QStringLiteral("即将安装模组「%1」。\n\n"
+			"该模组可能与当前 VCMI 主程序或其它模组不兼容，汉化完整性也未知。安装此模组后可能导致运行报错、功能异常、模组冲突或部分文本汉化缺失。若您无法自行处理，不建议执行此操作。\n\n"
+			"是否继续？").arg(modDisplayName);
+		return Helper::confirmUpdateRisk(title, text, this);
+	}
+}
+
 void CModListView::on_updateButton_clicked()
 {
 	QModelIndex selectedMod = ui->allModsView->currentIndex();
@@ -763,6 +785,9 @@ void CModListView::on_updateButton_clicked()
 		logGlobal->error("Update failed! Model index is valid but mod name is empty!");
 		return;
 	}
+
+	if (!confirmModInstallOrUpdate(modName, true))
+		return;
 
 	doUpdateMod(modName);
 
@@ -809,6 +834,9 @@ void CModListView::on_uninstallButton_clicked()
 void CModListView::on_installButton_clicked()
 {
 	QString modName = ui->allModsView->currentIndex().data(ModRoles::ModNameRole).toString();
+
+	if (!confirmModInstallOrUpdate(modName, false))
+		return;
 
 	doInstallMod(modName);
 

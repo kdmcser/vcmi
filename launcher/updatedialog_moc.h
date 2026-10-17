@@ -33,6 +33,7 @@ public:
 
 private slots:
     void on_checkOnStartup_stateChanged(int state);
+    void onDownloadLinkActivated(const QString & link);
 
 private:
 	Ui::UpdateDialog *ui;

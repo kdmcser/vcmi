@@ -749,7 +749,7 @@
 				},
 				"autoCheckRepositories" : {
 					"type" : "boolean",
-					"default" : true
+					"default" : false
 				},
 				"fullModExtraction" : {
 					"type" : "boolean",
@@ -757,7 +757,7 @@
 				},
 				"updateOnStartup" : {
 					"type" : "boolean",
-					"default" : true
+					"default" : false
 				},
 				"updateConfigUrl" : {
 					"type" : "string",
