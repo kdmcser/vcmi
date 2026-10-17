@@ -12,6 +12,7 @@
 #include <QString>
 
 class QObject;
+class QWidget;
 class MainWindow;
 
 namespace Helper
@@ -28,4 +29,7 @@ namespace Helper
 	void nativeFolderPicker(QWidget *parent, std::function<void(QString)>&& cb);
 	QStringList findFilesForCopy(const QString &treeUri);
 	void sendFileToApp(QString path);
+
+	/// shows a blocking compatibility warning; returns true to proceed, false to cancel
+	bool confirmUpdateRisk(const QString & title, const QString & text, QWidget * parent);
 }

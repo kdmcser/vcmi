@@ -288,6 +288,13 @@ void StartGameTab::on_buttonUpdateMods_clicked()
 {
 	QStringList updateableMods = Helper::getMainWindow()->getModView()->getUpdateableMods();
 
+	QString text = QStringLiteral("即将更新全部模组（共 %1 个）。\n\n"
+		"这些模组可能与当前 VCMI 主程序或彼此之间不兼容，汉化完整性也未知。更新后可能导致运行报错、功能异常、模组冲突或部分文本汉化缺失。若您无法自行处理，不建议执行此操作。\n\n"
+		"是否继续？").arg(updateableMods.size());
+
+	if (!Helper::confirmUpdateRisk(QStringLiteral("更新须知"), text, this))
+		return;
+
 	Helper::getMainWindow()->switchToModsTab();
 
 	for (const auto & modName : updateableMods)

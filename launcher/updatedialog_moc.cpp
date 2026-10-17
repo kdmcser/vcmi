@@ -11,11 +11,15 @@
 #include "updatedialog_moc.h"
 #include "ui_updatedialog_moc.h"
 
+#include "helper.h"
+
 #include "../lib/CConfigHandler.h"
 #include "../lib/GameConstants.h"
 
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QDesktopServices>
+#include <QUrl>
 
 UpdateDialog::UpdateDialog(bool calledManually, QWidget *parent):
 	QDialog(parent),
@@ -23,6 +27,9 @@ UpdateDialog::UpdateDialog(bool calledManually, QWidget *parent):
 	calledManually(calledManually)
 {
 	ui->setupUi(this);
+	
+	ui->downloadLink->setOpenExternalLinks(false);
+	connect(ui->downloadLink, &QLabel::linkActivated, this, &UpdateDialog::onDownloadLinkActivated);
 	
 	if(calledManually)
 	{
@@ -144,4 +151,14 @@ void UpdateDialog::loadFromJson(const JsonNode & node)
 		downloadLink = QString::fromStdString(node["downloadLinks"][platformParameter].String());
 	
 	ui->downloadLink->setText(QString{"<a href=\"%1\">Download page</a>"}.arg(downloadLink));
+}
+
+void UpdateDialog::onDownloadLinkActivated(const QString & link)
+{
+	QString text = QStringLiteral("本次更新的是 VCMI 社区版本。\n\n"
+		"社区版本不支持英雄无敌3增强版：微曦沐霭的部分模组，更新后这些模组将无法正常使用。\n\n"
+		"是否继续前往下载页面？");
+
+	if (Helper::confirmUpdateRisk(QStringLiteral("更新须知"), text, this))
+		QDesktopServices::openUrl(QUrl(link));
 }
