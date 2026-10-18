@@ -29,8 +29,8 @@ void ModStateModel::setRepositoryData(const JsonNode & repositoriesList)
 	injectedMod["modType"].String() = "Translation";
 	injectedMod["language"].String() = "chinese";
 	injectedMod["name"].String() = "Simplified Chinese Translation";
-	injectedMod["version"].String() = "1.1";
-	injectedMod["download"].String() = "https://gitee.com/vcmi_china/simplified-chinese-translation/releases/download/1.1/simplified-chinese-translation.zip";
+	injectedMod["version"].String() = "1.1.1";
+	injectedMod["download"].String() = "https://gitee.com/vcmi_china/simplified-chinese-translation/releases/download/1.1.1/simplified-chinese-translation.zip";
 	injectedMod["downloadSize"].Float() = 52.018;
 
 	modManager = std::make_unique<ModManager>(*repositoryData);
