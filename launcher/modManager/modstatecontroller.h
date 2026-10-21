@@ -85,7 +85,7 @@ public:
 
 	QStringList getErrors();
 
-	/// Installs a mod from the archive. File system only, safe to run outside the GUI thread.
+	/// Installs every mod found in the archive. File system only, safe to run outside the GUI thread.
 	static ArchiveImportResult installArchive(const QString & archivePath, const QString & modIdHint,
 		bool fullModExtraction, const QStringList & protectedMods, ArchiveImportProgress & progress);
 	/// Derives the mod ID from the archive filename, including GitHub zip suffixes.
