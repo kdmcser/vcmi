@@ -12,18 +12,24 @@
 #include "../StdInc.h"
 #include "../../lib/CConfigHandler.h"
 
+#include "modstatecontroller.h"
+
+#include <memory>
+#include <vector>
+
 namespace Ui
 {
 class CModListView;
 }
 
-class ModStateController;
 class CModList;
 class ModStateItemModel;
 class ModStateModel;
 class CModFilterModel;
 class CDownloadManager;
 class QTableWidgetItem;
+class QThread;
+class QTimer;
 
 class ModState;
 
@@ -31,15 +37,34 @@ class CModListView : public QWidget
 {
 	Q_OBJECT
 
+	struct ArchiveImportOutcome
+	{
+		QString originalPath;
+		QString sourcePath;
+		bool temporarySource = false;
+		ModStateController::ArchiveImportResult result;
+	};
+
 	std::shared_ptr<ModStateModel> modStateModel;
 	std::unique_ptr<ModStateController> manager;
 	ModStateItemModel * modModel;
 	CModFilterModel * filterModel;
 	CDownloadManager * dlManager;
+	std::unique_ptr<QThread> importThread;
+	QTimer * importProgressTimer = nullptr;
+	std::shared_ptr<ModStateController::ArchiveImportProgress> importProgress;
+	std::shared_ptr<QVector<ArchiveImportOutcome>> importOutcomes;
+	QStringList importInstalledBefore;
+	QStringList importEnabledBefore;
+	QMap<QString, QMap<QString, bool>> importSettingsBefore;
+	QStringList pendingImportFiles;
 	JsonNode accumulatedRepositoryData;
 	QString activatingPreset;
 
 	QStringList enqueuedModDownloads;
+
+	/// archives that were downloaded by the launcher itself, and not provided by the user
+	QStringList downloadedArchives;
 
 	void setupModModel();
 	void setupFilterModel();
@@ -57,7 +82,12 @@ class CModListView : public QWidget
 	QStringList findUnavailableMods(QStringList candidates);
 
 	void installMods(QStringList archives);
+	void cleanupDownloadedArchives(QStringList archives);
 	void installMaps(QStringList maps);
+	void updateImportProgress();
+	void finishModImport();
+	static ArchiveImportOutcome importArchive(const QString & archive, const QString & hint,
+		ModStateController::ArchiveImportProgress & progress, bool fullModExtraction);
 
 	QString genChangelogText(const ModState & mod);
 	QString genModInfoText(const ModState & mod);
@@ -131,7 +161,8 @@ public:
 
 	void downloadMod(const ModState & mod);
 	void downloadFile(QString file, QUrl url, QString description, qint64 sizeBytes = 0);
-	void installFiles(QStringList mods);
+	/// Returns true if the files started an asynchronous mod import.
+	bool installFiles(QStringList mods);
 
 public slots:
 	void enableModByName(QString modName);
@@ -143,7 +174,6 @@ private slots:
 	void modSelected(const QModelIndex & current, const QModelIndex & previous);
 	void downloadProgress(qint64 current, qint64 max);
 	void extractionProgress(qint64 current, qint64 max);
-	void contentExtractionProgress(QString modName, qint64 current, qint64 max);
 	void downloadFinished(QStringList savedFiles, QStringList failedFiles, QStringList errors);
 	void modelReset();
 	void hideProgressBar();

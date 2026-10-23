@@ -17,6 +17,8 @@
 #include "MinizipExtensions.h"
 #include "protect/EncryptedZipReader.h"
 
+#include <functional>
+
 VCMI_LIB_NAMESPACE_BEGIN
 
 class DLL_LINKAGE CZipStream : public CBufferedStream
@@ -72,12 +74,38 @@ class DLL_LINKAGE ZipArchive : boost::noncopyable
 	unzFile archive;
 
 public:
+	struct Entry
+	{
+		std::string name;
+		uint64_t uncompressedSize = 0;
+		bool directory = false;
+		bool isUtf8Filename = false;
+	};
+
+	/// Called after each written block with the number of extracted bytes. Returns false to stop extraction.
+	using Progress = std::function<bool(uint64_t)>;
+
 	ZipArchive(const boost::filesystem::path & from);
 	~ZipArchive();
+
+	/// returns all entries of the archive, in archive order. Central directory is read only once
+	const std::vector<Entry> & entries();
 
 	std::vector<std::string> listFiles();
 	bool extract(const boost::filesystem::path & where, const std::vector<std::string> & what);
 	bool extract(const boost::filesystem::path & where, const std::string & what);
+
+	/// extracts a single entry below "where", using entry name from the archive as location.
+	/// relativeName replaces the name of the entry inside the archive, which allows to extract a subdirectory of the archive
+	bool extractTo(const boost::filesystem::path & where, size_t entryIndex, const std::string & relativeName, const Progress & progress = {});
+
+private:
+	bool indexed = false;
+	std::vector<Entry> indexedEntries;
+	std::vector<unz64_file_pos> positions;
+	std::unordered_map<std::string, size_t> names;
+
+	void readIndex();
 };
 
 VCMI_LIB_NAMESPACE_END

@@ -14,6 +14,29 @@
 
 #include "../../lib/CConfigHandler.h"
 
+namespace
+{
+/// writes all data that is currently available, without loading the whole file into memory
+void writeAvailableData(QNetworkReply * reply, QFile * file)
+{
+	constexpr qint64 blockSize = 1024 * 1024;
+
+	while(reply->bytesAvailable() > 0)
+	{
+		const QByteArray block = reply->read(blockSize);
+
+		if(block.isEmpty())
+			break;
+
+		if(file->write(block) != block.size())
+		{
+			logGlobal->error("Failed to write downloaded data for '%s'", file->fileName().toStdString());
+			break;
+		}
+	}
+}
+}
+
 CDownloadManager::CDownloadManager()
 {
 	connect(&manager, SIGNAL(finished(QNetworkReply *)),
@@ -97,7 +120,7 @@ void CDownloadManager::downloadFinished(QNetworkReply * reply)
 	}
 	else
 	{
-		file.file->write(file.reply->readAll());
+		writeAvailableData(file.reply, file.file.data());
 		file.file->close();
 		file.status = FileEntry::FINISHED;
 	}
@@ -135,7 +158,7 @@ void CDownloadManager::downloadProgressChanged(qint64 bytesReceived, qint64 byte
 	auto reply = dynamic_cast<QNetworkReply *>(sender());
 	FileEntry & entry = getEntry(reply);
 
-	entry.file->write(entry.reply->readAll());
+	writeAvailableData(entry.reply, entry.file.data());
 	entry.bytesReceived = bytesReceived;
 	if(bytesTotal > entry.totalSize)
 		entry.totalSize = bytesTotal;

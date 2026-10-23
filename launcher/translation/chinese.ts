@@ -416,6 +416,49 @@ Please report this issue to developers</source>
 请将这个问题反馈给开发者</translation>
     </message>
     <message>
+        <location filename="../modManager/cmodlistview_moc.cpp" line="1115"/>
+        <source>Failed to install file %1.
+Reason: %2</source>
+        <translation>安装文件%1失败。
+原因：%2</translation>
+    </message>
+    <message>
+        <location filename="../modManager/cmodlistview_moc.cpp" line="1189"/>
+        <source>Failed to prepare %1 for import</source>
+        <translation>无法准备导入%1</translation>
+    </message>
+    <message>
+        <location filename="../modManager/cmodlistview_moc.cpp" line="1244"/>
+        <location filename="../modManager/cmodlistview_moc.cpp" line="1294"/>
+        <source>Inspecting archive...</source>
+        <translation>正在检查归档文件…</translation>
+    </message>
+    <message>
+        <location filename="../modManager/cmodlistview_moc.cpp" line="1304"/>
+        <source>Installing mods %1/%2... %p%</source>
+        <translation>正在安装模组 %1/%2… %p%</translation>
+    </message>
+    <message>
+        <location filename="../modManager/cmodlistview_moc.cpp" line="1306"/>
+        <source>Installing mods %1 (%2/%3)... %p%</source>
+        <translation>正在安装模组 %1（%2/%3）… %p%</translation>
+    </message>
+    <message>
+        <location filename="../modManager/cmodlistview_moc.cpp" line="1364"/>
+        <source>Importing maps...</source>
+        <translation>正在导入地图…</translation>
+    </message>
+    <message>
+        <location filename="../modManager/cmodlistview_moc.cpp" line="1375"/>
+        <source>Failed to import %1: %2</source>
+        <translation>导入%1失败：%2</translation>
+    </message>
+    <message>
+        <location filename="../modManager/cmodlistview_moc.cpp" line="1387"/>
+        <source>Failed to update mod list: %1</source>
+        <translation>更新模组列表失败：%1</translation>
+    </message>
+    <message>
         <location filename="../modManager/cmodlistview_moc.cpp" line="1068"/>
         <source>Installing Heroes Chronicles</source>
         <translation>安装历代记</translation>
@@ -1837,6 +1880,52 @@ Bin (%n字节):
         <location filename="../modManager/modstatecontroller.cpp" line="281"/>
         <source>Mod archive is missing</source>
         <translation>模组归档文件未找到</translation>
+    </message>
+    <message>
+        <location filename="../modManager/modstatecontroller.cpp" line="357"/>
+        <location filename="../modManager/modstatecontroller.cpp" line="374"/>
+        <source>Mod archive is invalid or corrupted: %1</source>
+        <translation>模组归档文件无效或损坏：%1</translation>
+    </message>
+    <message>
+        <location filename="../modManager/modstatecontroller.cpp" line="399"/>
+        <source>Archive does not contain mods or maps</source>
+        <translation>归档文件中没有模组或地图</translation>
+    </message>
+    <message>
+        <location filename="../modManager/modstatecontroller.cpp" line="412"/>
+        <source>Archive contains an invalid mod ID: %1</source>
+        <translation>归档文件中包含无效的模组 ID：%1</translation>
+    </message>
+    <message>
+        <location filename="../modManager/modstatecontroller.cpp" line="418"/>
+        <source>Archive contains more than one mod with ID %1</source>
+        <translation>归档文件中包含多个 ID 为%1的模组</translation>
+    </message>
+    <message>
+        <location filename="../modManager/modstatecontroller.cpp" line="486"/>
+        <source>Failed to remove directory %1</source>
+        <translation>无法删除目录%1</translation>
+    </message>
+    <message>
+        <location filename="../modManager/modstatecontroller.cpp" line="490"/>
+        <source>Failed to create directory %1</source>
+        <translation>无法创建目录%1</translation>
+    </message>
+    <message>
+        <location filename="../modManager/modstatecontroller.cpp" line="541"/>
+        <source>Failed to extract archive entry: %1</source>
+        <translation>解压归档条目失败：%1</translation>
+    </message>
+    <message>
+        <location filename="../modManager/modstatecontroller.cpp" line="535"/>
+        <source>Failed to extract mod data</source>
+        <translation>提取模组数据失败</translation>
+    </message>
+    <message>
+        <location filename="../modManager/modstatecontroller.cpp" line="545"/>
+        <source>Failed to replace directory %1. Close all applications that may be using it, such as file explorer, and try again.</source>
+        <translation>无法替换目录%1。请关闭可能正在使用该目录的程序（例如文件资源管理器）后重试。</translation>
     </message>
     <message>
         <location filename="../modManager/modstatecontroller.cpp" line="286"/>
