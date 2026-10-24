@@ -1455,6 +1455,19 @@ void CModListView::finishModImport()
 	if(!errors.isEmpty())
 		QMessageBox::warning(this, tr("Import failed"), errors.join("\n"));
 
+	// configuration archives are applied last, so that installed mods can not overwrite the imported mod settings
+	for(const auto & outcome : outcomes)
+	{
+		if(!outcome.result.configArchive)
+			continue;
+
+		if(!canceled)
+			applyConfigImport(outcome.result);
+
+		if(!outcome.result.configStagingPath.isEmpty())
+			QDir(outcome.result.configStagingPath).removeRecursively();
+	}
+
 	// Only archives downloaded by the launcher are removed after installation.
 	// Archives selected by the user, e.g. dropped onto the launcher, must be kept intact.
 	for(const auto & outcome : outcomes)
@@ -1489,6 +1502,41 @@ void CModListView::cleanupDownloadedArchives(QStringList archives)
 			QFile::remove(archive);
 		}
 	}
+}
+
+void CModListView::applyConfigImport(const ModStateController::ArchiveImportResult & result)
+{
+	if(result.configFiles.isEmpty() || result.configStagingPath.isEmpty())
+		return;
+
+	const auto answer = QMessageBox::warning(this, tr("Replace config files?"),
+		tr("Do you want to replace the following config files?\n\n%1").arg(result.configFiles.join("\n")),
+		QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+
+	if(answer != QMessageBox::Yes)
+		return;
+
+	const QString configDir = pathToQString(VCMIDirs::get().userConfigPath());
+	QDir().mkpath(configDir);
+
+	QStringList failed;
+	for(const auto & file : result.configFiles)
+	{
+		const QString destination = configDir + '/' + file;
+		QFile::remove(destination);
+		if(!QFile::copy(result.configStagingPath + '/' + file, destination))
+			failed.push_back(file);
+	}
+
+	if(!failed.isEmpty())
+	{
+		QMessageBox::warning(this, tr("Import failed"), tr("Failed to replace config files:\n%1").arg(failed.join("\n")));
+		return;
+	}
+
+	QMessageBox::information(this, tr("Import complete"), tr("Replaced config files:\n%1").arg(result.configFiles.join("\n")));
+
+	Helper::reLoadSettings();
 }
 
 void CModListView::installMaps(QStringList maps)

@@ -33,6 +33,12 @@ public:
 		QStringList errors;
 		bool canceled = false;
 		bool mapArchive = false;
+		/// archive contained a top-level "config" directory with supported files
+		bool configArchive = false;
+		/// directory where files from the archive's config directory were extracted
+		QString configStagingPath;
+		/// names of extracted config files, relative to the config directory
+		QStringList configFiles;
 	};
 
 	struct ArchiveImportProgress

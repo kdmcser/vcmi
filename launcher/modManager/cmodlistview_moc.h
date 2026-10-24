@@ -86,6 +86,7 @@ class CModListView : public QWidget
 	void installMaps(QStringList maps);
 	void updateImportProgress();
 	void finishModImport();
+	void applyConfigImport(const ModStateController::ArchiveImportResult & result);
 	static ArchiveImportOutcome importArchive(const QString & archive, const QString & hint,
 		ModStateController::ArchiveImportProgress & progress, bool fullModExtraction);
 
