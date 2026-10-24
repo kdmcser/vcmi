@@ -29,9 +29,11 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QRegularExpression>
+#include <QUuid>
 
 #include <algorithm>
 #include <cctype>
+#include <functional>
 #include <limits>
 #include <memory>
 #include <stdexcept>
@@ -161,9 +163,33 @@ std::string normalizeEntryName(const std::string & name)
 	return result;
 }
 
-bool isModManifest(std::string_view name)
+std::vector<std::string> normalizeEntryNames(const std::vector<ZipArchive::Entry> & entries)
 {
-	return name == "mod.json" || asciiEndsWithNoCase(name, "/mod.json");
+	std::vector<std::string> names;
+	names.reserve(entries.size());
+	for(const auto & entry : entries)
+		names.push_back(normalizeEntryName(entry.name));
+	return names;
+}
+
+/// name of the archive entry without the directories it is stored in
+std::string fileNameOf(const std::string & name)
+{
+	const size_t slash = name.rfind('/');
+	return slash == std::string::npos ? name : name.substr(slash + 1);
+}
+
+bool isModManifest(const std::string & fileName)
+{
+	return asciiEqualsNoCase(fileName, "mod.json");
+}
+
+/// files of the launcher / game configuration that can be imported from an archive
+bool isSupportedConfigFile(const std::string & fileName)
+{
+	return asciiEqualsNoCase(fileName, "settings.json")
+		|| asciiEqualsNoCase(fileName, "persistentStorage.json")
+		|| asciiEqualsNoCase(fileName, "modSettings.json");
 }
 
 bool isUnderRoot(const std::string & name, const std::string & root)
@@ -188,14 +214,33 @@ std::string relativeToRoot(const std::string & name, const std::string & root)
 	return name.substr(root.size() + 1);
 }
 
-/// returns directories that contain mod.json at the shallowest level of the archive
-std::vector<std::string> detectModRoots(const std::vector<ZipArchive::Entry> & entries, const std::vector<std::string> & names)
+/// returns directories that contain a file matching the predicate at the shallowest level of the archive.
+/// Entries stored in a directory rejected by isExcludedRoot are ignored during the search
+std::vector<std::string> detectRoots(const std::vector<ZipArchive::Entry> & entries, const std::vector<std::string> & names,
+	const std::function<bool(const std::string &)> & isMatchingFile, const std::function<bool(const std::string &)> & isExcludedRoot = {})
 {
+	const auto rootOf = [&names](size_t index)
+	{
+		const size_t slash = names[index].rfind('/');
+		return slash == std::string::npos ? std::string{} : names[index].substr(0, slash);
+	};
+
+	const auto isCandidate = [&](size_t index)
+	{
+		if(entries[index].directory || !isMatchingFile(fileNameOf(names[index])))
+			return false;
+
+		if(isExcludedRoot && isExcludedRoot(rootOf(index)))
+			return false;
+
+		return true;
+	};
+
 	size_t minDepth = std::numeric_limits<size_t>::max();
 
 	for(size_t index = 0; index < entries.size(); ++index)
 	{
-		if(entries[index].directory || !isModManifest(names[index]))
+		if(!isCandidate(index))
 			continue;
 
 		const size_t depth = static_cast<size_t>(std::count(names[index].begin(), names[index].end(), '/')) + 1;
@@ -209,23 +254,64 @@ std::vector<std::string> detectModRoots(const std::vector<ZipArchive::Entry> & e
 
 	for(size_t index = 0; index < entries.size(); ++index)
 	{
-		const auto & name = names[index];
-
-		if(entries[index].directory || !isModManifest(name))
+		if(!isCandidate(index))
 			continue;
 
-		const size_t depth = static_cast<size_t>(std::count(name.begin(), name.end(), '/')) + 1;
+		const size_t depth = static_cast<size_t>(std::count(names[index].begin(), names[index].end(), '/')) + 1;
 		if(depth != minDepth)
 			continue;
 
-		const size_t slash = name.rfind('/');
-		const std::string root = slash == std::string::npos ? std::string{} : name.substr(0, slash);
+		const std::string root = rootOf(index);
 
 		if(std::find(roots.begin(), roots.end(), root) == roots.end())
 			roots.push_back(root);
 	}
 
 	return roots;
+}
+
+/// returns directories that contain mod.json at the shallowest level of the archive
+std::vector<std::string> detectModRoots(const std::vector<ZipArchive::Entry> & entries, const std::vector<std::string> & names)
+{
+	return detectRoots(entries, names, isModManifest);
+}
+
+/// configuration files that are stored inside a mod are a part of that mod, not a configuration backup
+bool isRelatedToModRoot(const std::string & configRoot, const std::vector<std::string> & modRoots)
+{
+	for(const auto & modRoot : modRoots)
+	{
+		if(configRoot == modRoot)
+			return true;
+
+		if(!configRoot.empty() && (isUnderRoot(configRoot, modRoot) || isUnderRoot(modRoot, configRoot)))
+			return true;
+	}
+
+	return false;
+}
+
+/// returns directories that contain configuration files at the shallowest level of the archive.
+/// Files that belong to a mod are ignored, so that they can not shadow the configuration files of the archive itself
+std::vector<std::string> detectConfigRoots(const std::vector<ZipArchive::Entry> & entries, const std::vector<std::string> & names, const std::vector<std::string> & modRoots)
+{
+	std::vector<std::string> reportedRoots;
+
+	const auto isExcludedRoot = [&modRoots, &reportedRoots](const std::string & root)
+	{
+		if(!isRelatedToModRoot(root, modRoots))
+			return false;
+
+		if(std::find(reportedRoots.begin(), reportedRoots.end(), root) == reportedRoots.end())
+		{
+			reportedRoots.push_back(root);
+			logGlobal->debug("Ignoring configuration files in '%s': this directory belongs to a mod", root.empty() ? "<archive root>" : root.c_str());
+		}
+
+		return true;
+	};
+
+	return detectRoots(entries, names, isSupportedConfigFile, isExcludedRoot);
 }
 
 /// "Mods", "Mods/<mod>" or "<something>/Mods/<mod>" - a mod packaged together with the directory it is stored in
@@ -340,7 +426,7 @@ QString ModStateController::findModDirectory(const QString & modname)
 	return {};
 }
 
-ModStateController::ArchiveImportResult ModStateController::installArchive(const QString & archivePath, const QString & modIdHint, bool fullModExtraction, ArchiveImportProgress & progress)
+ModStateController::ArchiveImportResult ModStateController::prepareConfigImport(ZipArchive & archive, ArchiveImportProgress & progress)
 {
 	ArchiveImportResult result;
 
@@ -349,21 +435,9 @@ ModStateController::ArchiveImportResult ModStateController::installArchive(const
 	progress.completedMods = 0;
 	progress.totalMods = 0;
 
-	if(!QFile::exists(archivePath))
+	if(progress.canceled)
 	{
-		result.errors.push_back(importTranslate("Mod archive is missing"));
-		return result;
-	}
-
-	std::unique_ptr<ZipArchive> archive;
-
-	try
-	{
-		archive = std::make_unique<ZipArchive>(qstringToPath(archivePath));
-	}
-	catch(const std::exception & exception)
-	{
-		result.errors.push_back(importTranslate("Mod archive is invalid or corrupted: %1").arg(QString::fromUtf8(exception.what())));
+		result.canceled = true;
 		return result;
 	}
 
@@ -372,11 +446,8 @@ ModStateController::ArchiveImportResult ModStateController::installArchive(const
 
 	try
 	{
-		archiveEntries = &archive->entries();
-		normalizedNames.reserve(archiveEntries->size());
-
-		for(const auto & entry : *archiveEntries)
-			normalizedNames.push_back(normalizeEntryName(entry.name));
+		archiveEntries = &archive.entries();
+		normalizedNames = normalizeEntryNames(*archiveEntries);
 	}
 	catch(const std::exception & exception)
 	{
@@ -384,10 +455,181 @@ ModStateController::ArchiveImportResult ModStateController::installArchive(const
 		return result;
 	}
 
-	const auto roots = detectModRoots(*archiveEntries, normalizedNames);
+	const auto modRoots = detectModRoots(*archiveEntries, normalizedNames);
+	const auto configRoots = detectConfigRoots(*archiveEntries, normalizedNames, modRoots);
 
-	if(roots.empty())
+	if(progress.canceled)
 	{
+		result.canceled = true;
+		return result;
+	}
+
+	if(configRoots.size() > 1)
+	{
+		logGlobal->warn("Archive contains configuration files in more than one directory, skipping them");
+		return result;
+	}
+
+	if(configRoots.empty())
+		return result;
+
+	const std::string & configRoot = configRoots.front();
+	std::vector<size_t> configEntries;
+
+	for(size_t index = 0; index < archiveEntries->size(); ++index)
+	{
+		if((*archiveEntries)[index].directory)
+			continue;
+
+		const auto & name = normalizedNames[index];
+		if(!isSupportedConfigFile(fileNameOf(name)))
+			continue;
+
+		const size_t slash = name.rfind('/');
+		const std::string root = slash == std::string::npos ? std::string{} : name.substr(0, slash);
+
+		if(root == configRoot)
+		{
+			configEntries.push_back(index);
+			progress.totalBytes += (*archiveEntries)[index].uncompressedSize;
+		}
+	}
+
+	if(configEntries.empty())
+		return result;
+
+	const QString stagingPath = CLauncherDirs::downloadsPath() + "/.vcmi-config-" + QUuid::createUuid().toString(QUuid::WithoutBraces);
+
+	try
+	{
+		bool keepStaging = false;
+		auto removeStaging = vstd::makeScopeGuard([&keepStaging, &stagingPath]()
+		{
+			if(!keepStaging && QDir(stagingPath).exists() && !QDir(stagingPath).removeRecursively())
+				logGlobal->error("Failed to remove directory '%s'", stagingPath.toStdString());
+		});
+
+		if(!QDir().mkpath(stagingPath))
+		{
+			result.errors.push_back(importTranslate("Failed to create directory %1").arg(stagingPath));
+			return result;
+		}
+
+		QStringList configFiles;
+		for(const size_t index : configEntries)
+		{
+			if(progress.canceled)
+			{
+				result.canceled = true;
+				return result;
+			}
+
+			const std::string relative = fileNameOf(normalizedNames[index]);
+			const auto progressCallback = [&progress](uint64_t amount)
+			{
+				progress.completedBytes += amount;
+				return !progress.canceled.load();
+			};
+
+			if(!archive.extractTo(qstringToPath(stagingPath), index, relative, progressCallback))
+			{
+				if(progress.canceled)
+					result.canceled = true;
+				else
+					result.errors.push_back(importTranslate("Failed to extract archive entry: %1").arg(QString::fromStdString(relative)));
+				return result;
+			}
+
+			configFiles.push_back(QString::fromStdString(relative));
+		}
+
+		QStringList validFiles;
+		for(const auto & file : configFiles)
+		{
+			if(progress.canceled)
+			{
+				result.canceled = true;
+				return result;
+			}
+
+			try
+			{
+				JsonNode node = JsonUtils::jsonFromFile(stagingPath + '/' + file);
+				if(!node.isStruct())
+					throw std::runtime_error("file does not contain a JSON object");
+			}
+			catch(const std::exception & exception)
+			{
+				logGlobal->warn("Skipping invalid config file '%s': %s", file.toStdString(), exception.what());
+				result.errors.push_back(importTranslate("Config file %1 is invalid and was skipped").arg(file));
+				QFile::remove(stagingPath + '/' + file);
+				continue;
+			}
+
+			validFiles.push_back(file);
+		}
+
+		if(progress.canceled)
+		{
+			result.canceled = true;
+			return result;
+		}
+
+		if(validFiles.empty())
+			return result;
+
+		result.configFiles = validFiles;
+		result.configStagingPath = stagingPath;
+		keepStaging = true;
+	}
+	catch(const std::exception & exception)
+	{
+		if(progress.canceled)
+			result.canceled = true;
+		else
+			result.errors.push_back(importTranslate("Mod archive is invalid or corrupted: %1").arg(QString::fromUtf8(exception.what())));
+	}
+
+	return result;
+}
+
+ModStateController::ArchiveImportResult ModStateController::installArchive(ZipArchive & archive, const QString & archivePath, const QString & modIdHint, bool fullModExtraction, ArchiveImportProgress & progress)
+{
+	ArchiveImportResult result;
+
+	progress.completedBytes = 0;
+	progress.totalBytes = 0;
+	progress.completedMods = 0;
+	progress.totalMods = 0;
+
+	if(progress.canceled)
+	{
+		result.canceled = true;
+		return result;
+	}
+
+	const std::vector<ZipArchive::Entry> * archiveEntries = nullptr;
+	std::vector<std::string> normalizedNames;
+
+	try
+	{
+		archiveEntries = &archive.entries();
+		normalizedNames = normalizeEntryNames(*archiveEntries);
+	}
+	catch(const std::exception & exception)
+	{
+		result.errors.push_back(importTranslate("Mod archive is invalid or corrupted: %1").arg(QString::fromUtf8(exception.what())));
+		return result;
+	}
+
+	const auto modRoots = detectModRoots(*archiveEntries, normalizedNames);
+
+	if(modRoots.empty())
+	{
+		const auto configRoots = detectConfigRoots(*archiveEntries, normalizedNames, modRoots);
+		if(configRoots.size() == 1)
+			return result;
+
 		bool hasMaps = false;
 
 		for(const auto & name : normalizedNames)
@@ -412,9 +654,9 @@ ModStateController::ArchiveImportResult ModStateController::installArchive(const
 	std::vector<ModPlan> plans;
 	QStringList plannedIds;
 
-	for(const auto & root : roots)
+	for(const auto & root : modRoots)
 	{
-		const QString id = modIdForRoot(root, modIdHint, roots.size());
+		const QString id = modIdForRoot(root, modIdHint, modRoots.size());
 
 		if(!isValidModId(id))
 		{
@@ -518,7 +760,7 @@ ModStateController::ArchiveImportResult ModStateController::installArchive(const
 
 				const std::string relative = relativeToRoot(normalizedNames[index], plan.root);
 
-				if(!archive->extractTo(qstringToPath(stagingPath), index, relative, progressCallback))
+				if(!archive.extractTo(qstringToPath(stagingPath), index, relative, progressCallback))
 				{
 					if(progress.canceled)
 					{

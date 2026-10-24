@@ -962,18 +962,22 @@ void CModListView::hideProgressBar()
 	}
 }
 
-void CModListView::installFiles(QStringList files, bool removeGithubSuffix)
+void CModListView::installFiles(QStringList files, bool removeGithubSuffix, QStringList configFiles)
 {
 	if(importOperation)
 	{
-		connect(importOperation, &QObject::destroyed, this, [this, files, removeGithubSuffix, progress = importProgress]()
+		connect(importOperation, &QObject::destroyed, this, [this, files, removeGithubSuffix, configFiles, progress = importProgress]()
 		{
 			if(!progress->canceled)
-				installFiles(files, removeGithubSuffix);
+				installFiles(files, removeGithubSuffix, configFiles);
 		}, Qt::QueuedConnection);
 		return;
 	}
 
+	const bool hasArchives = std::any_of(files.begin(), files.end(), [](const QString & file)
+	{
+		return Helper::getRealPath(file).endsWith(".zip", Qt::CaseInsensitive);
+	});
 	auto restoreImportUi = vstd::makeScopeGuard([this]()
 	{
 		importProgress.reset();
@@ -982,15 +986,13 @@ void CModListView::installFiles(QStringList files, bool removeGithubSuffix)
 		hideProgressBar();
 	});
 	std::unique_ptr<QObject> operation;
-	if(std::any_of(files.begin(), files.end(), [](const QString & file)
-	{
-		return Helper::getRealPath(file).endsWith(".zip", Qt::CaseInsensitive);
-	}))
+	if(hasArchives || !configFiles.isEmpty())
 	{
 		importProgress = std::make_shared<ModStateController::ArchiveImportProgress>();
 		operation = std::make_unique<QObject>();
 		importOperation = operation.get();
-		Helper::getMainWindow()->switchToModsTab();
+		if(hasArchives)
+			Helper::getMainWindow()->switchToModsTab();
 		ui->progressWidget->setVisible(true);
 		ui->abortButton->setEnabled(true);
 		ui->progressBar->setFormat(tr("Inspecting archive..."));
@@ -999,7 +1001,52 @@ void CModListView::installFiles(QStringList files, bool removeGithubSuffix)
 		qApp->processEvents();
 	}
 
-	QStringList mods;
+	QVector<ArchiveImportOutcome> prepared;
+	auto cleanupImports = vstd::makeScopeGuard([this, &prepared, &files]()
+	{
+		for(auto & outcome : prepared)
+		{
+			outcome.archive.reset();
+			if(!outcome.result.configStagingPath.isEmpty())
+				QDir(outcome.result.configStagingPath).removeRecursively();
+			if(outcome.temporarySource)
+				QFile::remove(outcome.sourcePath);
+		}
+		cleanupDownloadedArchives(files);
+	});
+
+	// Prepare every configuration before installing any data in this batch.
+	for(const auto & file : files)
+	{
+		if(!Helper::getRealPath(file).endsWith(".zip", Qt::CaseInsensitive) && !configFiles.contains(file))
+			continue;
+		if(importProgress->canceled)
+			return;
+
+		auto futurePrepare = std::async(std::launch::async, [file, progress = importProgress]()
+		{
+			return CModListView::prepareImport(file, *progress);
+		});
+		while(futurePrepare.wait_for(std::chrono::milliseconds(10)) != std::future_status::ready)
+			qApp->processEvents();
+		prepared.push_back(futurePrepare.get());
+	}
+
+	for(auto & outcome : prepared)
+	{
+		if(importProgress->canceled)
+			return;
+		if(outcome.result.configFiles.isEmpty())
+			continue;
+
+		const QString sourceName = QFileInfo(Helper::getRealPath(outcome.originalPath)).fileName();
+		outcome.replaceConfig = QMessageBox::warning(this, tr("Replace config files?"),
+			sourceName + "\n\n" + tr("Do you want to replace the following config files?\n\n%1").arg(outcome.result.configFiles.join("\n")),
+			QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes;
+	}
+	if(importProgress && importProgress->canceled)
+		return;
+
 	QStringList maps;
 	QStringList images;
 	QStringList exe;
@@ -1012,15 +1059,14 @@ void CModListView::installFiles(QStringList files, bool removeGithubSuffix)
 
 		if(realFilename.endsWith(".zip", Qt::CaseInsensitive))
 		{
-			// archive content is inspected during import: local archives are installed directly,
-			// archives that can not be read directly, e.g. Android content:// URIs, are copied by the importer
-			mods.push_back(filename);
+			// Already prepared above, including configuration backups and Android URI copies.
+			continue;
 		}
 		else if(realFilename.endsWith(".h3m", Qt::CaseInsensitive) || realFilename.endsWith(".h3c", Qt::CaseInsensitive) || realFilename.endsWith(".vmap", Qt::CaseInsensitive) || realFilename.endsWith(".vcmp", Qt::CaseInsensitive))
 			maps.push_back(filename);
 		if(realFilename.endsWith(".exe", Qt::CaseInsensitive))
 			exe.push_back(filename);
-		else if(realFilename.endsWith(".json", Qt::CaseInsensitive))
+		else if(realFilename.endsWith(".json", Qt::CaseInsensitive) && !configFiles.contains(filename))
 		{
 			//download and merge additional files
 			JsonNode repoData = JsonUtils::jsonFromFile(filename);
@@ -1090,16 +1136,16 @@ void CModListView::installFiles(QStringList files, bool removeGithubSuffix)
 	}
 
 	// Local imports do not use the download manager.
-	if(!mods.empty())
+	if(hasArchives)
 	{
 		ui->progressWidget->setVisible(true);
 		Helper::keepScreenOn(true);
 	}
 
-	if(!mods.empty())
+	if(hasArchives)
 	{
 		logGlobal->info("Installing mods: started");
-		installMods(mods, removeGithubSuffix);
+		installMods(prepared, removeGithubSuffix);
 		logGlobal->info("Installing mods: ended");
 	}
 	if(importProgress && importProgress->canceled)
@@ -1162,31 +1208,76 @@ void CModListView::installFiles(QStringList files, bool removeGithubSuffix)
 
 	if(!images.empty())
 		loadScreenshots();
+	if(importProgress && importProgress->canceled)
+		return;
+
+	QStringList errors;
+	QStringList replacedConfigs;
+	QStringList failedConfigs;
+	// Apply configurations after all installations and model updates have finished.
+	for(const auto & outcome : prepared)
+	{
+		errors += outcome.result.errors;
+		if(!outcome.replaceConfig)
+			continue;
+
+		const auto failed = applyConfigImport(outcome.result);
+		failedConfigs += failed;
+		for(const auto & file : outcome.result.configFiles)
+			if(!failed.contains(file))
+				replacedConfigs.push_back(file);
+	}
+	if(!replacedConfigs.isEmpty())
+		Helper::reLoadSettings();
+	replacedConfigs.removeDuplicates();
+	failedConfigs.removeDuplicates();
+
+	if(!errors.isEmpty())
+		QMessageBox::warning(this, tr("Import failed"), errors.join("\n"));
+	if(!failedConfigs.isEmpty())
+		QMessageBox::warning(this, tr("Import failed"), tr("Failed to replace config files:\n%1").arg(failedConfigs.join("\n")));
+	else if(!replacedConfigs.isEmpty())
+		QMessageBox::information(this, tr("Import complete"), tr("Replaced config files:\n%1").arg(replacedConfigs.join("\n")));
 }
 
-CModListView::ArchiveImportOutcome CModListView::importArchive(const QString & archive, const QString & hint,
-	ModStateController::ArchiveImportProgress & progress, bool fullModExtraction)
+CModListView::ArchiveImportOutcome CModListView::prepareImport(const QString & file,
+	ModStateController::ArchiveImportProgress & progress)
 {
 	ArchiveImportOutcome outcome;
-	outcome.originalPath = archive;
-	QString sourcePath = archive;
+	outcome.originalPath = file;
+	if(progress.canceled)
+		return outcome;
+	if(Helper::getRealPath(file).endsWith(".json", Qt::CaseInsensitive))
+	{
+		const QDir configDir(pathToQString(VCMIDirs::get().userConfigPath()));
+		const QString fileName = QFileInfo(Helper::getRealPath(file)).fileName();
+		const auto existingFiles = configDir.entryList({fileName}, QDir::Files);
+		if(existingFiles.isEmpty())
+			return outcome;
+
+		outcome.result.configStagingPath = CLauncherDirs::downloadsPath() + "/.vcmi-config-"
+			+ QUuid::createUuid().toString(QUuid::WithoutBraces);
+		if(QDir().mkpath(outcome.result.configStagingPath)
+			&& Helper::performNativeCopy(file, outcome.result.configStagingPath + '/' + existingFiles.front()))
+			outcome.result.configFiles.push_back(existingFiles.front());
+		else
+			outcome.result.errors.push_back(QCoreApplication::translate("CModListView", "Failed to prepare %1 for import").arg(file));
+		return outcome;
+	}
+
+	QString sourcePath = file;
 	QFile sourceFile(sourcePath);
-	const bool needsCopy = archive.startsWith("content://", Qt::CaseInsensitive) || !sourceFile.open(QIODevice::ReadOnly);
+	const bool needsCopy = file.startsWith("content://", Qt::CaseInsensitive) || !sourceFile.open(QIODevice::ReadOnly);
 	sourceFile.close();
 
 	if(needsCopy)
 	{
 		const QString tempPath = CLauncherDirs::downloadsPath() + "/.vcmi-import-"
 			+ QUuid::createUuid().toString(QUuid::WithoutBraces) + ".zip";
-		if(Helper::performNativeCopy(archive, tempPath))
-		{
-			sourcePath = tempPath;
-			outcome.temporarySource = true;
-		}
-		else
-		{
-			outcome.result.errors.push_back(QCoreApplication::translate("CModListView", "Failed to prepare %1 for import").arg(archive));
-		}
+		sourcePath = tempPath;
+		outcome.temporarySource = true;
+		if(!Helper::performNativeCopy(file, tempPath))
+			outcome.result.errors.push_back(QCoreApplication::translate("CModListView", "Failed to prepare %1 for import").arg(file));
 	}
 
 	outcome.sourcePath = sourcePath;
@@ -1194,18 +1285,20 @@ CModListView::ArchiveImportOutcome CModListView::importArchive(const QString & a
 	{
 		try
 		{
-			outcome.result = ModStateController::installArchive(sourcePath, hint, fullModExtraction, progress);
+			outcome.archive = std::make_shared<ZipArchive>(qstringToPath(sourcePath));
+			outcome.result = ModStateController::prepareConfigImport(*outcome.archive, progress);
 		}
 		catch(const std::exception & exception)
 		{
+			outcome.archive.reset();
 			outcome.result.errors.push_back(QCoreApplication::translate("CModListView", "Failed to import %1: %2")
-				.arg(archive, QString::fromUtf8(exception.what())));
+				.arg(file, QString::fromUtf8(exception.what())));
 		}
 	}
 	return outcome;
 }
 
-void CModListView::installMods(QStringList archives, bool removeGithubSuffix)
+void CModListView::installMods(QVector<ArchiveImportOutcome> & archives, bool removeGithubSuffix)
 {
 	if(archives.empty())
 		return;
@@ -1240,16 +1333,27 @@ void CModListView::installMods(QStringList archives, bool removeGithubSuffix)
 
 	const bool fullModExtraction = settings["launcher"]["fullModExtraction"].Bool();
 	const auto progress = importProgress;
-	QVector<ArchiveImportOutcome> outcomes;
-	for(const auto & archive : archives)
+	for(auto & outcome : archives)
 	{
 		if(progress->canceled)
 			break;
-		const QString hint = ModStateController::modIdFromArchivePath(Helper::getRealPath(archive), removeGithubSuffix);
+		if(!outcome.archive)
+			continue;
+		const QString hint = ModStateController::modIdFromArchivePath(Helper::getRealPath(outcome.originalPath), removeGithubSuffix);
 		progress->setCurrentMod({});
-		auto futureImport = std::async(std::launch::async, [archive, hint, progress, fullModExtraction]()
+		auto futureImport = std::async(std::launch::async, [&outcome, hint, progress, fullModExtraction]()
 		{
-			return CModListView::importArchive(archive, hint, *progress, fullModExtraction);
+			try
+			{
+				return ModStateController::installArchive(*outcome.archive, outcome.sourcePath, hint, fullModExtraction, *progress);
+			}
+			catch(const std::exception & exception)
+			{
+				ModStateController::ArchiveImportResult result;
+				result.errors.push_back(QCoreApplication::translate("CModListView", "Failed to import %1: %2")
+					.arg(outcome.originalPath, QString::fromUtf8(exception.what())));
+				return result;
+			}
 		});
 		while(futureImport.wait_for(std::chrono::milliseconds(10)) != std::future_status::ready)
 		{
@@ -1276,7 +1380,11 @@ void CModListView::installMods(QStringList archives, bool removeGithubSuffix)
 			}
 			qApp->processEvents();
 		}
-		outcomes.push_back(futureImport.get());
+		const auto result = futureImport.get();
+		outcome.result.installedMods = result.installedMods;
+		outcome.result.errors += result.errors;
+		outcome.result.canceled = result.canceled;
+		outcome.result.mapArchive = result.mapArchive;
 		qApp->processEvents();
 	}
 	ui->abortButton->setEnabled(false);
@@ -1286,10 +1394,9 @@ void CModListView::installMods(QStringList archives, bool removeGithubSuffix)
 	QStringList mapArchives;
 	bool canceled = progress->canceled.load();
 
-	for(const auto & outcome : outcomes)
+	for(const auto & outcome : archives)
 	{
 		installedMods += outcome.result.installedMods;
-		errors += outcome.result.errors;
 		canceled = canceled || outcome.result.canceled;
 
 		if(!canceled && outcome.result.mapArchive)
@@ -1390,19 +1497,6 @@ void CModListView::installMods(QStringList archives, bool removeGithubSuffix)
 
 	if(!errors.isEmpty())
 		QMessageBox::warning(this, tr("Import failed"), errors.join("\n"));
-
-	// Only archives downloaded by the launcher are removed after installation.
-	// Archives selected by the user, e.g. dropped onto the launcher, must be kept intact.
-	for(const auto & outcome : outcomes)
-	{
-		if(outcome.temporarySource)
-		{
-			logGlobal->info("Erasing archive '%s'", outcome.sourcePath.toStdString());
-			QFile::remove(outcome.sourcePath);
-		}
-
-		cleanupDownloadedArchives({outcome.originalPath});
-	}
 }
 
 void CModListView::cleanupDownloadedArchives(QStringList archives)
@@ -1415,6 +1509,26 @@ void CModListView::cleanupDownloadedArchives(QStringList archives)
 			QFile::remove(archive);
 		}
 	}
+}
+
+QStringList CModListView::applyConfigImport(const ModStateController::ArchiveImportResult & result)
+{
+	if(result.configFiles.isEmpty() || result.configStagingPath.isEmpty())
+		return {};
+
+	const QString configDir = pathToQString(VCMIDirs::get().userConfigPath());
+	QDir().mkpath(configDir);
+
+	QStringList failed;
+	for(const auto & file : result.configFiles)
+	{
+		const QString destination = configDir + '/' + file;
+		QFile::remove(destination);
+		if(!QFile::copy(result.configStagingPath + '/' + file, destination))
+			failed.push_back(file);
+	}
+
+	return failed;
 }
 
 void CModListView::installMaps(QStringList maps)

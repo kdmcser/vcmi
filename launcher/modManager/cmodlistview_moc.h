@@ -39,6 +39,8 @@ class CModListView : public QWidget
 		QString originalPath;
 		QString sourcePath;
 		bool temporarySource = false;
+		bool replaceConfig = false;
+		std::shared_ptr<ZipArchive> archive;
 		ModStateController::ArchiveImportResult result;
 	};
 
@@ -72,11 +74,11 @@ class CModListView : public QWidget
 	// find mods unknown to mod list (not present in repo and not installed)
 	QStringList findUnavailableMods(QStringList candidates);
 
-	void installMods(QStringList archives, bool removeGithubSuffix);
+	void installMods(QVector<ArchiveImportOutcome> & archives, bool removeGithubSuffix);
 	void cleanupDownloadedArchives(QStringList archives);
 	void installMaps(QStringList maps);
-	static ArchiveImportOutcome importArchive(const QString & archive, const QString & hint,
-		ModStateController::ArchiveImportProgress & progress, bool fullModExtraction);
+	QStringList applyConfigImport(const ModStateController::ArchiveImportResult & result);
+	static ArchiveImportOutcome prepareImport(const QString & file, ModStateController::ArchiveImportProgress & progress);
 
 	QString genChangelogText(const ModState & mod);
 	QString genModInfoText(const ModState & mod);
@@ -150,7 +152,7 @@ public:
 
 	void downloadMod(const ModState & mod);
 	void downloadFile(QString file, QUrl url, QString description, qint64 sizeBytes = 0);
-	void installFiles(QStringList mods, bool removeGithubSuffix = false);
+	void installFiles(QStringList files, bool removeGithubSuffix = false, QStringList configFiles = {});
 
 public slots:
 	void enableModByName(QString modName);

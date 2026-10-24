@@ -15,6 +15,7 @@
 
 VCMI_LIB_NAMESPACE_BEGIN
 class JsonNode;
+class ZipArchive;
 VCMI_LIB_NAMESPACE_END
 
 class ModStateModel;
@@ -30,6 +31,10 @@ public:
 		QStringList errors;
 		bool canceled = false;
 		bool mapArchive = false;
+		/// directory where files from the archive's config directory were extracted
+		QString configStagingPath;
+		/// names of extracted config files, relative to the config directory
+		QStringList configFiles;
 	};
 
 	struct ArchiveImportProgress
@@ -80,8 +85,11 @@ public:
 
 	QStringList getErrors();
 
+	/// Extracts and validates supported configuration files before importing the archive.
+	static ArchiveImportResult prepareConfigImport(ZipArchive & archive, ArchiveImportProgress & progress);
+
 	/// Installs every mod found in the archive. File system only, safe to run outside the GUI thread.
-	static ArchiveImportResult installArchive(const QString & archivePath, const QString & modIdHint, bool fullModExtraction, ArchiveImportProgress & progress);
+	static ArchiveImportResult installArchive(ZipArchive & archive, const QString & archivePath, const QString & modIdHint, bool fullModExtraction, ArchiveImportProgress & progress);
 
 	/// Derives the mod ID from the archive filename, optionally removing GitHub zip suffixes.
 	static QString modIdFromArchivePath(const QString & archivePath, bool removeGithubSuffix = false);
