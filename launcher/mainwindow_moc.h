@@ -76,7 +76,7 @@ public:
 	void dragEnterEvent(QDragEnterEvent* event) override;
 	void dropEvent(QDropEvent *event) override;
 
-	void manualInstallFile(QString filePath);
+	void manualInstallFiles(QStringList files);
 	ETranslationStatus getTranslationStatus();
 
 protected:

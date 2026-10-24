@@ -39,6 +39,10 @@ void ModStateModel::setRepositoryData(const JsonNode & repositoriesList)
 void ModStateModel::reloadLocalState()
 {
 	CResourceHandler::get("initial")->updateFilteredFiles([](const std::string &){ return true; });
+	CResourceHandler::get()->updateFilteredFiles([](const std::string & mountPoint)
+	{
+		return mountPoint.empty() || boost::iequals(mountPoint, "CONFIG/");
+	});
 	modManager = std::make_unique<ModManager>(*repositoryData);
 }
 
