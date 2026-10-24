@@ -93,10 +93,12 @@ public:
 
 	bool uninstallMod(QString mod);
 	bool enableMods(QStringList mod);
+	/// Enables every mod from the list that can be enabled, skipping the rest
+	void enableAvailableMods(QStringList mod);
 	bool disableMod(QString mod);
 
 	bool canInstallMod(QString mod);
 	bool canUninstallMod(QString mod);
-	bool canEnableMod(QString mod);
+	bool canEnableMod(QString mod, bool reportError = true);
 	bool canDisableMod(QString mod);
 };
