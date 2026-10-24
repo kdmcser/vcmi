@@ -164,7 +164,7 @@ std::vector<std::string> detectModRoots(const std::vector<ZipArchive::Entry> & e
 	for(size_t index = 0; index < entries.size(); ++index)
 	{
 		const auto & name = names[index];
-		if(entries[index].directory || !asciiEndsWithNoCase(name, "mod.json"))
+		if(entries[index].directory || (!asciiEqualsNoCase(name, "mod.json") && !asciiEndsWithNoCase(name, "/mod.json")))
 			continue;
 
 		const size_t depth = static_cast<size_t>(std::count(name.begin(), name.end(), '/')) + 1;
@@ -178,7 +178,7 @@ std::vector<std::string> detectModRoots(const std::vector<ZipArchive::Entry> & e
 	for(size_t index = 0; index < entries.size(); ++index)
 	{
 		const auto & name = names[index];
-		if(entries[index].directory || !asciiEndsWithNoCase(name, "mod.json"))
+		if(entries[index].directory || (!asciiEqualsNoCase(name, "mod.json") && !asciiEndsWithNoCase(name, "/mod.json")))
 			continue;
 
 		const size_t depth = static_cast<size_t>(std::count(name.begin(), name.end(), '/')) + 1;
