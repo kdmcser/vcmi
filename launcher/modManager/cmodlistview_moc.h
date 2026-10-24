@@ -55,7 +55,6 @@ class CModListView : public QWidget
 	std::shared_ptr<ModStateController::ArchiveImportProgress> importProgress;
 	std::shared_ptr<QVector<ArchiveImportOutcome>> importOutcomes;
 	QStringList importInstalledBefore;
-	QStringList importEnabledBefore;
 	QMap<QString, QMap<QString, bool>> importSettingsBefore;
 	QStringList pendingImportFiles;
 	JsonNode accumulatedRepositoryData;

@@ -1216,13 +1216,14 @@ void CModListView::installMods(QStringList archives)
 		activatingPreset.clear();
 	}
 
-	// remember current state of the mod list, to restore it after the import
-	importInstalledBefore = modStateModel->getAllMods();
-	importEnabledBefore.clear();
-	for(const auto & mod : importInstalledBefore)
+	// remember current state of the mod list, to restore it after the import.
+	// only installed mods are taken into account: mods that are merely present in the repository
+	// must not be treated as already installed, otherwise they would never be enabled automatically
+	importInstalledBefore.clear();
+	for(const auto & mod : modStateModel->getAllMods())
 	{
-		if(modStateModel->isModEnabled(mod))
-			importEnabledBefore.push_back(mod);
+		if(modStateModel->isModInstalled(mod))
+			importInstalledBefore.push_back(mod);
 	}
 
 	importSettingsBefore.clear();
@@ -1328,14 +1329,11 @@ void CModListView::finishModImport()
 	if(importOutcomes)
 		outcomes = *importOutcomes;
 
-	const QStringList installedBefore = importInstalledBefore;
-	const QStringList enabledBefore = importEnabledBefore;
 	const QMap<QString, QMap<QString, bool>> settingsBefore = importSettingsBefore;
 
 	importOutcomes.reset();
 	importProgress.reset();
 	importInstalledBefore.clear();
-	importEnabledBefore.clear();
 	importSettingsBefore.clear();
 
 	QStringList installedMods;
@@ -1386,16 +1384,8 @@ void CModListView::finishModImport()
 			errors.push_back(tr("Failed to update mod list: %1").arg(QString::fromUtf8(exception.what())));
 		}
 
-		QStringList modsToEnable;
-		for(const auto & mod : installedMods)
-		{
-			// updated mods keep their enabled state, newly installed mods are enabled
-			const bool wasInstalled = installedBefore.contains(mod);
-			const bool wasEnabled = enabledBefore.contains(mod);
-
-			if(!wasInstalled || wasEnabled)
-				modsToEnable.push_back(mod);
-		}
+		// every imported mod is enabled if possible, no matter whether it was installed or enabled before
+		QStringList modsToEnable = installedMods;
 
 		vstd::erase_if(modsToEnable, [this](const QString & mod){ return !modStateModel->isModExists(mod) || modStateModel->isModEnabled(mod); });
 
@@ -1403,7 +1393,8 @@ void CModListView::finishModImport()
 		{
 			try
 			{
-				manager->enableMods(modsToEnable);
+				// enable as many mods as possible, incompatible or broken mods are skipped
+				manager->enableAvailableMods(modsToEnable);
 			}
 			catch (const std::exception & e)
 			{
@@ -1443,7 +1434,7 @@ void CModListView::finishModImport()
 					continue;
 
 				if(wasEnabled && !modStateModel->isModEnabled(submod))
-					manager->enableMods({submod});
+					manager->enableAvailableMods({submod});
 				else if(!wasEnabled && modStateModel->isModEnabled(submod))
 					manager->disableMod(submod);
 			}
