@@ -86,8 +86,8 @@ public:
 	/// Installs every mod found in the archive. File system only, safe to run outside the GUI thread.
 	static ArchiveImportResult installArchive(const QString & archivePath, const QString & modIdHint, bool fullModExtraction, ArchiveImportProgress & progress);
 
-	/// Derives the mod ID from the archive file name, including the suffixes that GitHub adds to zip downloads
-	static QString modIdFromArchivePath(const QString & archivePath);
+	/// Derives the mod ID from the archive filename, optionally removing GitHub zip suffixes.
+	static QString modIdFromArchivePath(const QString & archivePath, bool removeGithubSuffix = false);
 
 	/// mod management functions. Return true if operation was successful
 

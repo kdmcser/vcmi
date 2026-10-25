@@ -12,6 +12,8 @@
 #include "../StdInc.h"
 #include "../../lib/CConfigHandler.h"
 
+#include <QPair>
+
 #include "modstatecontroller.h"
 
 #include <memory>
@@ -56,7 +58,7 @@ class CModListView : public QWidget
 	std::shared_ptr<QVector<ArchiveImportOutcome>> importOutcomes;
 	QStringList importInstalledBefore;
 	QMap<QString, QMap<QString, bool>> importSettingsBefore;
-	QStringList pendingImportFiles;
+	QVector<QPair<QString, bool>> pendingImportFiles;
 	JsonNode accumulatedRepositoryData;
 	QString activatingPreset;
 
@@ -80,7 +82,7 @@ class CModListView : public QWidget
 	// find mods unknown to mod list (not present in repo and not installed)
 	QStringList findUnavailableMods(QStringList candidates);
 
-	void installMods(QStringList archives);
+	void installMods(QStringList archives, bool removeGithubSuffix);
 	void cleanupDownloadedArchives(QStringList archives);
 	void installMaps(QStringList maps);
 	void updateImportProgress();
@@ -161,7 +163,7 @@ public:
 	void downloadMod(const ModState & mod);
 	void downloadFile(QString file, QUrl url, QString description, qint64 sizeBytes = 0);
 	/// Returns true if the files started an asynchronous mod import.
-	bool installFiles(QStringList mods);
+	bool installFiles(QStringList mods, bool removeGithubSuffix = false);
 
 public slots:
 	void enableModByName(QString modName);

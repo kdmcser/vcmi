@@ -309,12 +309,15 @@ QStringList ModStateController::getErrors()
 	return ret;
 }
 
-QString ModStateController::modIdFromArchivePath(const QString & archivePath)
+QString ModStateController::modIdFromArchivePath(const QString & archivePath, bool removeGithubSuffix)
 {
 	QString name = QFileInfo(archivePath).completeBaseName().toLower();
-	name.remove(QRegularExpression("-[0-9a-f]{40}$"));
-	name.remove(QRegularExpression("-vcmi-.+$"));
-	name.remove(QRegularExpression("-main$"));
+	if(removeGithubSuffix)
+	{
+		name.remove(QRegularExpression("-[0-9a-f]{40}$"));
+		name.remove(QRegularExpression("-vcmi-.+$"));
+		name.remove(QRegularExpression("-main$"));
+	}
 	return name;
 }
 

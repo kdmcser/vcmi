@@ -276,7 +276,7 @@ void MainWindow::manualInstallFile(QString filePath)
 		// would duplicate the whole file, which is very slow for multi-gigabyte archives.
 		// Note: the original path is passed on purpose - on Android it is a content:// URI, which
 		// getRealPath() reduces to the file name only
-		getModView()->installFiles(QStringList{filePath});
+		getModView()->installFiles(QStringList{filePath}, true);
 	}
 	else if(realFilePath.endsWith(".json", Qt::CaseInsensitive))
 	{

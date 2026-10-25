@@ -991,11 +991,12 @@ void CModListView::hideProgressBar()
 	}
 }
 
-bool CModListView::installFiles(QStringList files)
+bool CModListView::installFiles(QStringList files, bool removeGithubSuffix)
 {
 	if(importThread)
 	{
-		pendingImportFiles.append(files);
+		for(const auto & file : files)
+			pendingImportFiles.push_back({file, removeGithubSuffix});
 		return true;
 	}
 
@@ -1099,7 +1100,7 @@ bool CModListView::installFiles(QStringList files)
 	if(!mods.empty())
 	{
 		logGlobal->info("Installing mods: started");
-		installMods(mods);
+		installMods(mods, removeGithubSuffix);
 		logGlobal->info("Installing mods: ended");
 	}
 
@@ -1205,7 +1206,7 @@ CModListView::ArchiveImportOutcome CModListView::importArchive(const QString & a
 	return outcome;
 }
 
-void CModListView::installMods(QStringList archives)
+void CModListView::installMods(QStringList archives, bool removeGithubSuffix)
 {
 	if(archives.empty() || importThread)
 		return;
@@ -1259,7 +1260,7 @@ void CModListView::installMods(QStringList archives)
 
 	const auto sources = std::make_shared<QVector<QPair<QString, QString>>>();
 	for(const auto & archive : archives)
-		sources->push_back({archive, ModStateController::modIdFromArchivePath(Helper::getRealPath(archive))});
+		sources->push_back({archive, ModStateController::modIdFromArchivePath(Helper::getRealPath(archive), removeGithubSuffix)});
 
 	const auto outcomes = importOutcomes;
 	const auto progress = importProgress;
@@ -1466,7 +1467,10 @@ void CModListView::finishModImport()
 	if(!pendingImportFiles.isEmpty())
 	{
 		while(!pendingImportFiles.isEmpty() && !importThread)
-			installFiles({pendingImportFiles.takeFirst()});
+		{
+			const auto pending = pendingImportFiles.takeFirst();
+			installFiles({pending.first}, pending.second);
+		}
 	}
 }
 
