@@ -80,6 +80,7 @@ public:
 		uint64_t uncompressedSize = 0;
 		bool directory = false;
 		bool isUtf8Filename = false;
+		unz64_file_pos position{};
 	};
 
 	/// Called after each written block with the number of extracted bytes. Returns false to stop extraction.
@@ -100,12 +101,8 @@ public:
 	bool extractTo(const boost::filesystem::path & where, size_t entryIndex, const std::string & relativeName, const Progress & progress = {});
 
 private:
-	bool indexed = false;
 	std::vector<Entry> indexedEntries;
-	std::vector<unz64_file_pos> positions;
-	std::unordered_map<std::string, size_t> names;
-
-	void readIndex();
+	std::unordered_map<std::string, size_t> entryIndices;
 };
 
 VCMI_LIB_NAMESPACE_END
