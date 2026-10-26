@@ -12,7 +12,7 @@
 #include "../StdInc.h"
 #include "../../lib/CConfigHandler.h"
 
-#include <QPair>
+#include <QPointer>
 
 #include "modstatecontroller.h"
 
@@ -30,8 +30,7 @@ class ModStateModel;
 class CModFilterModel;
 class CDownloadManager;
 class QTableWidgetItem;
-class QThread;
-class QTimer;
+class QProgressDialog;
 
 class ModState;
 
@@ -52,13 +51,7 @@ class CModListView : public QWidget
 	ModStateItemModel * modModel;
 	CModFilterModel * filterModel;
 	CDownloadManager * dlManager;
-	std::unique_ptr<QThread> importThread;
-	QTimer * importProgressTimer = nullptr;
-	std::shared_ptr<ModStateController::ArchiveImportProgress> importProgress;
-	std::shared_ptr<QVector<ArchiveImportOutcome>> importOutcomes;
-	QStringList importInstalledBefore;
-	QMap<QString, QMap<QString, bool>> importSettingsBefore;
-	QVector<QPair<QString, bool>> pendingImportFiles;
+	QPointer<QProgressDialog> importProgressDialog;
 	JsonNode accumulatedRepositoryData;
 	QString activatingPreset;
 
@@ -85,8 +78,6 @@ class CModListView : public QWidget
 	void installMods(QStringList archives, bool removeGithubSuffix);
 	void cleanupDownloadedArchives(QStringList archives);
 	void installMaps(QStringList maps);
-	void updateImportProgress();
-	void finishModImport();
 	static ArchiveImportOutcome importArchive(const QString & archive, const QString & hint,
 		ModStateController::ArchiveImportProgress & progress, bool fullModExtraction);
 
@@ -162,8 +153,7 @@ public:
 
 	void downloadMod(const ModState & mod);
 	void downloadFile(QString file, QUrl url, QString description, qint64 sizeBytes = 0);
-	/// Returns true if the files started an asynchronous mod import.
-	bool installFiles(QStringList mods, bool removeGithubSuffix = false);
+	void installFiles(QStringList mods, bool removeGithubSuffix = false);
 
 public slots:
 	void enableModByName(QString modName);
