@@ -37,6 +37,7 @@ class CModListView : public QWidget
 
 	struct ArchiveImportOutcome
 	{
+		QString originalPath;
 		QString sourcePath;
 		bool temporarySource = false;
 		ModStateController::ArchiveImportResult result;
@@ -54,7 +55,7 @@ class CModListView : public QWidget
 	QStringList importInstalledBefore;
 	QStringList importEnabledRootsBefore;
 	QVector<QPair<QString, bool>> pendingImportFiles;
-	bool importRemoveArchives = false;
+	QStringList downloadedArchives;
 	bool retryRepositoriesAfterImport = false;
 	QStringList modsToRetryAfterImport;
 	JsonNode accumulatedRepositoryData;
@@ -81,7 +82,8 @@ class CModListView : public QWidget
 
 	bool askOverwriteDialog(const QString & windowTitle, const QString & message, int conflictCount, bool & applyToAll, bool & overwriteAll);
 
-	void installMods(QStringList archives, bool removeArchives);
+	void installMods(QStringList archives, bool removeGithubSuffix);
+	void cleanupDownloadedArchives(QStringList archives);
 	void finishModImport();
 	static ArchiveImportOutcome importArchive(const QString & archive, const QString & hint,
 		ModStateController::ArchiveImportProgress & progress, const QStringList & protectedMods, bool fullModExtraction);
@@ -167,7 +169,7 @@ public:
 	void downloadMod(const ModState & mod);
 	void downloadFile(QString file, QUrl url, QString description, qint64 sizeBytes = 0);
 	/// Returns true if the files started an asynchronous mod import.
-	bool installFiles(QStringList mods, bool removeArchives = false);
+	bool installFiles(QStringList mods, bool removeGithubSuffix = false);
 
 	void showExternalProgress(const QString & format, int current, int max);
 	void hideExternalProgress();

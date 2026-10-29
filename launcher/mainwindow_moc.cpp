@@ -448,7 +448,7 @@ void MainWindow::manualInstallFile(QString filePath)
 	QString fileName = QFileInfo{filePath}.fileName();
 	if(realFilePath.endsWith(".zip", Qt::CaseInsensitive))
 	{
-		getModView()->installFiles(QStringList{filePath});
+		getModView()->installFiles(QStringList{filePath}, true);
 	}
 	else if(realFilePath.endsWith(".json", Qt::CaseInsensitive))
 	{

@@ -257,6 +257,8 @@ CModListView::~CModListView()
 	if(importProgressTimer)
 		importProgressTimer->stop();
 
+	cleanupDownloadedArchives(downloadedArchives);
+
 	QSettings s = CLauncherDirs::getSettings(Ui::appName);
 	s.setValue("AllModsView/State", ui->allModsView->header()->saveState());
 
@@ -1011,11 +1013,18 @@ void CModListView::downloadFinished(QStringList savedFiles, QStringList failedFi
 	ui->progressBar->setMaximum(0);
 	ui->progressBar->setValue(0);
 
-	if(doInstallFiles && installFiles(savedFiles, true))
+	if(doInstallFiles)
 	{
-		retryRepositoriesAfterImport = retryRepositoriesAfterImport || retryRepositories;
-		modsToRetryAfterImport.append(modsToRetry);
-		return;
+		for(const auto & file : savedFiles)
+			if(file.endsWith(".zip", Qt::CaseInsensitive))
+				downloadedArchives.push_back(file);
+
+		if(installFiles(savedFiles))
+		{
+			retryRepositoriesAfterImport = retryRepositoriesAfterImport || retryRepositories;
+			modsToRetryAfterImport.append(modsToRetry);
+			return;
+		}
 	}
 
 	Helper::keepScreenOn(false);
@@ -1117,12 +1126,12 @@ bool CModListView::askOverwriteDialog(const QString & windowTitle, const QString
 	return false;
 }
 
-bool CModListView::installFiles(QStringList files, bool removeArchives)
+bool CModListView::installFiles(QStringList files, bool removeGithubSuffix)
 {
 	if(importThread)
 	{
 		for(const auto & file : files)
-			pendingImportFiles.push_back({file, removeArchives});
+			pendingImportFiles.push_back({file, removeGithubSuffix});
 		return true;
 	}
 
@@ -1217,7 +1226,7 @@ bool CModListView::installFiles(QStringList files, bool removeArchives)
 	if(!mods.empty())
 	{
 		logGlobal->info("Installing mods: started");
-		installMods(mods, removeArchives);
+		installMods(mods, removeGithubSuffix);
 		logGlobal->info("Installing mods: started in background");
 	}
 
@@ -1448,6 +1457,7 @@ CModListView::ArchiveImportOutcome CModListView::importArchive(const QString & a
 	ModStateController::ArchiveImportProgress & progress, const QStringList & protectedMods, bool fullModExtraction)
 {
 	ArchiveImportOutcome outcome;
+	outcome.originalPath = archive;
 	QString sourcePath = archive;
 	QFile sourceFile(sourcePath);
 	const bool needsCopy = archive.startsWith("content://", Qt::CaseInsensitive) || !sourceFile.open(QIODevice::ReadOnly);
@@ -1484,7 +1494,7 @@ CModListView::ArchiveImportOutcome CModListView::importArchive(const QString & a
 	return outcome;
 }
 
-void CModListView::installMods(QStringList archives, bool removeArchives)
+void CModListView::installMods(QStringList archives, bool removeGithubSuffix)
 {
 	if(archives.empty() || importThread)
 		return;
@@ -1508,16 +1518,13 @@ void CModListView::installMods(QStringList archives, bool removeArchives)
 			protectedMods.push_back(mod);
 
 	const bool fullModExtraction = settings["launcher"]["fullModExtraction"].Bool();
-	importRemoveArchives = removeArchives;
 	importOutcomes = std::make_shared<QVector<ArchiveImportOutcome>>();
 	importProgress = std::make_shared<ModStateController::ArchiveImportProgress>();
 
 	const auto sources = std::make_shared<QVector<QPair<QString, QString>>>();
 	for(const auto & archive : archives)
 	{
-		const QString hint = removeArchives
-			? archive.section('/', -1, -1).section('.', 0, 0)
-			: ModStateController::modIdFromArchivePath(Helper::getRealPath(archive));
+		const QString hint = ModStateController::modIdFromArchivePath(Helper::getRealPath(archive), removeGithubSuffix);
 		sources->push_back({archive, hint});
 	}
 
@@ -1597,7 +1604,6 @@ void CModListView::finishModImport()
 	if(importOutcomes)
 		outcomes = *importOutcomes;
 
-	const bool removeArchives = importRemoveArchives;
 	const QStringList installedBefore = importInstalledBefore;
 	const QStringList enabledRootsBefore = importEnabledRootsBefore;
 
@@ -1605,7 +1611,6 @@ void CModListView::finishModImport()
 	importProgress.reset();
 	importInstalledBefore.clear();
 	importEnabledRootsBefore.clear();
-	importRemoveArchives = false;
 
 	QStringList installedMods;
 	QStringList errors;
@@ -1637,12 +1642,12 @@ void CModListView::finishModImport()
 			}
 		}
 
-		const bool isMapOrSave = outcome.result.mapArchive || outcome.result.saveArchive;
-		if(outcome.temporarySource || (removeArchives && !isMapOrSave))
+		if(outcome.temporarySource)
 		{
 			logGlobal->info("Erasing archive '%s'", outcome.sourcePath.toStdString());
 			QFile::remove(outcome.sourcePath);
 		}
+		cleanupDownloadedArchives({outcome.originalPath});
 	}
 
 	if(!installedMods.isEmpty())
@@ -1739,6 +1744,18 @@ void CModListView::finishModImport()
 		{
 			const auto pending = pendingImportFiles.takeFirst();
 			installFiles({pending.first}, pending.second);
+		}
+	}
+}
+
+void CModListView::cleanupDownloadedArchives(QStringList archives)
+{
+	for(const auto & archive : archives)
+	{
+		if(downloadedArchives.removeAll(archive) > 0)
+		{
+			logGlobal->info("Erasing archive '%s'", archive.toStdString());
+			QFile::remove(archive);
 		}
 	}
 }
