@@ -13,9 +13,6 @@
 #include <QStringList>
 #include <QVector>
 
-#include <atomic>
-#include <mutex>
-
 VCMI_LIB_NAMESPACE_BEGIN
 class JsonNode;
 VCMI_LIB_NAMESPACE_END

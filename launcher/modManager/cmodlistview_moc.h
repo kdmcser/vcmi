@@ -16,9 +16,6 @@
 
 #include "modstatecontroller.h"
 
-#include <memory>
-#include <vector>
-
 namespace Ui
 {
 class CModListView;

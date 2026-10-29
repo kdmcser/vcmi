@@ -17,8 +17,6 @@
 #include "MinizipExtensions.h"
 #include "protect/EncryptedZipReader.h"
 
-#include <functional>
-
 VCMI_LIB_NAMESPACE_BEGIN
 
 class DLL_LINKAGE CZipStream : public CBufferedStream
