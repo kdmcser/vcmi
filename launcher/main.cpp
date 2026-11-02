@@ -51,6 +51,14 @@ int MAIN_EXPORT main(int argc, char * argv[])
 #endif
 	QApplication vcmilauncher(argc, argv);
 
+#if defined(Q_OS_MACOS) && QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+	// Qt 5 native macOS style fails to paint QProgressBar on macOS 26 (Tahoe).
+	// Styling only progress bars makes Qt use its own painting, leaving the rest of the UI native.
+	vcmilauncher.setStyleSheet(
+		"QProgressBar { border: 1px solid palette(mid); border-radius: 4px; background-color: palette(base); text-align: center; color: palette(text); }"
+		"QProgressBar::chunk { background-color: palette(highlight); border-radius: 3px; }");
+#endif
+
 	// use system proxy
 	{
 		QNetworkProxyFactory::setUseSystemConfiguration(true);
