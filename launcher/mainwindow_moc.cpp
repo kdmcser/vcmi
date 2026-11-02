@@ -24,7 +24,6 @@
 #include "updatedialog_moc.h"
 #include "main.h"
 #include "helper.h"
-#include "modManager/modstatecontroller.h"
 #ifndef VCMI_MOBILE
 #include "gamepadHandler.h"
 #endif
@@ -137,6 +136,10 @@ MainWindow::MainWindow(QWidget * parent)
 	else
 		enterSetup();
 
+	connect(ui->modlistView, &CModListView::importStateChanged, this, [this]()
+	{
+		setGamepadStartAllowed(gamepadStartAllowed);
+	});
 	setGamepadStartAllowed(h3DataFound && setupCompleted);
 
 	ui->settingsView->setDisplayList();
@@ -153,13 +156,13 @@ MainWindow::MainWindow(QWidget * parent)
 void MainWindow::setGamepadStartAllowed(bool allowed)
 {
 	gamepadStartAllowed = allowed;
-	Helper::allowGamepadStart(allowed);
+	Helper::allowGamepadStart(allowed && !ui->modlistView->isImportInProgress());
 }
 
 void MainWindow::startGameFromGamepad()
 {
 	// setup and dialogs can't be operated with a gamepad, so don't take control away from the player
-	if(!gamepadStartAllowed || QApplication::activeModalWidget())
+	if(!gamepadStartAllowed || ui->modlistView->isImportInProgress() || QApplication::activeModalWidget())
 		return;
 
 	hide();
@@ -449,14 +452,8 @@ void MainWindow::manualInstallFile(QString filePath)
 	QString fileName = QFileInfo{filePath}.fileName();
 	if(realFilePath.endsWith(".zip", Qt::CaseInsensitive))
 	{
-		if(filePath.startsWith("content://", Qt::CaseInsensitive) || !QFileInfo(filePath).isFile())
-		{
-			// URI sources need a local copy before minizip can open them.
-			const QString archiveName = ModStateController::modIdFromArchivePath(realFilePath, true) + ".zip";
-			getModView()->downloadFile(archiveName, QUrl::fromLocalFile(filePath), tr("mod archive"));
-		}
-		else
-			getModView()->installFiles(QStringList{filePath}, true);
+		// Local archives are imported directly, without copying them into the downloads directory first.
+		getModView()->installFiles(QStringList{filePath}, true);
 	}
 	else if(realFilePath.endsWith(".json", Qt::CaseInsensitive))
 	{
