@@ -153,12 +153,15 @@ QString detectModArchive(QString path, QString modName, std::vector<std::string>
 }
 
 
-QString ModStateController::modIdFromArchivePath(const QString & archivePath)
+QString ModStateController::modIdFromArchivePath(const QString & archivePath, bool removeGithubSuffix)
 {
 	QString name = QFileInfo(archivePath).completeBaseName().toLower();
-	name.remove(QRegularExpression("-[0-9a-f]{40}$"));
-	name.remove(QRegularExpression("-vcmi-.+$"));
-	name.remove(QRegularExpression("-main$"));
+	if(removeGithubSuffix)
+	{
+		name.remove(QRegularExpression("-[0-9a-f]{40}$"));
+		name.remove(QRegularExpression("-vcmi-.+$"));
+		name.remove(QRegularExpression("-main$"));
+	}
 	return name;
 }
 
@@ -316,7 +319,13 @@ bool ModStateController::installMod(QString modname, QString archivePath)
 		return addError(modname, tr("Mod archive is missing"));
 
 	std::vector<std::string> filesToExtract;
-	QString modDirName = ::detectModArchive(archivePath, modname, filesToExtract);
+	auto inspection = std::async(std::launch::async, [&archivePath, &modname, &filesToExtract]()
+	{
+		return ::detectModArchive(archivePath, modname, filesToExtract);
+	});
+	while(inspection.wait_for(std::chrono::milliseconds(10)) != std::future_status::ready)
+		qApp->processEvents();
+	QString modDirName = inspection.get();
 	if(!modDirName.size())
 		return addError(modname, tr("Mod archive is invalid or corrupted"));
 
@@ -360,7 +369,11 @@ bool ModStateController::installMod(QString modname, QString archivePath)
 	
 	const QDir extractedDir(stagingPath + '/' + modDirName);
 
-	if(!futureExtract.get() || (settings["launcher"]["fullModExtraction"].Bool() && !extractNestedModArchives(this, modname, extractedDir.path())))
+	if(!futureExtract.get())
+		return addError(modname, tr("Failed to extract mod data"));
+	extractionProgress(filesToExtract.size(), filesToExtract.size());
+
+	if(settings["launcher"]["fullModExtraction"].Bool() && !extractNestedModArchives(this, modname, extractedDir.path()))
 		return addError(modname, tr("Failed to extract mod data"));
 
 	QDir githubDir(extractedDir.filePath(".github"));
