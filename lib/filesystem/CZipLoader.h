@@ -81,8 +81,8 @@ public:
 		unz64_file_pos position{};
 	};
 
-	/// Called after each written block with the number of extracted bytes. Returns false to stop extraction.
-	using Progress = std::function<bool(uint64_t)>;
+	/// Called after each written block with the number of extracted bytes.
+	using Progress = std::function<void(uint64_t)>;
 
 	ZipArchive(const boost::filesystem::path & from);
 	~ZipArchive();

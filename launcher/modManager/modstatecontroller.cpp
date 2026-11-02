@@ -66,9 +66,6 @@ bool extractContentArchives(const QString & modPath, ModStateController::Archive
 
 	for(const QString & archivePath : archives)
 	{
-		if(progress.canceled)
-			return false;
-
 		const QFileInfo archiveInfo(archivePath);
 		const QString contentDirPath = archiveInfo.dir().filePath("content");
 
@@ -89,13 +86,9 @@ bool extractContentArchives(const QString & modPath, ModStateController::Archive
 
 			for(size_t index = 0; index < entries.size(); ++index)
 			{
-				if(progress.canceled)
-					return false;
-
 				const auto progressCallback = [&progress](uint64_t amount)
 				{
 					progress.completedBytes += amount;
-					return !progress.canceled.load();
 				};
 
 				if(!archive.extractTo(qstringToPath(contentDirPath), index, entries[index].name, progressCallback))
@@ -435,12 +428,6 @@ ModStateController::ArchiveImportResult ModStateController::prepareConfigImport(
 	progress.completedMods = 0;
 	progress.totalMods = 0;
 
-	if(progress.canceled)
-	{
-		result.canceled = true;
-		return result;
-	}
-
 	const std::vector<ZipArchive::Entry> * archiveEntries = nullptr;
 	std::vector<std::string> normalizedNames;
 
@@ -463,12 +450,6 @@ ModStateController::ArchiveImportResult ModStateController::prepareConfigImport(
 			return asciiEndsWithNoCase(name, ".h3m") || asciiEndsWithNoCase(name, ".h3c")
 				|| asciiEndsWithNoCase(name, ".vmap") || asciiEndsWithNoCase(name, ".vcmp");
 		}));
-
-	if(progress.canceled)
-	{
-		result.canceled = true;
-		return result;
-	}
 
 	if(configRoots.size() > 1)
 	{
@@ -524,25 +505,15 @@ ModStateController::ArchiveImportResult ModStateController::prepareConfigImport(
 		QStringList configFiles;
 		for(const size_t index : configEntries)
 		{
-			if(progress.canceled)
-			{
-				result.canceled = true;
-				return result;
-			}
-
 			const std::string relative = fileNameOf(normalizedNames[index]);
 			const auto progressCallback = [&progress](uint64_t amount)
 			{
 				progress.completedBytes += amount;
-				return !progress.canceled.load();
 			};
 
 			if(!archive.extractTo(qstringToPath(stagingPath), index, relative, progressCallback))
 			{
-				if(progress.canceled)
-					result.canceled = true;
-				else
-					result.errors.push_back(importTranslate("Failed to extract archive entry: %1").arg(QString::fromStdString(relative)));
+				result.errors.push_back(importTranslate("Failed to extract archive entry: %1").arg(QString::fromStdString(relative)));
 				return result;
 			}
 
@@ -552,12 +523,6 @@ ModStateController::ArchiveImportResult ModStateController::prepareConfigImport(
 		QStringList validFiles;
 		for(const auto & file : configFiles)
 		{
-			if(progress.canceled)
-			{
-				result.canceled = true;
-				return result;
-			}
-
 			try
 			{
 				JsonNode node = JsonUtils::jsonFromFile(stagingPath + '/' + file);
@@ -575,12 +540,6 @@ ModStateController::ArchiveImportResult ModStateController::prepareConfigImport(
 			validFiles.push_back(file);
 		}
 
-		if(progress.canceled)
-		{
-			result.canceled = true;
-			return result;
-		}
-
 		if(validFiles.empty())
 			return result;
 
@@ -590,10 +549,7 @@ ModStateController::ArchiveImportResult ModStateController::prepareConfigImport(
 	}
 	catch(const std::exception & exception)
 	{
-		if(progress.canceled)
-			result.canceled = true;
-		else
-			result.errors.push_back(importTranslate("Mod archive is invalid or corrupted: %1").arg(QString::fromUtf8(exception.what())));
+		result.errors.push_back(importTranslate("Mod archive is invalid or corrupted: %1").arg(QString::fromUtf8(exception.what())));
 	}
 
 	return result;
@@ -607,12 +563,6 @@ ModStateController::ArchiveImportResult ModStateController::installArchive(ZipAr
 	progress.totalBytes = 0;
 	progress.completedMods = 0;
 	progress.totalMods = 0;
-
-	if(progress.canceled)
-	{
-		result.canceled = true;
-		return result;
-	}
 
 	const std::vector<ZipArchive::Entry> * archiveEntries = nullptr;
 	std::vector<std::string> normalizedNames;
@@ -718,12 +668,6 @@ ModStateController::ArchiveImportResult ModStateController::installArchive(ZipAr
 
 	for(const auto & plan : plans)
 	{
-		if(progress.canceled)
-		{
-			result.canceled = true;
-			return result;
-		}
-
 		progress.setCurrentMod(plan.id);
 		logGlobal->info("Installing mod '%s' from '%s'", plan.id.toStdString(), archivePath.toStdString());
 
@@ -752,42 +696,19 @@ ModStateController::ArchiveImportResult ModStateController::installArchive(ZipAr
 
 			for(const size_t index : plan.entries)
 			{
-				if(progress.canceled)
-				{
-					result.canceled = true;
-					return result;
-				}
-
 				const auto progressCallback = [&progress](uint64_t amount)
 				{
 					progress.completedBytes += amount;
-					return !progress.canceled.load();
 				};
 
 				const std::string relative = relativeToRoot(normalizedNames[index], plan.root);
 
 				if(!archive.extractTo(qstringToPath(stagingPath), index, relative, progressCallback))
-				{
-					if(progress.canceled)
-					{
-						result.canceled = true;
-						return result;
-					}
-
 					throw std::runtime_error(importTranslate("Failed to extract archive entry: %1").arg(QString::fromStdString(relative)).toStdString());
-				}
 			}
 
 			if(fullModExtraction && !extractContentArchives(stagingPath, progress))
-			{
-				if(progress.canceled)
-				{
-					result.canceled = true;
-					return result;
-				}
-
 				throw std::runtime_error(importTranslate("Failed to extract mod data").toStdString());
-			}
 
 			QDir githubDir(stagingPath + "/.github");
 			if(githubDir.exists())
@@ -817,16 +738,10 @@ ModStateController::ArchiveImportResult ModStateController::installArchive(ZipAr
 		}
 		catch(const std::exception & exception)
 		{
-			if(progress.canceled)
-				result.canceled = true;
-			else
-				result.errors.push_back(QStringLiteral("%1: %2").arg(plan.id, QString::fromUtf8(exception.what())));
+			result.errors.push_back(QStringLiteral("%1: %2").arg(plan.id, QString::fromUtf8(exception.what())));
 		}
 
 		++progress.completedMods;
-
-		if(result.canceled)
-			return result;
 	}
 
 	return result;

@@ -50,6 +50,7 @@ class CModListView : public QWidget
 	CDownloadManager * dlManager;
 	QPointer<QObject> importOperation;
 	std::shared_ptr<ModStateController::ArchiveImportProgress> importProgress;
+	std::shared_ptr<bool> pendingImportsCanceled;
 	JsonNode accumulatedRepositoryData;
 	QString activatingPreset;
 
@@ -152,6 +153,10 @@ public:
 	void downloadMod(const ModState & mod);
 	void downloadFile(QString file, QUrl url, QString description, qint64 sizeBytes = 0);
 	void installFiles(QStringList files, bool removeGithubSuffix = false, QStringList configFiles = {});
+	bool isImportInProgress() const;
+
+signals:
+	void importStateChanged();
 
 public slots:
 	void enableModByName(QString modName);

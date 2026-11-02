@@ -29,7 +29,6 @@ public:
 	{
 		QStringList installedMods;
 		QStringList errors;
-		bool canceled = false;
 		bool mapArchive = false;
 		/// Preflight found mods or maps that will be imported in addition to configuration.
 		bool containsData = false;
@@ -45,7 +44,6 @@ public:
 		std::atomic<quint64> totalBytes{0};
 		std::atomic<int> completedMods{0};
 		std::atomic<int> totalMods{0};
-		std::atomic<bool> canceled{false};
 
 		void setCurrentMod(const QString & name)
 		{

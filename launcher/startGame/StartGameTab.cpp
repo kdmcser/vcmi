@@ -44,6 +44,8 @@ StartGameTab::StartGameTab(QWidget * parent)
 	ui->buttonGameStart->setIcon(QIcon{":/icons/menu-game.png"});
 	ui->buttonGameEditor->setIcon(QIcon{":/icons/menu-editor.png"});
 
+	connect(Helper::getMainWindow()->getModView(), &CModListView::importStateChanged, this, &StartGameTab::refreshGameData);
+
 	refreshState();
 
 	ui->buttonGameResume->setVisible(false); // TODO: implement
@@ -116,6 +118,10 @@ void StartGameTab::refreshPresets()
 
 void StartGameTab::refreshGameData()
 {
+	const bool importing = Helper::getMainWindow()->getModView()->isImportInProgress();
+	ui->buttonGameStart->setEnabled(!importing);
+	ui->buttonGameEditor->setEnabled(!importing);
+
 	// Some players are using pirated version of the game with some of the files missing
 	// leading to broken town hall menu (and possibly other dialogs)
 	// Provide diagnostics to indicate problem with chair-monitor adaptor layer and not with VCMI
