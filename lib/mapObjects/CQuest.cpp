@@ -247,6 +247,15 @@ void CQuest::addTextReplacements(const IGameInfoCallback * cb, MetaString & text
 		text.replaceRawString(loot.buildList());
 	}
 	
+	if(!mission.heroClasses.empty())
+	{
+		MetaString loot;
+		for(const auto & heroClass : mission.heroClasses)
+			loot.appendName(heroClass);
+		
+		text.replaceRawString(loot.buildList());
+	}
+	
 	if(lastDay >= 0)
 		text.replaceNumber(lastDay - cb->getDate(Date::DAY));
 	

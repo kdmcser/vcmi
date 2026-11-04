@@ -23,6 +23,7 @@ class SecondarySkill;
 class SpellID;
 class FactionID;
 class GameResID;
+class HeroClassID;
 using TQuantity = si32;
 
 /// Strings classes that can be used as replacement in MetaString
@@ -84,6 +85,7 @@ public:
 	void appendName(const PlayerColor& id);
 	void appendName(const CreatureID & id, TQuantity count);
 	void appendName(const GameResID& id);
+	void appendName(const HeroClassID& id);
 	void appendNameSingular(const CreatureID & id);
 	void appendNamePlural(const CreatureID & id);
 	void appendEOL();

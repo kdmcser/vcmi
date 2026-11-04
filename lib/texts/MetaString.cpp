@@ -10,6 +10,8 @@
 #include "StdInc.h"
 #include "MetaString.h"
 
+#include <vcmi/HeroClass.h>
+
 #include "CCreatureHandler.h"
 #include "entities/artifact/CArtifact.h"
 #include "entities/faction/CFaction.h"
@@ -215,12 +217,20 @@ DLL_LINKAGE std::string MetaString::buildList() const
 	size_t nums = 0;
 	size_t textID = 0;
 	std::string lista;
+	size_t appendedCount = 0;
+	for(const auto & entry : message)
+	{
+		if(entry == EMessage::APPEND_RAW_STRING || entry == EMessage::APPEND_LOCAL_STRING || entry == EMessage::APPEND_TEXTID_STRING)
+			appendedCount++;
+	}
+	size_t appendedSoFar = 0;
 	for(int i = 0; i < message.size(); ++i)
 	{
-		if(i > 0 && (message.at(i) == EMessage::APPEND_RAW_STRING || message.at(i) == EMessage::APPEND_LOCAL_STRING))
+		if(i > 0 && (message.at(i) == EMessage::APPEND_RAW_STRING || message.at(i) == EMessage::APPEND_LOCAL_STRING || message.at(i) == EMessage::APPEND_TEXTID_STRING))
 		{
-			if(exSt == exactStrings.size() - 1)
-				lista += LIBRARY->generaltexth->allTexts[141]; //" and "
+			appendedSoFar++;
+			if(appendedSoFar == appendedCount - 1)
+				lista += LIBRARY->generaltexth->allTexts[141];
 			else
 				lista += ", ";
 		}
@@ -380,6 +390,11 @@ void MetaString::appendName(const CreatureID & id, TQuantity count)
 void MetaString::appendName(const GameResID& id)
 {
 	appendTextID(id.toResource()->getNameTextID());
+}
+
+void MetaString::appendName(const HeroClassID& id)
+{
+	appendTextID(id.toEntity(LIBRARY)->getNameTextID());
 }
 
 void MetaString::appendNameSingular(const CreatureID & id)
