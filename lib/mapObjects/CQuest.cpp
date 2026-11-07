@@ -471,19 +471,12 @@ void CGSeerHut::initObj(IGameRandomizer & gameRandomizer)
 	if(getQuest().mission == Rewardable::Limiter{} && getQuest().killTarget == ObjectInstanceID::NONE)
 		getQuest().isCompleted = true;
 	
-	if(getQuest().questName == getQuest().missionName(EQuestMission::NONE))
-	{
-		getQuest().firstVisitText.appendTextID(TextIdentifier("core", "seerhut", "empty", getQuest().completedOption).get());
-	}
-	else
-	{
-		if(!getQuest().isCustomFirst)
-			getQuest().firstVisitText.appendTextID(TextIdentifier("core", "seerhut", "quest", getQuest().questName, getQuest().missionState(0), getQuest().textOption).get());
-		if(!getQuest().isCustomNext)
-			getQuest().nextVisitText.appendTextID(TextIdentifier("core", "seerhut", "quest", getQuest().questName, getQuest().missionState(1), getQuest().textOption).get());
-		if(!getQuest().isCustomComplete)
-			getQuest().completedText.appendTextID(TextIdentifier("core", "seerhut", "quest", getQuest(). questName, getQuest().missionState(2), getQuest().textOption).get());
-	}
+	if(!getQuest().isCustomFirst)
+		getQuest().firstVisitText.appendTextID(TextIdentifier("core", "seerhut", "quest", getQuest().questName, getQuest().missionState(0), getQuest().textOption).get());
+	if(!getQuest().isCustomNext)
+		getQuest().nextVisitText.appendTextID(TextIdentifier("core", "seerhut", "quest", getQuest().questName, getQuest().missionState(1), getQuest().textOption).get());
+	if(!getQuest().isCustomComplete)
+		getQuest().completedText.appendTextID(TextIdentifier("core", "seerhut", "quest", getQuest(). questName, getQuest().missionState(2), getQuest().textOption).get());
 	
 	getQuest().getCompletionText(cb, configuration.onSelect);
 	for(auto & i : configuration.info)
