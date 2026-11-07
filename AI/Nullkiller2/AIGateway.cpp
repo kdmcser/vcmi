@@ -1229,6 +1229,18 @@ bool AIGateway::moveHeroToTile(const int3 dst, const HeroPtr & heroPtr)
 
 			afterMovementCheck();
 
+			// The server may reject the movement (e.g. while a query of this player is still unanswered)
+			// or the hero may be stopped on the way. Continuing along the cached path in such case would
+			// only produce invalid movement requests, so stop the movement instead.
+			if(heroPtr.isVerified()
+				&& path.nodes[i - 1].action != EPathNodeAction::BATTLE
+				&& path.nodes[i - 1].action != EPathNodeAction::BLOCKING_VISIT
+				&& heroPtr->visitablePos() != endpos)
+			{
+				logAi->debug("Hero %s failed to reach %s, aborting the movement path.", heroPtr->getNameTranslated(), endpos.toString());
+				return false;
+			}
+
 			if(teleportChannelProbingList.size())
 				doChannelProbing();
 		}
