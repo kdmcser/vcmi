@@ -1176,6 +1176,10 @@ bool AIGateway::moveHeroToTile(const int3 dst, const HeroPtr & heroPtr)
 
 		for(; i > 0; i--)
 		{
+			// Don't send the next movement request while our own query (e.g. level-up dialog) is still
+			// unanswered: the server rejects such packs and broadcasts a system error message to all players.
+			waitTillFree();
+
 			int3 currentCoord = path.nodes[i].coord;
 			int3 nextCoord = path.nodes[i - 1].coord;
 
