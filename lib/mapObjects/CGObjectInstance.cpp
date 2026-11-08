@@ -124,8 +124,17 @@ const std::set<int3> & CGObjectInstance::getBlockedOffsets() const
 void CGObjectInstance::setType(MapObjectID newID, MapObjectSubID newSubID)
 {
 	auto position = visitablePos();
+	const auto * tile = cb->getTileUnchecked(position);
+
+	if(!tile)
+	{
+		// Some H3M maps contain objects whose visitable position is outside of the map, e.g. partially placed
+		// big objects. Such objects are already invalid and cannot be randomized/retyped - leave them as-is.
+		logGlobal->warn("Object %d:%d at %s is outside of map borders, type change skipped", newID.getNum(), newSubID.getNum(), position.toString());
+		return;
+	}
+
 	auto oldOffset = appearance->getCornerOffset();
-	const auto * tile = cb->getTile(position);
 
 	//recalculate blockvis tiles - new appearance might have different blockmap than before
 	cb->gameState().getMap().hideObject(this);
