@@ -4012,6 +4012,9 @@ bool CGameHandler::insertNewStack(const StackLocation &sl, const CCreature *c, T
 {
 	const auto * army = dynamic_cast<const CArmedInstance*>(gameInfo().getObj(sl.army));
 
+	if (!c)
+		COMPLAIN_RET("Cannot insert stack with invalid creature!");
+
 	if (army->hasStackAtSlot(sl.slot))
 		COMPLAIN_RET("Slot is already taken!");
 

@@ -243,13 +243,21 @@ void Rewardable::Interface::grantRewardAfterLevelup(IGameEventCallback & gameEve
 	{
 		CCreatureSet creatures;
 		for(const auto & crea : info.reward.creatures)
+		{
+			// Invalid creature ID (missing mod creature or random placeholder) cannot be granted
+			if (!crea.getCreature())
+				continue;
 			creatures.addToSlot(creatures.getFreeSlot(), std::make_unique<CStackInstance>(cb, crea.getId(), crea.getCount()));
+		}
 
-		auto * army = dynamic_cast<const CArmedInstance*>(this);
-		if (army)
-			gameEvents.giveCreatures(army, hero, creatures, false);
-		else
-			gameEvents.giveCreatures(hero, creatures);
+		if (creatures.stacksCount() != 0)
+		{
+			auto * army = dynamic_cast<const CArmedInstance*>(this);
+			if (army)
+				gameEvents.giveCreatures(army, hero, creatures, false);
+			else
+				gameEvents.giveCreatures(hero, creatures);
+		}
 	}
 	
 	if(info.reward.spellCast.first != SpellID::NONE)

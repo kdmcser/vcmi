@@ -1832,6 +1832,11 @@ void CMapLoaderH3M::readBoxContent(CGPandoraBox * object, const int3 & mapPositi
 		auto rId = reader->readCreature();
 		auto rVal = reader->readUInt16();
 
+		// Creature can be missing (e.g. map requires a mod that is not installed) or be a random placeholder.
+		// Skip such entries - granting them would dereference a null creature pointer at runtime.
+		if(rId.getNum() < 0)
+			continue;
+
 		reward.creatures.emplace_back(rId, rVal);
 	}
 
@@ -3415,14 +3420,17 @@ EQuestMission CMapLoaderH3M::readQuest(IQuestObject * guard, const int3 & positi
 			{
 				ArtifactID requiredArtifact = reader->readArtifact();
 
+				SpellID scrollSpell = SpellID::NONE;
 				if (features.levelHOTA5)
-				{
-					SpellID scrollSpell = reader->readSpell16();
-					if (requiredArtifact == ArtifactID::SPELL_SCROLL)
-						guard->getQuest().mission.scrolls.push_back(scrollSpell);
-					else
-						guard->getQuest().mission.artifacts.push_back(requiredArtifact);
-				}
+					scrollSpell = reader->readSpell16();
+
+				// Artifact can be missing (e.g. map requires a mod that is not installed).
+				// Skip it instead of dereferencing an invalid id later, when quest texts are built.
+				if(requiredArtifact == ArtifactID::NONE)
+					continue;
+
+				if (features.levelHOTA5 && requiredArtifact == ArtifactID::SPELL_SCROLL)
+					guard->getQuest().mission.scrolls.push_back(scrollSpell);
 				else
 					guard->getQuest().mission.artifacts.push_back(requiredArtifact);
 
@@ -3433,11 +3441,20 @@ EQuestMission CMapLoaderH3M::readQuest(IQuestObject * guard, const int3 & positi
 		case EQuestMission::ARMY:
 		{
 			size_t typeNumber = reader->readUInt8();
-			guard->getQuest().mission.creatures.resize(typeNumber);
+			auto & creatures = guard->getQuest().mission.creatures;
+			creatures.clear();
+			creatures.reserve(typeNumber);
 			for(size_t hh = 0; hh < typeNumber; ++hh)
 			{
-				guard->getQuest().mission.creatures[hh].setType(reader->readCreature().toCreature());
-				guard->getQuest().mission.creatures[hh].setCount(reader->readUInt16());
+				CreatureID creatureID = reader->readCreature();
+				auto count = reader->readUInt16();
+
+				// Creature can be missing (e.g. map requires a mod that is not installed) or be a random placeholder.
+				// Skip such entries instead of querying the creature handler with an invalid id and failing the whole map load.
+				if(creatureID.getNum() < 0)
+					continue;
+
+				creatures.emplace_back(creatureID, count);
 			}
 			break;
 		}
