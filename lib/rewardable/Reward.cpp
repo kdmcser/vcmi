@@ -178,7 +178,13 @@ void Rewardable::Reward::loadComponents(std::vector<Component> & comps, const CG
 	}
 
 	for(const auto & entry : creatures)
+	{
+		// Creature can be missing (e.g. map requires a mod that is not installed). Skip such entries
+		// instead of sending invalid creature ID to client, which would fail to load its icon.
+		if (!entry.getCreature())
+			continue;
 		comps.emplace_back(ComponentType::CREATURE, entry.getId(), entry.getCount());
+	}
 
 	for(const auto & [resource, amount] : resources.nonZeroEntries())
 		comps.emplace_back(ComponentType::RESOURCE, resource, amount);

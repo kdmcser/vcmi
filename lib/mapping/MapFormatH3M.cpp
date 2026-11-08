@@ -1192,6 +1192,11 @@ void CMapLoaderH3M::readBoxContent(CGPandoraBox * object, const int3 & mapPositi
 		auto rId = reader->readCreature("reward at " + mapPosition.toString());
 		auto rVal = reader->readUInt16();
 
+		// Creature can be missing (e.g. map requires a mod that is not installed) or be a random placeholder.
+		// Skip such entries - granting them would dereference a null creature pointer at runtime.
+		if(rId.getNum() < 0)
+			continue;
+
 		reward.creatures.emplace_back(rId, rVal);
 	}
 

@@ -248,17 +248,25 @@ bool Rewardable::Interface::grantRewardAfterLevelup(IGameEventCallback & gameEve
 	{
 		CCreatureSet creatures;
 		for(const auto & crea : info.reward.creatures)
-			creatures.addToSlot(creatures.getFreeSlot(), std::make_unique<CStackInstance>(cb, crea.getId(), crea.getCount()));
-
-		auto * army = dynamic_cast<const CArmedInstance*>(this);
-		if (army)
 		{
-			// Same check that decides between a silent merge and a garrison window on joining
-			openedGarrison = !hero->canBeMergedWith(creatures, true);
-			gameEvents.giveCreatures(army, hero, creatures, false);
+			// Invalid creature ID (missing mod creature or random placeholder) cannot be granted
+			if (!crea.getCreature())
+				continue;
+			creatures.addToSlot(creatures.getFreeSlot(), std::make_unique<CStackInstance>(cb, crea.getId(), crea.getCount()));
 		}
-		else
-			gameEvents.giveCreatures(hero, creatures);
+
+		if (creatures.stacksCount() != 0)
+		{
+			auto * army = dynamic_cast<const CArmedInstance*>(this);
+			if (army)
+			{
+				// Same check that decides between a silent merge and a garrison window on joining
+				openedGarrison = !hero->canBeMergedWith(creatures, true);
+				gameEvents.giveCreatures(army, hero, creatures, false);
+			}
+			else
+				gameEvents.giveCreatures(hero, creatures);
+		}
 	}
 	
 	if(info.reward.spellCast.first != SpellID::NONE)
