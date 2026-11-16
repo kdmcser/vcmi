@@ -25,6 +25,30 @@
 VCMI_LIB_NAMESPACE_BEGIN
 
 template<typename IdentifierID>
+int32_t MapIdentifiersH3M::maxMappedId(const std::map<IdentifierID, IdentifierID> & mapping)
+{
+	if (mapping.empty())
+		return -1;
+	// std::map is ordered by key, so the last entry is the highest H3M numeric id
+	return mapping.rbegin()->first.getNum();
+}
+
+int32_t MapIdentifiersH3M::maxMappedCreatureId() const
+{
+	return maxMappedId(mappingCreature);
+}
+
+int32_t MapIdentifiersH3M::maxMappedArtifactId() const
+{
+	return maxMappedId(mappingArtifact);
+}
+
+int32_t MapIdentifiersH3M::maxMappedHeroPortraitId() const
+{
+	return maxMappedId(mappingHeroPortrait);
+}
+
+template<typename IdentifierID>
 void MapIdentifiersH3M::loadMapping(std::map<IdentifierID, IdentifierID> & result, const JsonNode & mapping, const std::string & identifierName)
 {
 	for (auto entry : mapping.Struct())

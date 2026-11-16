@@ -54,8 +54,19 @@ class DLL_LINKAGE MapIdentifiersH3M
 
 	template<typename IdentifierID>
 	void loadMapping(std::map<IdentifierID, IdentifierID> & result, const JsonNode & mapping, const std::string & identifierName);
+
+	/// highest H3M numeric id that this format's mapping tables actually contain
+	template<typename IdentifierID>
+	static int32_t maxMappedId(const std::map<IdentifierID, IdentifierID> & mapping);
 public:
 	void loadMapping(const JsonNode & mapping);
+
+	/// highest H3M numeric id reachable through this format's mapping tables, or -1 when the
+	/// format maps nothing of that kind. Used by MapReaderH3M to widen the remap gate so that
+	/// modded map formats (ERA, ...) can address creature / artifact ids beyond the vanilla count.
+	int32_t maxMappedCreatureId() const;
+	int32_t maxMappedArtifactId() const;
+	int32_t maxMappedHeroPortraitId() const;
 
 	void remapTemplate(ObjectTemplate & objectTemplate);
 

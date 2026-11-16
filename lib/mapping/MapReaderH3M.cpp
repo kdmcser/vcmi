@@ -74,7 +74,7 @@ ArtifactID MapReaderH3M::readArtifact()
 	if(result.getNum() == features.artifactIdentifierInvalid)
 		return ArtifactID::NONE;
 
-	if (result.getNum() < features.artifactsCount)
+	if (result.getNum() < std::max(features.artifactsCount, remapper.maxMappedArtifactId() + 1))
 		return remapIdentifier(result);
 
 	logGlobal->warn("Map contains invalid artifact %d. Will be removed!", result.getNum());
@@ -88,7 +88,7 @@ ArtifactID MapReaderH3M::readArtifact8()
 	if(result.getNum() == 0xff)
 		return ArtifactID::NONE;
 
-	if (result.getNum() < features.artifactsCount)
+	if (result.getNum() < std::max(features.artifactsCount, remapper.maxMappedArtifactId() + 1))
 		return remapIdentifier(result);
 
 	logGlobal->warn("Map contains invalid artifact %d. Will be removed!", result.getNum());
@@ -102,7 +102,7 @@ ArtifactID MapReaderH3M::readArtifact32()
 	if(result == ArtifactID::NONE)
 		return ArtifactID::NONE;
 
-	if (result.getNum() < features.artifactsCount)
+	if (result.getNum() < std::max(features.artifactsCount, remapper.maxMappedArtifactId() + 1))
 		return remapIdentifier(result);
 
 	logGlobal->warn("Map contains invalid artifact %d. Will be removed!", result.getNum());
@@ -135,7 +135,7 @@ HeroTypeID MapReaderH3M::readHeroPortrait()
 	if(result.getNum() == features.heroIdentifierInvalid)
 		return HeroTypeID::NONE;
 
-	if (result.getNum() >= features.heroesPortraitsCount)
+	if (result.getNum() >= std::max(features.heroesPortraitsCount, remapper.maxMappedHeroPortraitId() + 1))
 	{
 		logGlobal->warn("Map contains invalid hero portrait ID %d. Will be reset!", result.getNum() );
 		return HeroTypeID::NONE;
@@ -151,7 +151,7 @@ CreatureID MapReaderH3M::readCreature32()
 	if(result.getNum() == features.creatureIdentifierInvalid)
 		return CreatureID::NONE;
 
-	if(result.getNum() < features.creaturesCount)
+	if(result.getNum() < std::max(features.creaturesCount, remapper.maxMappedCreatureId() + 1))
 		return remapIdentifier(result);
 
 	// this may be random creature in army/town, to be randomized later
@@ -177,7 +177,7 @@ CreatureID MapReaderH3M::readCreature()
 	if(result.getNum() == features.creatureIdentifierInvalid)
 		return CreatureID::NONE;
 
-	if(result.getNum() < features.creaturesCount)
+	if(result.getNum() < std::max(features.creaturesCount, remapper.maxMappedCreatureId() + 1))
 		return remapIdentifier(result);
 
 	// this may be random creature in army/town, to be randomized later
