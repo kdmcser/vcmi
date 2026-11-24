@@ -504,7 +504,7 @@ bool BattleActionProcessor::doUnitSpellAction(const CBattleInfoCallback & battle
 		return false;
 	}
 
-	if (randSpellcaster)
+	if (randSpellcaster && !spellcaster)
 	{
 		if (target.size() != 1)
 		{
