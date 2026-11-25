@@ -883,7 +883,9 @@ void CMapLoaderH3M::readHotaScriptActions()
 				{
 					int32_t imageType = reader->readInt32(); // e.g. Creatures
 					int32_t imageSubtype = reader->readInt32(); // e.g. Archers
-					readHotaScriptExpression(); // e.g. 10 Archers
+					// image value is a plain [bool isVariable][int32 value] pair, not an expression node
+					reader->readBool();
+					reader->readInt32();
 					logGlobal->warn("Map %s: HotA Script action - SHOW_MESSAGE: type %d/%d", mapName, imageType, imageSubtype);
 				}
 				logGlobal->warn("Map %s: HotA Script action - SHOW_MESSAGE: message %s, %d images", mapName, textID, numberOfImages);
@@ -946,7 +948,9 @@ void CMapLoaderH3M::readHotaScriptActions()
 				{
 					int32_t imageType = reader->readInt32(); // e.g. Creatures
 					int32_t imageSubtype = reader->readInt32(); // e.g. Archers
-					readHotaScriptExpression(); // e.g. 10 Archers
+					// image value is a plain [bool isVariable][int32 value] pair, not an expression node
+					reader->readBool();
+					reader->readInt32();
 					logGlobal->warn("Map %s: HotA Script action - SET_QUEST_HINT: type %d/%d", mapName, imageType, imageSubtype);
 				}
 				bool showInLog = reader->readBool();
@@ -976,7 +980,9 @@ void CMapLoaderH3M::readHotaScriptActions()
 				{
 					int32_t imageType = reader->readInt32(); // e.g. Creatures
 					int32_t imageSubtype = reader->readInt32(); // e.g. Archers
-					readHotaScriptExpression(); // e.g. 10 Archers
+					// image value is a plain [bool isVariable][int32 value] pair, not an expression node
+					reader->readBool();
+					reader->readInt32();
 					logGlobal->warn("Map %s: HotA Script action - SHOW_QUESTION: type %d/%d", mapName, imageType, imageSubtype);
 				}
 
